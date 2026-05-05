@@ -5,17 +5,12 @@ const amplifyConfig = {
     Cognito: {
       userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID,
       userPoolClientId: import.meta.env.VITE_COGNITO_CLIENT_ID,
+      region: import.meta.env.VITE_AWS_REGION,
       loginWith: {
         email: true,
       },
-      userAttributes: {
-        email: {
-          required: true,
-        },
-      },
     },
   },
-  aws_project_region: import.meta.env.VITE_AWS_REGION,
 };
 
 Amplify.configure(amplifyConfig);

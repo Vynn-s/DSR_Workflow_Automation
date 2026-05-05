@@ -1,25 +1,38 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 import { LogIn, Church, Shield, Calendar, Users } from "lucide-react";
+import { useAuth, UserRole } from "../../context/AuthContext";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Mock login - navigate based on mock user role
-    // In a real system, this would authenticate and determine role from backend
-    if (email.includes("requester")) {
-      navigate("/requester");
-    } else if (email.includes("approver")) {
-      navigate("/approver");
-    } else if (email.includes("admin")) {
-      navigate("/admin");
-    } else {
-      // Default to requester for demo
-      navigate("/requester");
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const role = await login(email, password);
+
+      if (role === UserRole.REQUESTER) {
+        navigate("/requester");
+      } else if (role === UserRole.PARISH_SECRETARY || role === UserRole.PARISH_PRIEST) {
+        navigate("/approver");
+      } else if (role === UserRole.ADMIN) {
+        navigate("/admin");
+      } else {
+        navigate("/");
+      }
+    } catch (loginError) {
+      const message = loginError instanceof Error ? loginError.message : "Unable to sign in";
+      setError(message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -211,26 +224,20 @@ export function LoginPage() {
 
                 <button
                   type="submit"
+                  disabled={isLoading}
                   className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3.5 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-900/25 hover:shadow-xl hover:shadow-blue-900/30 flex items-center justify-center gap-2 font-medium"
                 >
                   <LogIn className="w-5 h-5" />
-                  Sign In to Account
+                  {isLoading ? "Signing in..." : "Sign In to Account"}
                 </button>
               </form>
 
-              {/* Demo Instructions */}
-              <div className="mt-8 pt-6 border-t border-slate-200">
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                  <p className="text-xs text-blue-800 font-medium mb-2">
-                    Demo Access Instructions
-                  </p>
-                  <p className="text-xs text-blue-700 leading-relaxed">
-                    Use an email containing <span className="font-mono bg-white px-1.5 py-0.5 rounded">requester</span>,{" "}
-                    <span className="font-mono bg-white px-1.5 py-0.5 rounded">approver</span>, or{" "}
-                    <span className="font-mono bg-white px-1.5 py-0.5 rounded">admin</span> to access different roles
-                  </p>
-                </div>
-              </div>
+              {error ? (
+                <p className="mt-6 text-sm text-red-600" role="alert">
+                  {error}
+                </p>
+              ) : null}
+
             </div>
           </div>
 

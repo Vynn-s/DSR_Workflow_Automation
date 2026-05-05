@@ -7,6 +7,7 @@ import { ApproverDashboard } from "./pages/ApproverDashboard";
 import { AdminDashboard } from "./pages/AdminDashboard";
 import { AuditLogPage } from "./pages/AuditLogPage";
 import { Layout } from "./components/Layout";
+import { ProtectedRoute } from "../components/ProtectedRoute";
 
 export const router = createBrowserRouter([
   {
@@ -15,8 +16,11 @@ export const router = createBrowserRouter([
   },
   {
     path: "/requester",
-    element: <Layout role="requester" />,
+    element: <ProtectedRoute allowedRoles={["REQUESTER"]} />,
     children: [
+      {
+        element: <Layout role="requester" />,
+        children: [
       {
         index: true,
         element: <RequesterDashboard />,
@@ -29,12 +33,17 @@ export const router = createBrowserRouter([
         path: "availability",
         element: <VenueAvailability />,
       },
+        ],
+      },
     ],
   },
   {
     path: "/approver",
-    element: <Layout role="approver" />,
+    element: <ProtectedRoute allowedRoles={["PARISH_SECRETARY", "PARISH_PRIEST"]} />,
     children: [
+      {
+        element: <Layout role="approver" />,
+        children: [
       {
         index: true,
         element: <ApproverDashboard />,
@@ -43,12 +52,17 @@ export const router = createBrowserRouter([
         path: "availability",
         element: <VenueAvailability />,
       },
+        ],
+      },
     ],
   },
   {
     path: "/admin",
-    element: <Layout role="admin" />,
+    element: <ProtectedRoute allowedRoles={["PARISH_PRIEST", "ADMIN"]} />,
     children: [
+      {
+        element: <Layout role="admin" />,
+        children: [
       {
         index: true,
         element: <AdminDashboard />,
@@ -60,6 +74,8 @@ export const router = createBrowserRouter([
       {
         path: "availability",
         element: <VenueAvailability />,
+      },
+        ],
       },
     ],
   },

@@ -35,5 +35,3 @@ export function errorHandler(
 }
 
 export default errorHandler;
-
-export default errorHandler;

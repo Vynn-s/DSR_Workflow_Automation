@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { Plus, Clock, CheckCircle2, XCircle, Eye, X, FileEdit, Bell } from "lucide-react";
+import api from "../../lib/api";
 
 interface Request {
   id: string;
@@ -18,77 +19,124 @@ interface Request {
   approverRemarks?: string;
 }
 
-// Mock data for demonstration
-const mockRequests: Request[] = [
-  {
-    id: "REQ-001",
-    venue: "Main Chapel",
-    date: "2026-02-15",
-    time: "10:00 AM - 12:00 PM",
-    purpose: "Wedding Ceremony",
-    status: "Approved",
-    submittedDate: "2026-01-28",
-    timeline: {
-      submitted: "2026-01-28 09:15 AM",
-      underReview: "2026-01-28 10:30 AM",
-      completed: "2026-01-29 02:20 PM"
-    },
-    approverRemarks: "All requirements met. Approved for the requested date."
-  },
-  {
-    id: "REQ-002",
-    venue: "Parish Hall",
-    date: "2026-02-20",
-    time: "2:00 PM - 5:00 PM",
-    purpose: "Youth Ministry Meeting",
-    status: "Under Review",
-    submittedDate: "2026-02-01",
-    timeline: {
-      submitted: "2026-02-01 11:20 AM",
-      underReview: "2026-02-01 02:45 PM"
-    }
-  },
-  {
-    id: "REQ-003",
-    venue: "Multipurpose Room",
-    date: "2026-01-30",
-    time: "6:00 PM - 8:00 PM",
-    purpose: "Bible Study Group",
-    status: "Rejected",
-    submittedDate: "2026-01-25",
-    timeline: {
-      submitted: "2026-01-25 03:10 PM",
-      underReview: "2026-01-25 04:00 PM",
-      completed: "2026-01-26 09:15 AM"
-    },
-    approverRemarks: "Venue already booked for another event during this time slot."
-  },
-  {
-    id: "REQ-004",
-    venue: "Chapel Garden",
-    date: "2026-03-05",
-    time: "3:00 PM - 6:00 PM",
-    purpose: "Baptism Reception",
-    status: "Pending",
-    submittedDate: "2026-02-02",
-    timeline: {
-      submitted: "2026-02-02 10:15 AM"
-    }
-  },
-  {
-    id: "DRAFT-001",
-    venue: "Conference Room",
-    date: "2026-03-15",
-    time: "10:00 AM - 12:00 PM",
-    purpose: "Ministry Planning Session",
-    status: "Draft",
-    submittedDate: "2026-02-03"
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatTimeRange(startDateTime: string, endDateTime: string) {
+  const start = new Date(startDateTime);
+  const end = new Date(endDateTime);
+  return `${start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} - ${end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+}
+
+function mapStatus(status: string): Request["status"] {
+  switch (status) {
+    case "APPROVED":
+      return "Approved";
+    case "REJECTED":
+      return "Rejected";
+    case "SECRETARY_REVIEW":
+    case "PRIEST_REVIEW":
+      return "Under Review";
+    case "REVISION_REQUESTED":
+      return "Pending";
+    case "PENDING":
+    default:
+      return "Pending";
   }
-];
+}
+
+type ApiRequest = {
+  id: string;
+  venue: {
+    id: string;
+    name: string;
+  };
+  eventName: string;
+  purpose: string;
+  status: string;
+  startDateTime: string;
+  endDateTime: string;
+  createdAt: string;
+  updatedAt: string;
+  approvalActions?: Array<{
+    remarks?: string | null;
+    createdAt: string;
+  }>;
+};
 
 export function RequesterDashboard() {
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [requests, setRequests] = useState<Request[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadRequests() {
+      try {
+        setIsLoading(true);
+        setLoadError(null);
+
+        const response = await api.get<{ requests: ApiRequest[] }>("/requests");
+          const liveRequests = (response.requests ?? []).map((request) => {
+          const status = mapStatus(request.status);
+          const submittedDate = formatDateTime(request.createdAt);
+          const submitted = formatDateTime(request.createdAt);
+          const underReview = request.status === "SECRETARY_REVIEW" || request.status === "PRIEST_REVIEW"
+            ? formatDateTime(request.updatedAt)
+            : undefined;
+          const completed = request.status === "APPROVED" || request.status === "REJECTED"
+            ? formatDateTime(request.updatedAt)
+            : undefined;
+
+          return {
+            id: request.id,
+            venue: request.venue.name,
+            date: formatDateTime(request.startDateTime).split(",")[0],
+            time: formatTimeRange(request.startDateTime, request.endDateTime),
+            purpose: request.purpose || request.eventName,
+            status,
+            submittedDate,
+            timeline: {
+              submitted,
+              underReview,
+              completed,
+            },
+            approverRemarks: [...(request.approvalActions ?? [])].reverse().find((action) => Boolean(action.remarks))?.remarks ?? undefined,
+          } satisfies Request;
+        });
+
+        if (isMounted) {
+          setRequests(liveRequests);
+        }
+      } catch (error) {
+        console.error("Failed to load requests:", error);
+        if (isMounted) {
+          setRequests([]);
+          setLoadError("Unable to load your submitted requests right now.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadRequests();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Mock notifications
   const notifications = [
@@ -150,7 +198,7 @@ export function RequesterDashboard() {
     }
   };
 
-  const hasRequests = mockRequests.length > 0;
+  const hasRequests = requests.length > 0;
 
   return (
     <div>
@@ -223,8 +271,17 @@ export function RequesterDashboard() {
         </Link>
       </div>
 
-      {/* Empty State */}
-      {!hasRequests ? (
+      {/* Requests */}
+      {isLoading ? (
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10 p-10 text-center text-slate-600">
+          Loading your submitted requests...
+        </div>
+      ) : loadError ? (
+        <div className="bg-white border border-rose-200 rounded-2xl shadow-xl shadow-slate-900/10 p-10 text-center">
+          <p className="font-semibold text-rose-700">{loadError}</p>
+          <p className="text-sm text-slate-500 mt-2">If you just submitted a request, refresh after a few seconds.</p>
+        </div>
+      ) : !hasRequests ? (
         <div className="bg-white border-2 border-dashed border-slate-300 rounded-2xl shadow-xl shadow-slate-900/10 p-16 text-center">
           <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-blue-100 via-indigo-100 to-blue-100 rounded-full mb-6 shadow-lg shadow-blue-900/10">
             <FileEdit className="w-12 h-12 text-blue-600" />
@@ -279,7 +336,7 @@ export function RequesterDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {mockRequests.map((request) => (
+                {requests.map((request) => (
                   <tr key={request.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-5 text-sm font-semibold text-slate-900">
                       {request.id}
@@ -307,23 +364,13 @@ export function RequesterDashboard() {
                       </span>
                     </td>
                     <td className="px-6 py-5 text-center">
-                      {request.status === "Draft" ? (
-                        <Link
-                          to={`/requester/edit-draft/${request.id}`}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-all"
-                        >
-                          <FileEdit className="w-4 h-4" />
-                          Edit Draft
-                        </Link>
-                      ) : (
-                        <button
-                          onClick={() => setSelectedRequest(request)}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-all"
-                        >
-                          <Eye className="w-4 h-4" />
-                          View Timeline
-                        </button>
-                      )}
+                      <button
+                        onClick={() => setSelectedRequest(request)}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-all"
+                      >
+                        <Eye className="w-4 h-4" />
+                        View Timeline
+                      </button>
                     </td>
                   </tr>
                 ))}

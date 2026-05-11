@@ -191,46 +191,56 @@ export async function createRequest(req: Request, res: Response, next: NextFunct
 }
 
 export async function getRequests(req: Request, res: Response, next: NextFunction) {
+	const client = await pool.connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);
 		}
 
-		const where: {
-			requesterId?: string;
-			status?: "PENDING" | "SECRETARY_REVIEW";
-		} = {};
+		const requestsResult = await client.query(
+			`SELECT
+				vr.id,
+				vr."requesterId",
+				vr."venueId",
+				vr."ministryId",
+				vr."eventName",
+				vr.purpose,
+				vr."startDateTime",
+				vr."endDateTime",
+				vr.attendees,
+				vr."specialRequirements",
+				vr.status,
+				vr."currentApproverId",
+				vr."createdAt",
+				vr."updatedAt",
+				v.name AS venue_name,
+				m.name AS ministry_name
+			 FROM "VenueRequest" vr
+			 INNER JOIN "Venue" v ON v.id = vr."venueId"
+			 INNER JOIN "Ministry" m ON m.id = vr."ministryId"
+			 WHERE vr."requesterId" = $1
+			 ORDER BY vr."createdAt" DESC`,
+			[req.user.id],
+		);
 
-		if (req.user.role === "REQUESTER") {
-			where.requesterId = req.user.id;
-		} else if (req.user.role === "PARISH_SECRETARY") {
-			where.status = "PENDING";
-		} else if (req.user.role === "PARISH_PRIEST") {
-			where.status = "SECRETARY_REVIEW";
-		}
-
-		const requests = await prisma.venueRequest.findMany({
-			where,
-			include: {
-				venue: true,
-				ministry: true,
-				approvalActions: {
-					include: {
-						approver: true,
-					},
-					orderBy: {
-						createdAt: "asc",
-					},
-				},
+		const requests = requestsResult.rows.map((request) => ({
+			...request,
+			venue: {
+				id: request.venueId,
+				name: request.venue_name,
 			},
-			orderBy: {
-				createdAt: "desc",
+			ministry: {
+				id: request.ministryId,
+				name: request.ministry_name,
 			},
-		});
+			approvalActions: [],
+		}));
 
 		return res.json({ requests });
 	} catch (error) {
 		return next(error);
+	} finally {
+		client.release();
 	}
 }
 

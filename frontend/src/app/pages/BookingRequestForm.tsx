@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, Send, Paperclip, Save, AlertCircle, Info, MapPin, Users, FileText, Shield, CheckCircle2, XCircle, Calendar as CalendarIcon, Clock, X, ChevronLeft, ChevronRight } from "lucide-react";
+import api from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
 import { ScrollPicker } from "../components/ScrollPicker";
 
 interface Signature {
@@ -11,6 +13,28 @@ interface Signature {
   signedDate?: string;
 }
 
+interface VenueApiMinistry {
+  ministryId: string;
+  ministry?: {
+    id: string;
+    name: string;
+  } | null;
+}
+
+interface VenueApi {
+  id: string;
+  name: string;
+  capacity: number;
+  description: string | null;
+  authorizedMinistries: VenueApiMinistry[];
+}
+
+interface DssRuleResult {
+  ruleName: string;
+  passed: boolean;
+  message: string;
+}
+
 interface VenueInfo {
   name: string;
   capacity: number;
@@ -19,128 +43,50 @@ interface VenueInfo {
   requiredSignatures: Signature[];
 }
 
-const venueInformation: Record<string, VenueInfo> = {
-  "Main Chapel": {
-    name: "Main Chapel",
-    capacity: 500,
-    description: "Primary worship space suitable for masses, weddings, and large religious ceremonies.",
+const buildVenueInfo = (venue: VenueApi): VenueInfo => {
+  const authorizedMinistryNames = venue.authorizedMinistries
+    .map((entry) => entry.ministry?.name)
+    .filter((value): value is string => Boolean(value));
+
+  return {
+    name: venue.name,
+    capacity: venue.capacity,
+    description: venue.description ?? "Venue details loaded from the backend.",
     guidelines: [
-      "Requires approval from parish priest for weddings",
-      "No food or beverages inside the chapel",
-      "Decorations must be removed immediately after event",
-      "Sound system available upon request"
+      venue.description ?? "Venue details loaded from the backend.",
+      `Capacity: ${venue.capacity} people`,
+      authorizedMinistryNames.length > 0
+        ? `Authorized ministries: ${authorizedMinistryNames.join(", ")}`
+        : "No ministry restrictions configured",
     ],
-    requiredSignatures: [
-      { role: "Parish Priest", signatory: "Father John Doe", required: true, status: "pending" }
-    ]
-  },
-  "Parish Hall": {
-    name: "Parish Hall",
-    capacity: 200,
-    description: "Multi-purpose hall perfect for receptions, meetings, and community gatherings.",
-    guidelines: [
-      "Kitchen facilities available",
-      "Tables and chairs provided (20 round tables, 200 chairs)",
-      "Event must end by 10:00 PM",
-      "Cleaning fee applies for food events"
-    ],
-    requiredSignatures: [
-      { role: "Parish Secretary", signatory: "Sister Jane Smith", required: true, status: "pending" }
-    ]
-  },
-  "Multipurpose Room": {
-    name: "Multipurpose Room",
-    capacity: 80,
-    description: "Flexible space ideal for small meetings, classes, and group activities.",
-    guidelines: [
-      "Projector and screen available",
-      "Air-conditioned space",
-      "Maximum 3-hour booking slots",
-      "Must maintain cleanliness"
-    ],
-    requiredSignatures: [
-      { role: "Facilities Manager", signatory: "Mr. Robert Brown", required: true, status: "pending" }
-    ]
-  },
-  "Chapel Garden": {
-    name: "Chapel Garden",
-    capacity: 150,
-    description: "Outdoor garden area perfect for receptions, photo sessions, and small gatherings.",
-    guidelines: [
-      "Weather-dependent venue",
-      "No loud music after 8:00 PM",
-      "Tent rental available (separate fee)",
-      "Must respect landscaping and plants"
-    ],
-    requiredSignatures: [
-      { role: "Garden Manager", signatory: "Ms. Emily White", required: true, status: "pending" }
-    ]
-  },
-  "Conference Room": {
-    name: "Conference Room",
-    capacity: 30,
-    description: "Professional meeting space equipped with modern amenities.",
-    guidelines: [
-      "Wi-Fi and video conferencing available",
-      "Whiteboard and markers provided",
-      "Coffee/tea service can be arranged",
-      "Advance booking required"
-    ],
-    requiredSignatures: [
-      { role: "Conference Room Coordinator", signatory: "Mr. David Green", required: true, status: "pending" }
-    ]
-  },
-  "Youth Center": {
-    name: "Youth Center",
-    capacity: 100,
-    description: "Dedicated space for youth activities, workshops, and recreational programs.",
-    guidelines: [
-      "Supervision required for minors",
-      "Sports equipment available",
-      "Must sign waiver for physical activities",
-      "Reserved for youth-related events"
-    ],
-    requiredSignatures: [
-      { role: "Youth Program Coordinator", signatory: "Ms. Sarah Johnson", required: true, status: "pending" }
-    ]
-  }
+    requiredSignatures: authorizedMinistryNames.length > 0
+      ? authorizedMinistryNames.map((ministryName) => ({
+          role: ministryName,
+          signatory: `${ministryName} Approval`,
+          required: true,
+          status: "pending" as const,
+        }))
+      : [
+          {
+            role: "Parish Secretary",
+            signatory: "Parish Secretary Approval",
+            required: true,
+            status: "pending" as const,
+          },
+        ],
+  };
 };
 
-// Mock function to check availability warnings
-const getAvailabilityWarnings = (venue: string, date: string, startTime: string): string[] => {
-  const warnings: string[] = [];
-  
-  if (venue === "Main Chapel" && date) {
-    const dayOfWeek = new Date(date).getDay();
-    if (dayOfWeek === 0) { // Sunday
-      warnings.push("This time slot is often in high demand for Sunday masses");
-    }
-  }
-  
-  if (venue === "Parish Hall" && startTime >= "18:00") {
-    warnings.push("Evening slots for Parish Hall are frequently requested");
-  }
-  
-  if (date) {
-    const requestDate = new Date(date);
-    const today = new Date();
-    const daysUntil = Math.floor((requestDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (daysUntil < 7) {
-      warnings.push("Short notice booking - approval may take longer");
-    }
-  }
-  
-  // Simulated conflicting booking
-  if (venue === "Conference Room" && date === "2026-02-18" && startTime === "10:00") {
-    warnings.push("Another request exists near this time (9:00 AM - 11:00 AM)");
-  }
-  
-  return warnings;
+const combineDateAndTimeToIso = (dateStr: string, timeStr: string) => {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const [hours, minutes] = timeStr.split(":").map(Number);
+  const date = new Date(year, month - 1, day, hours, minutes, 0, 0);
+  return date.toISOString();
 };
 
 export function BookingRequestForm() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     venue: "",
     date: "",
@@ -149,9 +95,15 @@ export function BookingRequestForm() {
     purpose: "",
   });
   const [attachment, setAttachment] = useState<File | null>(null);
+  const [venues, setVenues] = useState<VenueApi[]>([]);
+  const [isLoadingVenues, setIsLoadingVenues] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [selectedVenueInfo, setSelectedVenueInfo] = useState<VenueInfo | null>(null);
-  const [warnings, setWarnings] = useState<string[]>([]);
   const [signatures, setSignatures] = useState<Signature[]>([]);
+  const [dssResults, setDssResults] = useState<DssRuleResult[]>([]);
+  const [dssChecking, setDssChecking] = useState(false);
+  const [canProceed, setCanProceed] = useState(false);
 
   // Calendar modal state
   const [showCalendar, setShowCalendar] = useState(false);
@@ -165,6 +117,107 @@ export function BookingRequestForm() {
   const [endTimeValues, setEndTimeValues] = useState({ hour: 5, minute: 0, period: 'PM' });
   const startTimeButtonRef = useRef<HTMLButtonElement>(null);
   const endTimeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadVenues = async () => {
+      setIsLoadingVenues(true);
+
+      try {
+        const data = await api.get<{ venues: VenueApi[] }>("/venues");
+        if (isMounted) {
+          setVenues(data.venues ?? []);
+        }
+      } catch {
+        if (isMounted) {
+          setVenues([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingVenues(false);
+        }
+      }
+    };
+
+    void loadVenues();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const selectedVenue = venues.find((venue) => venue.id === formData.venue);
+
+    if (!selectedVenue) {
+      setSelectedVenueInfo(null);
+      setSignatures([]);
+      return;
+    }
+
+    const venueInfo = buildVenueInfo(selectedVenue);
+    setSelectedVenueInfo(venueInfo);
+    setSignatures(venueInfo.requiredSignatures.map((signature) => ({ ...signature })));
+  }, [formData.venue, venues]);
+
+  useEffect(() => {
+    const { venue, date, startTime, endTime } = formData;
+
+    if (!(venue && date && startTime && endTime)) {
+      setDssResults([]);
+      setCanProceed(false);
+      return;
+    }
+
+    const selectedVenue = venues.find((item) => item.id === venue);
+    if (!selectedVenue) {
+      setDssResults([]);
+      setCanProceed(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    const evaluateAvailability = async () => {
+      setDssChecking(true);
+
+      try {
+        const decision = await api.post<{
+          allPassed: boolean;
+          results: DssRuleResult[];
+          recommendation: string;
+          canProceed: boolean;
+        }>("/dss/evaluate", {
+          venueId: venue,
+          requestDate: date,
+          startTime,
+          endTime,
+          attendees: 1,
+        });
+
+        if (isMounted) {
+          setDssResults(decision.results ?? []);
+          setCanProceed(Boolean(decision.canProceed));
+        }
+      } catch {
+        if (isMounted) {
+          setDssResults([]);
+          setCanProceed(false);
+        }
+      } finally {
+        if (isMounted) {
+          setDssChecking(false);
+        }
+      }
+    };
+
+    void evaluateAvailability();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [formData.venue, formData.date, formData.startTime, formData.endTime, user?.ministryId, venues]);
 
   // Calendar helper functions
   const getDaysInMonth = (date: Date) => {
@@ -183,14 +236,8 @@ export function BookingRequestForm() {
     const year = calendarDate.getFullYear();
     const month = calendarDate.getMonth() + 1;
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    setFormData(prev => ({ ...prev, date: dateStr }));
+    setFormData((prev) => ({ ...prev, date: dateStr }));
     setShowCalendar(false);
-
-    // Update warnings
-    if (formData.venue) {
-      const newWarnings = getAvailabilityWarnings(formData.venue, dateStr, formData.startTime);
-      setWarnings(newWarnings);
-    }
   };
 
   const previousMonth = () => {
@@ -213,14 +260,8 @@ export function BookingRequestForm() {
   const applyStartTime = () => {
     const hour24 = convertTo24Hour(startTimeValues.hour, startTimeValues.period);
     const timeStr = `${String(hour24).padStart(2, '0')}:${String(startTimeValues.minute).padStart(2, '0')}`;
-    setFormData(prev => ({ ...prev, startTime: timeStr }));
+    setFormData((prev) => ({ ...prev, startTime: timeStr }));
     setShowStartTimePicker(false);
-
-    // Update warnings
-    if (formData.venue) {
-      const newWarnings = getAvailabilityWarnings(formData.venue, formData.date, timeStr);
-      setWarnings(newWarnings);
-    }
   };
 
   const applyEndTime = () => {
@@ -250,29 +291,56 @@ export function BookingRequestForm() {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent, isDraft: boolean = false) => {
+  const handleSubmit = async (e: React.FormEvent, isDraft: boolean = false) => {
     e.preventDefault();
     
     if (isDraft) {
       alert("Request saved as draft!");
       navigate("/requester");
-    } else {
-      if (!formData.venue || !formData.date || !formData.startTime || !formData.endTime || !formData.purpose) {
-        alert("Please fill in all required fields");
-        return;
-      }
-      
-      // Check if all required signatures are collected
-      const missingSignatures = signatures.filter(sig => sig.required && sig.status === "pending");
-      if (missingSignatures.length > 0) {
-        const confirm = window.confirm(
-          `You have ${missingSignatures.length} required signature(s) pending. You can still submit, but approval may be delayed. Continue?`
-        );
-        if (!confirm) return;
-      }
-      
-      alert("Booking request submitted successfully!");
-      navigate("/requester");
+      return;
+    }
+
+    if (!formData.venue || !formData.date || !formData.startTime || !formData.endTime || !formData.purpose) {
+      setSubmitError("Please fill in all required fields");
+      return;
+    }
+
+    const selectedVenue = venues.find((venue) => venue.id === formData.venue);
+    if (!selectedVenue) {
+      setSubmitError("Please select a valid venue");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      await api.post("/requests", {
+        venueId: selectedVenue.id,
+        eventName: formData.purpose,
+        purpose: formData.purpose,
+        startDateTime: combineDateAndTimeToIso(formData.date, formData.startTime),
+        endDateTime: combineDateAndTimeToIso(formData.date, formData.endTime),
+        attendees: 1,
+        specialRequirements: "",
+      });
+
+      navigate("/requester", {
+        state: {
+          message: "Booking request submitted successfully!",
+        },
+      });
+    } catch (error) {
+      const message =
+        error && typeof error === "object" && "response" in error
+          ? ((error as { response?: { data?: { error?: { message?: string }; message?: string } } }).response?.data?.error?.message ??
+            (error as { response?: { data?: { error?: { message?: string }; message?: string } } }).response?.data?.message)
+          : error instanceof Error
+            ? error.message
+            : "Unable to submit booking request";
+      setSubmitError(message || "Unable to submit booking request");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -283,28 +351,6 @@ export function BookingRequestForm() {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    
-    // Update venue info when venue is selected
-    if (name === "venue" && value) {
-      const venueInfo = venueInformation[value] || null;
-      setSelectedVenueInfo(venueInfo);
-      // Initialize signatures for the selected venue
-      if (venueInfo) {
-        setSignatures(venueInfo.requiredSignatures.map(sig => ({ ...sig })));
-      } else {
-        setSignatures([]);
-      }
-    }
-    
-    // Update warnings when relevant fields change
-    if ((name === "venue" || name === "date" || name === "startTime") && formData.venue) {
-      const newWarnings = getAvailabilityWarnings(
-        name === "venue" ? value : formData.venue,
-        name === "date" ? value : formData.date,
-        name === "startTime" ? value : formData.startTime
-      );
-      setWarnings(newWarnings);
-    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -376,12 +422,17 @@ export function BookingRequestForm() {
                   required
                 >
                   <option value="">Select a venue</option>
-                  <option value="Main Chapel">Main Chapel</option>
-                  <option value="Parish Hall">Parish Hall</option>
-                  <option value="Multipurpose Room">Multipurpose Room</option>
-                  <option value="Chapel Garden">Chapel Garden</option>
-                  <option value="Conference Room">Conference Room</option>
-                  <option value="Youth Center">Youth Center</option>
+                  {isLoadingVenues ? (
+                    <option value="" disabled>
+                      Loading venues...
+                    </option>
+                  ) : (
+                    venues.map((venue) => (
+                      <option key={venue.id} value={venue.id}>
+                        {venue.name}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 
@@ -439,8 +490,8 @@ export function BookingRequestForm() {
                 </div>
               </div>
 
-              {/* Availability Warnings */}
-              {warnings.length > 0 && (
+              {/* DSS Results */}
+              {(dssChecking || dssResults.length > 0) && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                   <div className="flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -448,16 +499,26 @@ export function BookingRequestForm() {
                       <h4 className="text-sm font-semibold text-amber-900 mb-2">
                         Availability Notices
                       </h4>
-                      <ul className="space-y-1">
-                        {warnings.map((warning, index) => (
-                          <li key={index} className="text-sm text-amber-800 flex items-start gap-2">
-                            <span className="mt-1.5 w-1 h-1 bg-amber-600 rounded-full flex-shrink-0"></span>
-                            <span>{warning}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      {dssChecking ? (
+                        <p className="text-sm text-amber-800">Checking availability and workflow rules...</p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {dssResults.map((result, index) => (
+                            <li key={`${result.ruleName}-${index}`} className="text-sm flex items-start gap-2">
+                              {result.passed ? (
+                                <CheckCircle2 className="mt-0.5 w-4 h-4 text-emerald-600 flex-shrink-0" />
+                              ) : (
+                                <XCircle className="mt-0.5 w-4 h-4 text-rose-600 flex-shrink-0" />
+                              )}
+                              <span className={result.passed ? "text-emerald-800" : "text-rose-800"}>
+                                {result.message}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                       <p className="text-xs text-amber-700 mt-3">
-                        These are informational notices only and will not prevent submission.
+                        These DSS results determine whether the request can be submitted.
                       </p>
                     </div>
                   </div>
@@ -585,10 +646,11 @@ export function BookingRequestForm() {
                     {/* Signature Summary */}
                     <div className="mt-4 pt-4 border-t border-slate-300 flex items-center justify-between text-sm">
                       <span className="text-slate-700">
-                        Signatures Collected:
-                      </span>
-                      <span className="font-semibold text-slate-900">
-                        {signatures.filter(s => s.status === "signed").length} / {signatures.length}
+                        {submitError ? (
+                          <p className="text-sm text-red-600" role="alert">
+                            {submitError}
+                          </p>
+                        ) : null}
                       </span>
                     </div>
                   </div>
@@ -599,10 +661,11 @@ export function BookingRequestForm() {
               <div className="flex gap-3 pt-6 border-t border-slate-200">
                 <button
                   type="submit"
-                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-900/20"
+                  disabled={isSubmitting || !canProceed}
+                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-900/20 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <Send className="w-4 h-4" />
-                  Submit Request
+                  {isSubmitting ? "Submitting..." : "Submit Request"}
                 </button>
                 <button
                   type="button"

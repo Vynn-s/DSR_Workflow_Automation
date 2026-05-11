@@ -1,4 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
+import { randomUUID } from "crypto";
+import { Pool } from "pg";
 
 const { z } = require("zod") as typeof import("zod");
 
@@ -8,9 +10,20 @@ const {
 } = require("../dss/rulesEngine") as typeof import("../dss/rulesEngine");
 const { AppError } = require("../middleware/errorHandler") as typeof import("../middleware/errorHandler");
 
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+	throw new Error("Missing required environment variable: DATABASE_URL");
+}
+
+const pool = new Pool({
+	connectionString,
+	ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : true,
+});
+
 const createRequestSchema = z.object({
 	venueId: z.string().min(1),
-	ministryId: z.string().min(1),
+	ministryId: z.string().min(1).optional(),
 	eventName: z.string().min(1),
 	purpose: z.string().min(1),
 	startDateTime: z.coerce.date(),
@@ -30,6 +43,7 @@ function toTimeString(date: Date): string {
 }
 
 export async function createRequest(req: Request, res: Response, next: NextFunction) {
+	const client = await pool.connect();
 	try {
 		if (!req.user?.id) {
 			throw new AppError("Unauthorized", 401);
@@ -38,7 +52,11 @@ export async function createRequest(req: Request, res: Response, next: NextFunct
 		const parsed = createRequestSchema.safeParse(req.body);
 
 		if (!parsed.success) {
-			throw new AppError("Invalid request payload", 400);
+			console.error("Validation errors:", parsed.error.errors);
+			throw new AppError(
+				`Invalid request payload: ${parsed.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ")}`,
+				400,
+			);
 		}
 
 		const input = parsed.data;
@@ -47,99 +65,128 @@ export async function createRequest(req: Request, res: Response, next: NextFunct
 			throw new AppError("endDateTime must be later than startDateTime", 400);
 		}
 
-		const venue = await prisma.venue.findUnique({
-			where: {
-				id: input.venueId,
-			},
-			include: {
-				authorizedMinistries: true,
-			},
-		});
+		let ministryId = input.ministryId;
+		if (!ministryId) {
+			const ministryResult = await client.query(
+				`SELECT "ministryId" FROM "User" WHERE id = $1`,
+				[req.user.id],
+			);
+			ministryId = ministryResult.rows[0]?.ministryId;
+			if (!ministryId) {
+				throw new AppError("User ministry not found. Please contact an administrator.", 400);
+			}
+		}
 
-		if (!venue) {
+		const venueResult = await client.query(
+			`SELECT id, capacity FROM "Venue" WHERE id = $1`,
+			[input.venueId],
+		);
+
+		if (venueResult.rows.length === 0) {
 			throw new AppError("Venue not found", 404);
 		}
 
-		const conflicts = await prisma.venueRequest.findMany({
-			where: {
-				venueId: input.venueId,
-				status: { not: "REJECTED" },
-				startDateTime: { lt: input.endDateTime },
-				endDateTime: { gt: input.startDateTime },
-			},
-			select: {
-				id: true,
-			},
-		});
+		const venue = venueResult.rows[0] as { id: string; capacity: number };
+
+		const authorizedMinistriesResult = await client.query(
+			`SELECT "ministryId" FROM "VenueMinistry" WHERE "venueId" = $1`,
+			[input.venueId],
+		);
+
+		const conflictsResult = await client.query(
+			`SELECT id FROM "VenueRequest"
+			 WHERE "venueId" = $1
+			 AND status <> 'REJECTED'
+			 AND "startDateTime" < $2
+			 AND "endDateTime" > $3`,
+			[input.venueId, input.endDateTime, input.startDateTime],
+		);
 
 		const dssDecision = runDssEvaluation(
 			{
 				venueId: input.venueId,
-				ministryId: input.ministryId,
+				ministryId: ministryId,
 				requestDate: input.startDateTime,
 				startTime: toTimeString(input.startDateTime),
 				endTime: toTimeString(input.endDateTime),
 				attendees: input.attendees,
 			},
 			venue.capacity,
-			venue.authorizedMinistries.map((entry) => entry.ministryId),
-			conflicts.length > 0,
+			authorizedMinistriesResult.rows.map((entry: { ministryId: string }) => entry.ministryId),
+			conflictsResult.rows.length > 0,
 		);
 
 		if (!dssDecision.canProceed) {
 			throw new AppError(`DSS evaluation failed: ${dssDecision.recommendation}`, 400);
 		}
 
-		const secretary = await prisma.user.findFirst({
-			where: {
-				role: "PARISH_SECRETARY",
-			},
-			select: {
-				id: true,
-			},
-		});
+		const secretaryResult = await client.query(
+			`SELECT id FROM "User" WHERE role = 'PARISH_SECRETARY' ORDER BY "createdAt" ASC LIMIT 1`,
+		);
 
-		if (!secretary) {
+		if (secretaryResult.rows.length === 0) {
 			throw new AppError("No PARISH_SECRETARY approver configured", 500);
 		}
 
-		const createdRequest = await prisma.venueRequest.create({
-			data: {
-				requesterId: req.user.id,
-				venueId: input.venueId,
-				ministryId: input.ministryId,
-				eventName: input.eventName,
-				purpose: input.purpose,
-				startDateTime: input.startDateTime,
-				endDateTime: input.endDateTime,
-				attendees: input.attendees,
-				specialRequirements: input.specialRequirements,
-				status: "PENDING",
-				currentApproverId: secretary.id,
-			},
-			include: {
-				venue: true,
-				ministry: true,
-				approvalActions: true,
-			},
-		});
+		const secretaryId = secretaryResult.rows[0].id as string;
+		const requestId = randomUUID();
 
-		await prisma.auditLog.create({
-			data: {
-				requestId: createdRequest.id,
-				performedById: req.user.id,
-				action: "REQUEST_CREATED",
-				details: {
-					requestId: createdRequest.id,
+		await client.query(
+			`INSERT INTO "VenueRequest" (
+				id, "requesterId", "venueId", "ministryId", "eventName", purpose,
+				"startDateTime", "endDateTime", attendees, "specialRequirements",
+				status, "currentApproverId", "createdAt", "updatedAt"
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW(),NOW())`,
+			[
+				requestId,
+				req.user.id,
+				input.venueId,
+				ministryId,
+				input.eventName,
+				input.purpose,
+				input.startDateTime,
+				input.endDateTime,
+				input.attendees,
+				input.specialRequirements ?? null,
+				"PENDING",
+				secretaryId,
+			],
+		);
+
+		await client.query(
+			`INSERT INTO "AuditLog" (id, "requestId", "performedById", action, details, "ipAddress", "createdAt")
+			 VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())`,
+			[
+				randomUUID(),
+				requestId,
+				req.user.id,
+				"REQUEST_CREATED",
+				JSON.stringify({
+					requestId,
 					dssDecision,
-				},
-				ipAddress: req.ip,
-			},
-		});
+				}),
+				req.ip,
+			],
+		);
 
-		return res.status(201).json(createdRequest);
+		return res.status(201).json({
+			id: requestId,
+			requesterId: req.user.id,
+			venueId: input.venueId,
+			ministryId,
+			eventName: input.eventName,
+			purpose: input.purpose,
+			startDateTime: input.startDateTime,
+			endDateTime: input.endDateTime,
+			attendees: input.attendees,
+			specialRequirements: input.specialRequirements ?? null,
+			status: "PENDING",
+			currentApproverId: secretaryId,
+		});
 	} catch (error) {
 		return next(error);
+	} finally {
+		client.release();
 	}
 }
 

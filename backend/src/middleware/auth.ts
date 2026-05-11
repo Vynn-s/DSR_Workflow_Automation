@@ -1,8 +1,6 @@
 import { CognitoJwtVerifier } from "aws-jwt-verify";
 import type { NextFunction, Request, Response } from "express";
 
-import config from "../config/env";
-
 export enum Role {
 	REQUESTER = "REQUESTER",
 	PARISH_SECRETARY = "PARISH_SECRETARY",
@@ -24,10 +22,17 @@ declare global {
 	}
 }
 
+const userPoolId = process.env.COGNITO_USER_POOL_ID;
+const clientId = process.env.COGNITO_CLIENT_ID;
+
+if (!userPoolId || !clientId) {
+	throw new Error("Missing COGNITO_USER_POOL_ID or COGNITO_CLIENT_ID environment variables");
+}
+
 const verifier = CognitoJwtVerifier.create({
-	userPoolId: config.cognitoUserPoolId,
-	tokenUse: "access",
-	clientId: config.cognitoClientId,
+	userPoolId: userPoolId,
+	tokenUse: "id",
+	clientId: clientId,
 });
 
 function mapGroupToRole(group?: string): Role {
@@ -75,6 +80,7 @@ export async function authenticate(
 		const email = typeof payload.email === "string" ? payload.email : "";
 
 		if (!sub || !email) {
+			console.error("Token verified but missing required claims:", { sub, email, payload });
 			return res.status(401).json({ message: "Invalid token" });
 		}
 
@@ -85,7 +91,8 @@ export async function authenticate(
 		};
 
 		return next();
-	} catch (_error) {
+	} catch (error) {
+		console.error("Token verification failed:", error);
 		return res.status(401).json({ message: "Invalid token" });
 	}
 }
@@ -99,9 +106,4 @@ export function requireRole(allowedRoles: Role[]) {
 		return next();
 	};
 }
-
-export default {
-	authenticate,
-	requireRole,
-	Role,
-};
+export { authenticate, requireRole };

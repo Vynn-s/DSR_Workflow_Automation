@@ -1,8 +1,9 @@
 import type { NextFunction, Request, Response } from "express";
+import { randomUUID } from "crypto";
+import { Pool } from "pg";
 
 const { z } = require("zod") as typeof import("zod");
 
-const prisma = require("../config/database").default as typeof import("../config/database").default;
 const {
 	evaluateRequest: runDssEvaluation,
 } = require("../dss/rulesEngine") as typeof import("../dss/rulesEngine");
@@ -12,7 +13,7 @@ const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 const evaluateRequestSchema = z.object({
 	venueId: z.string().min(1),
-	ministryId: z.string().min(1),
+	ministryId: z.string().min(1).optional(),
 	requestDate: z.coerce.date(),
 	startTime: z.string().regex(timePattern),
 	endTime: z.string().regex(timePattern),
@@ -24,6 +25,17 @@ const conflictQuerySchema = z.object({
 	date: z.coerce.date(),
 	startTime: z.string().regex(timePattern),
 	endTime: z.string().regex(timePattern),
+});
+
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+	throw new Error("Missing required environment variable: DATABASE_URL");
+}
+
+const pool = new Pool({
+	connectionString,
+	ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : true,
 });
 
 function combineDateAndTime(date: Date, time: string): Date {
@@ -38,6 +50,7 @@ export async function evaluateRequest(
 	res: Response,
 	next: NextFunction,
 ) {
+	const client = await pool.connect();
 	try {
 		const parsed = evaluateRequestSchema.safeParse(req.body);
 
@@ -49,7 +62,19 @@ export async function evaluateRequest(
 			throw new AppError("Unauthorized", 401);
 		}
 
-		const { venueId, ministryId, requestDate, startTime, endTime, attendees } = parsed.data;
+		let { venueId, ministryId, requestDate, startTime, endTime, attendees } = parsed.data;
+
+		if (!ministryId) {
+			const ministryResult = await client.query(
+				`SELECT "ministryId" FROM "User" WHERE id = $1`,
+				[req.user.id],
+			);
+			ministryId = ministryResult.rows[0]?.ministryId;
+		}
+
+		if (!ministryId) {
+			throw new AppError("User ministry not found", 400);
+		}
 
 		const requestedStartDateTime = combineDateAndTime(requestDate, startTime);
 		const requestedEndDateTime = combineDateAndTime(requestDate, endTime);
@@ -58,24 +83,30 @@ export async function evaluateRequest(
 			throw new AppError("End time must be after start time", 400);
 		}
 
-		const venue = await prisma.venue.findUnique({
-			where: { id: venueId },
-			include: { authorizedMinistries: true },
-		});
+		const venueResult = await client.query(
+			`SELECT id, capacity FROM "Venue" WHERE id = $1`,
+			[venueId],
+		);
 
-		if (!venue) {
+		if (venueResult.rows.length === 0) {
 			throw new AppError("Venue not found", 404);
 		}
 
-		const conflicts = await prisma.venueRequest.findMany({
-			where: {
-				venueId,
-				status: { not: "REJECTED" },
-				startDateTime: { lt: requestedEndDateTime },
-				endDateTime: { gt: requestedStartDateTime },
-			},
-			select: { id: true },
-		});
+		const venue = venueResult.rows[0] as { id: string; capacity: number };
+
+		const authorizedMinistriesResult = await client.query(
+			`SELECT "ministryId" FROM "VenueMinistry" WHERE "venueId" = $1`,
+			[venueId],
+		);
+
+		const conflictsResult = await client.query(
+			`SELECT id FROM "VenueRequest"
+			 WHERE "venueId" = $1
+			 AND status <> 'REJECTED'
+			 AND "startDateTime" < $2
+			 AND "endDateTime" > $3`,
+			[venueId, requestedEndDateTime, requestedStartDateTime],
+		);
 
 		const decision = runDssEvaluation(
 			{
@@ -87,23 +118,27 @@ export async function evaluateRequest(
 				attendees,
 			},
 			venue.capacity,
-			venue.authorizedMinistries.map((entry) => entry.ministryId),
-			conflicts.length > 0,
+			authorizedMinistriesResult.rows.map((entry: { ministryId: string }) => entry.ministryId),
+			conflictsResult.rows.length > 0,
 		);
 
-		await prisma.auditLog.create({
-			data: {
-				performedById: req.user.id,
-				action: "DSS_EVALUATION",
-				details: {
+		await client.query(
+			`INSERT INTO "AuditLog" (id, "requestId", "performedById", action, details, "ipAddress", "createdAt")
+			 VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())`,
+			[
+				randomUUID(),
+				null,
+				req.user.id,
+				"DSS_EVALUATION",
+				JSON.stringify({
 					venueId,
 					ministryId,
-					hasConflict: conflicts.length > 0,
+					hasConflict: conflictsResult.rows.length > 0,
 					decision,
-				},
-				ipAddress: req.ip,
-			},
-		});
+				}),
+				req.ip,
+			],
+		);
 
 		return res.json(decision);
 	} catch (error) {
@@ -112,6 +147,8 @@ export async function evaluateRequest(
 		}
 
 		return next(new AppError("Failed to evaluate DSS request", 500));
+	} finally {
+		client.release();
 	}
 }
 
@@ -120,6 +157,7 @@ export async function checkConflicts(
 	res: Response,
 	next: NextFunction,
 ) {
+	const client = await pool.connect();
 	try {
 		const parsed = conflictQuerySchema.safeParse(req.query);
 
@@ -136,27 +174,19 @@ export async function checkConflicts(
 			throw new AppError("End time must be after start time", 400);
 		}
 
-		const conflicts = await prisma.venueRequest.findMany({
-			where: {
-				venueId,
-				status: { not: "REJECTED" },
-				startDateTime: { lt: requestedEndDateTime },
-				endDateTime: { gt: requestedStartDateTime },
-			},
-			select: {
-				id: true,
-				eventName: true,
-				purpose: true,
-				startDateTime: true,
-				endDateTime: true,
-				status: true,
-				attendees: true,
-			},
-			orderBy: { startDateTime: "asc" },
-		});
+		const conflictsResult = await client.query(
+			`SELECT id, "eventName", purpose, "startDateTime", "endDateTime", status, attendees
+			 FROM "VenueRequest"
+			 WHERE "venueId" = $1
+			 AND status <> 'REJECTED'
+			 AND "startDateTime" < $2
+			 AND "endDateTime" > $3
+			 ORDER BY "startDateTime" ASC`,
+			[venueId, requestedEndDateTime, requestedStartDateTime],
+		);
 
 		return res.json({
-			conflicts,
+			conflicts: conflictsResult.rows,
 		});
 	} catch (error) {
 		if (error instanceof AppError) {
@@ -164,6 +194,8 @@ export async function checkConflicts(
 		}
 
 		return next(new AppError("Failed to check scheduling conflicts", 500));
+	} finally {
+		client.release();
 	}
 }
 

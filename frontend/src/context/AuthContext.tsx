@@ -13,6 +13,7 @@ export interface User {
   email: string;
   name: string;
   role: UserRole;
+  ministryId?: string;
 }
 
 interface AuthContextValue {
@@ -66,14 +67,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const role = getRoleFromSessionGroups(session);
         const email = attributes.email ?? "";
-        const name = attributes.name ?? currentUser.username ?? email;
+        const ministryId = attributes["custom:ministryId"] || undefined;
 
         if (isMounted) {
           setUser({
             id: currentUser.userId,
             email,
-            name,
+            name: attributes.name ?? currentUser.username ?? email,
             role,
+            ministryId,
           });
         }
       } catch {
@@ -103,10 +105,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       fetchUserAttributes(),
     ]);
 
+    console.log('ID Token:', session.tokens?.idToken?.toString())
+
     const role = getRoleFromSessionGroups(session);
     const nextUser: User = {
       id: currentUser.userId,
       email: attributes.email ?? email,
+      ministryId: attributes["custom:ministryId"] || undefined,
       name: attributes.name ?? currentUser.username ?? email,
       role,
     };
@@ -120,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signOut();
     setUser(null);
     if (typeof window !== "undefined") {
-      window.location.assign("/login");
+      window.location.assign("/");
     }
   };
 

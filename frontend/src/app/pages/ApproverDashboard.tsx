@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle, XCircle, FileText, User, Calendar as CalendarIcon, Paperclip, Download, Eye, AlertCircle, CheckCircle2, Brain, TrendingUp, Shield, AlertTriangle } from "lucide-react";
 import { formatRequestId } from "../../lib/requestId";
+import { fetchVenues, type LiveVenue } from "../../lib/venues";
+import api from "../../lib/api";
 
 interface Attachment {
   id: string;
@@ -31,155 +33,153 @@ interface Request {
   time: string;
   purpose: string;
   requester: string;
+  status: "Approved" | "Rejected" | "Pending" | "Under Review";
   submittedDate: string;
   attachments?: Attachment[];
   signatures?: Signature[];
   dssRecommendation?: DSSRecommendation;
 }
 
-// Mock pending requests with enhanced data
-const initialRequests: Request[] = [
-  {
-    id: "REQ-002",
-    venue: "Parish Hall",
-    date: "2026-02-20",
-    time: "2:00 PM - 5:00 PM",
-    purpose: "Youth Ministry Meeting",
-    requester: "Fr. Michael Santos",
-    submittedDate: "2026-02-01",
-    attachments: [
-      {
-        id: "ATT-001",
-        name: "Event_Proposal.pdf",
-        type: "PDF Document",
-        size: "2.3 MB",
-        uploadedDate: "2026-02-01"
-      },
-      {
-        id: "ATT-002",
-        name: "Budget_Plan.xlsx",
-        type: "Excel Spreadsheet",
-        size: "1.1 MB",
-        uploadedDate: "2026-02-01"
-      }
-    ],
-    signatures: [
-      {
-        role: "Parish Coordinator",
-        signatory: "Sr. Maria Lopez",
-        status: "signed",
-        signedDate: "2026-02-01"
-      },
-      {
-        role: "Finance Officer",
-        signatory: "Mr. Roberto Cruz",
-        status: "signed",
-        signedDate: "2026-02-02"
-      },
-      {
-        role: "Safety Officer",
-        signatory: "Mr. Juan Dela Cruz",
-        status: "pending"
-      }
-    ],
-    dssRecommendation: {
-      decision: "review",
-      confidence: 72,
-      reasons: [
-        "Similar events approved in the past (85% approval rate)",
-        "Venue available on requested date",
-        "Requester has good track record (no violations)"
-      ],
-      risks: [
-        "One required signature still pending",
-        "Event overlaps with another booking by 30 minutes"
-      ]
-    }
-  },
-  {
-    id: "REQ-004",
-    venue: "Chapel Garden",
-    date: "2026-03-05",
-    time: "3:00 PM - 6:00 PM",
-    purpose: "Baptism Reception",
-    requester: "Maria Cruz",
-    submittedDate: "2026-02-02",
-    attachments: [
-      {
-        id: "ATT-003",
-        name: "Guest_List.docx",
-        type: "Word Document",
-        size: "856 KB",
-        uploadedDate: "2026-02-02"
-      }
-    ],
-    signatures: [
-      {
-        role: "Parish Coordinator",
-        signatory: "Sr. Maria Lopez",
-        status: "signed",
-        signedDate: "2026-02-02"
-      },
-      {
-        role: "Sacrament Coordinator",
-        signatory: "Fr. Antonio Reyes",
-        status: "signed",
-        signedDate: "2026-02-03"
-      }
-    ],
-    dssRecommendation: {
-      decision: "approve",
-      confidence: 94,
-      reasons: [
-        "All required signatures obtained",
-        "No scheduling conflicts detected",
-        "Sacramental events have priority",
-        "Venue capacity matches expected attendance"
-      ],
-      risks: []
-    }
-  },
-  {
-    id: "REQ-005",
-    venue: "Conference Room",
-    date: "2026-02-18",
-    time: "10:00 AM - 12:00 PM",
-    purpose: "Ministry Coordinators Meeting",
-    requester: "John Reyes",
-    submittedDate: "2026-02-01",
-    attachments: [],
-    signatures: [
-      {
-        role: "Parish Coordinator",
-        signatory: "Sr. Maria Lopez",
-        status: "pending"
-      },
-      {
-        role: "Administrative Head",
-        signatory: "Bishop Antonio",
-        status: "pending"
-      }
-    ],
-    dssRecommendation: {
-      decision: "reject",
-      confidence: 68,
-      reasons: [
-        "Venue already has tentative booking for same time slot",
-        "Requester's previous booking had compliance issues"
-      ],
-      risks: [
-        "No required signatures obtained yet",
-        "Missing supporting documentation",
-        "Short notice for booking (less than 2 weeks)"
-      ]
-    }
-  },
-];
+type ApiApprovalQueueItem = {
+  id: string;
+  eventName: string;
+  purpose: string;
+  startDateTime: string;
+  endDateTime: string;
+  status: string;
+  createdAt: string;
+  requester: {
+    name: string;
+    email: string;
+  };
+  venue: {
+    name: string;
+  };
+  ministry: {
+    name: string;
+  };
+  approvalActions?: Array<{
+    remarks?: string | null;
+    createdAt: string;
+    approver: {
+      name: string;
+      email: string;
+    };
+  }>;
+};
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatTimeRange(startDateTime: string, endDateTime: string) {
+  const start = new Date(startDateTime);
+  const end = new Date(endDateTime);
+  return `${start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} - ${end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+}
+
+function mapApprovalStatus(status: string): Request["status"] {
+  switch (status) {
+    case "APPROVED":
+      return "Approved";
+    case "REJECTED":
+      return "Rejected";
+    case "SECRETARY_REVIEW":
+    case "PRIEST_REVIEW":
+      return "Under Review";
+    case "PENDING":
+    default:
+      return "Pending";
+  }
+}
 
 export function ApproverDashboard() {
-  const [requests, setRequests] = useState<Request[]>(initialRequests);
+  const [requests, setRequests] = useState<Request[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
   const [remarks, setRemarks] = useState("");
+  const [venues, setVenues] = useState<LiveVenue[]>([]);
+  const [venuesLoading, setVenuesLoading] = useState(true);
+  const [requestsLoading, setRequestsLoading] = useState(true);
+  const [requestsError, setRequestsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadRequests() {
+      try {
+        setRequestsLoading(true);
+        setRequestsError(null);
+
+        const response = await api.get<{ queue: ApiApprovalQueueItem[] }>("/approvals/queue");
+        const liveRequests = (response.queue ?? []).map((request) => ({
+          id: request.id,
+          venue: request.venue.name,
+          date: formatDateTime(request.startDateTime).split(",")[0],
+          time: formatTimeRange(request.startDateTime, request.endDateTime),
+          purpose: request.purpose || request.eventName,
+          requester: request.requester.name,
+          status: mapApprovalStatus(request.status),
+          submittedDate: formatDateTime(request.createdAt),
+          attachments: [],
+          signatures: [],
+        } satisfies Request));
+
+        if (isMounted) {
+          setRequests(liveRequests);
+          setSelectedRequest((currentSelected) => {
+            if (!currentSelected) {
+              return liveRequests[0] ?? null;
+            }
+
+            return liveRequests.find((request) => request.id === currentSelected.id) ?? liveRequests[0] ?? null;
+          });
+        }
+      } catch (error) {
+        console.error("Failed to load approval queue:", error);
+        if (isMounted) {
+          setRequests([]);
+          setRequestsError("Unable to load approval queue right now.");
+        }
+      } finally {
+        if (isMounted) {
+          setRequestsLoading(false);
+        }
+      }
+    }
+
+    async function loadVenues() {
+      try {
+        setVenuesLoading(true);
+        const liveVenues = await fetchVenues();
+
+        if (isMounted) {
+          setVenues(liveVenues);
+        }
+      } catch (error) {
+        console.error("Failed to load venues for approver dashboard:", error);
+        if (isMounted) {
+          setVenues([]);
+        }
+      } finally {
+        if (isMounted) {
+          setVenuesLoading(false);
+        }
+      }
+    }
+
+    void loadRequests();
+    void loadVenues();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleApprove = () => {
     if (selectedRequest) {
@@ -209,6 +209,35 @@ export function ApproverDashboard() {
         <p className="text-lg text-slate-600">
           Review and approve or reject booking requests
         </p>
+      </div>
+
+      <div className="mb-8 bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10 overflow-hidden">
+        <div className="px-8 py-5 bg-gradient-to-r from-slate-50 to-blue-50/30 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold text-slate-900 text-lg">Live Venue Catalog</h2>
+            <p className="text-sm text-slate-600 mt-0.5">Shared source of truth for booking reviews</p>
+          </div>
+          <span className="px-4 py-2 bg-gradient-to-br from-blue-600 to-indigo-600 text-white text-sm font-bold rounded-full shadow-lg shadow-blue-500/30">
+            {venuesLoading ? "Loading..." : `${venues.length} venues`}
+          </span>
+        </div>
+        <div className="p-5">
+          <div className="flex flex-wrap gap-2">
+            {venues.map((venue) => (
+              <span
+                key={venue.id}
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full border border-slate-200 bg-slate-50 text-sm font-medium text-slate-700"
+              >
+                <span>{venue.name}</span>
+                <span className="text-slate-400">•</span>
+                <span>{venue.capacity} seats</span>
+              </span>
+            ))}
+            {!venuesLoading && venues.length === 0 && (
+              <p className="text-sm text-slate-500">No venue data available.</p>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-6">
@@ -308,7 +337,11 @@ export function ApproverDashboard() {
               </span>
             </div>
 
-            {requests.length > 0 ? (
+            {requestsLoading ? (
+              <div className="p-10 text-sm text-slate-600">Loading approval queue...</div>
+            ) : requestsError ? (
+              <div className="p-10 text-sm text-rose-700">{requestsError}</div>
+            ) : requests.length > 0 ? (
               <div className="divide-y divide-slate-100">
                 {requests.map((request) => (
                   <div
@@ -331,14 +364,16 @@ export function ApproverDashboard() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {request.attachments && request.attachments.length > 0 && (
-                          <span className="px-3 py-1.5 text-xs bg-blue-100 text-blue-800 border border-blue-300 rounded-full flex items-center gap-1.5 font-semibold">
-                            <Paperclip className="w-3.5 h-3.5" />
-                            {request.attachments.length}
-                          </span>
-                        )}
-                        <span className="px-4 py-1.5 text-xs font-bold bg-gradient-to-br from-amber-500 to-amber-600 text-white rounded-full shadow-sm">
-                          Pending
+                        <span className={`px-4 py-1.5 text-xs font-bold rounded-full shadow-sm ${
+                          request.status === "Approved"
+                            ? "bg-emerald-500 text-white"
+                            : request.status === "Rejected"
+                            ? "bg-rose-500 text-white"
+                            : request.status === "Under Review"
+                            ? "bg-blue-500 text-white"
+                            : "bg-amber-500 text-white"
+                        }`}>
+                          {request.status}
                         </span>
                       </div>
                     </div>
@@ -354,11 +389,9 @@ export function ApproverDashboard() {
                         <User className="w-4 h-4 text-slate-500" />
                         <span className="font-medium">{request.requester}</span>
                       </div>
-                      {request.signatures && (
-                        <span className="text-xs text-slate-600 font-medium">
-                          {request.signatures.filter(s => s.status === "signed").length}/{request.signatures.length} signatures
-                        </span>
-                      )}
+                      <span className="text-xs text-slate-600 font-medium">
+                        Submitted {request.submittedDate}
+                      </span>
                     </div>
                   </div>
                 ))}

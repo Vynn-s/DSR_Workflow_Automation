@@ -1,9 +1,21 @@
 import type { NextFunction, Request, Response } from "express";
+import { Pool } from "pg";
 
 const { z } = require("zod") as typeof import("zod");
 
 const prisma = require("../config/database").default as typeof import("../config/database").default;
 const { AppError } = require("../middleware/errorHandler") as typeof import("../middleware/errorHandler");
+
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+	throw new Error("Missing required environment variable: DATABASE_URL");
+}
+
+const pool = new Pool({
+	connectionString,
+	ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : true,
+});
 
 const requestIdParamsSchema = z.object({
 	requestId: z.string().min(1),
@@ -48,6 +60,7 @@ async function getRequestOrThrow(requestId: string) {
 }
 
 export async function getApprovalQueue(req: Request, res: Response, next: NextFunction) {
+	const client = await pool.connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);
@@ -59,31 +72,88 @@ export async function getApprovalQueue(req: Request, res: Response, next: NextFu
 			throw new AppError("Insufficient permissions", 403);
 		}
 
-		const queue = await prisma.venueRequest.findMany({
-			where: {
-				status: queueStatus,
-			},
-			include: {
-				venue: true,
-				ministry: true,
-				requester: true,
-				approvalActions: {
-					include: {
-						approver: true,
-					},
-					orderBy: {
-						createdAt: "asc",
-					},
+		const queueResult = await client.query(
+			`SELECT
+				vr.id,
+				vr."eventName",
+				vr.purpose,
+				vr."startDateTime",
+				vr."endDateTime",
+				vr.status,
+				vr."createdAt",
+				vr."updatedAt",
+				r.name AS requester_name,
+				r.email AS requester_email,
+				v.name AS venue_name,
+				m.name AS ministry_name
+			 FROM "VenueRequest" vr
+			 INNER JOIN "User" r ON r.id = vr."requesterId"
+			 INNER JOIN "Venue" v ON v.id = vr."venueId"
+			 INNER JOIN "Ministry" m ON m.id = vr."ministryId"
+			 WHERE vr.status = $1
+			 ORDER BY vr."createdAt" ASC`,
+			[queueStatus],
+		);
+
+		const approvalActionsResult = await client.query(
+			`SELECT
+				aa."requestId",
+				aa."approverId",
+				aa.action,
+				aa.remarks,
+				aa."createdAt",
+				u.name AS approver_name,
+				u.email AS approver_email
+			 FROM "ApprovalAction" aa
+			 INNER JOIN "User" u ON u.id = aa."approverId"
+			 WHERE aa."requestId" = ANY($1::uuid[])
+			 ORDER BY aa."createdAt" ASC`,
+			[queueResult.rows.map((row) => row.id)],
+		);
+
+		const approvalActionsByRequestId = new Map<string, Array<Record<string, unknown>>>();
+		for (const action of approvalActionsResult.rows) {
+			const requestActions = approvalActionsByRequestId.get(action.requestId) ?? [];
+			requestActions.push({
+				remarks: action.remarks,
+				createdAt: action.createdAt,
+				approver: {
+					id: action.approverId,
+					name: action.approver_name,
+					email: action.approver_email,
 				},
+				action: action.action,
+			});
+			approvalActionsByRequestId.set(action.requestId, requestActions);
+		}
+
+		const queue = queueResult.rows.map((request) => ({
+			id: request.id,
+			eventName: request.eventName,
+			purpose: request.purpose,
+			startDateTime: request.startDateTime,
+			endDateTime: request.endDateTime,
+			status: request.status,
+			createdAt: request.createdAt,
+			updatedAt: request.updatedAt,
+			requester: {
+				name: request.requester_name,
+				email: request.requester_email,
 			},
-			orderBy: {
-				createdAt: "asc",
+			venue: {
+				name: request.venue_name,
 			},
-		});
+			ministry: {
+				name: request.ministry_name,
+			},
+			approvalActions: approvalActionsByRequestId.get(request.id) ?? [],
+		}));
 
 		return res.json({ queue });
 	} catch (error) {
 		return next(error);
+	} finally {
+		client.release();
 	}
 }
 

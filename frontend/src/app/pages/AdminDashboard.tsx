@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Users, Building2, Brain, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { fetchVenues, type LiveVenue } from "../../lib/venues";
 
 // Mock data
 const users = [
@@ -10,15 +11,6 @@ const users = [
   { id: 4, name: "Bishop Antonio", email: "bishop@spcathedral.org", role: "Approver" },
   { id: 5, name: "Sr. Teresa", email: "sr.teresa@spcathedral.org", role: "Approver" },
   { id: 6, name: "Admin User", email: "admin@spcathedral.org", role: "Administrator" },
-];
-
-const venues = [
-  { id: 1, name: "Main Chapel", capacity: 500, status: "Active" },
-  { id: 2, name: "Parish Hall", capacity: 200, status: "Active" },
-  { id: 3, name: "Multipurpose Room", capacity: 80, status: "Active" },
-  { id: 4, name: "Chapel Garden", capacity: 150, status: "Active" },
-  { id: 5, name: "Conference Room", capacity: 30, status: "Active" },
-  { id: 6, name: "Youth Center", capacity: 100, status: "Active" },
 ];
 
 // Weekly data
@@ -81,6 +73,42 @@ const dssInsights = {
 
 export function AdminDashboard() {
   const [reportView, setReportView] = useState<"weekly" | "monthly" | "yearly">("weekly");
+  const [venues, setVenues] = useState<Array<LiveVenue & { status: string }>>([]);
+  const [venuesLoading, setVenuesLoading] = useState(true);
+  const [venuesError, setVenuesError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadVenues() {
+      try {
+        setVenuesLoading(true);
+        setVenuesError(null);
+
+        const liveVenues = await fetchVenues();
+
+        if (isMounted) {
+          setVenues(liveVenues.map((venue) => ({ ...venue, status: "Active" })));
+        }
+      } catch (error) {
+        console.error("Failed to load venues:", error);
+        if (isMounted) {
+          setVenues([]);
+          setVenuesError("Unable to load venue data right now.");
+        }
+      } finally {
+        if (isMounted) {
+          setVenuesLoading(false);
+        }
+      }
+    }
+
+    void loadVenues();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const getCurrentData = () => {
     switch (reportView) {
@@ -366,46 +394,52 @@ export function AdminDashboard() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-slate-100 to-slate-50 border-b-2 border-slate-200">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    ID
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Venue Name
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Capacity
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {venues.map((venue) => (
-                  <tr key={venue.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-5 text-sm font-semibold text-slate-900">
-                      {venue.id}
-                    </td>
-                    <td className="px-6 py-5 text-sm font-semibold text-slate-900">
-                      {venue.name}
-                    </td>
-                    <td className="px-6 py-5 text-sm text-slate-700">
-                      {venue.capacity} people
-                    </td>
-                    <td className="px-6 py-5">
-                      <span className="inline-flex items-center px-4 py-1.5 text-xs font-bold rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
-                        {venue.status}
-                      </span>
-                    </td>
+          {venuesLoading ? (
+            <div className="p-8 text-sm text-slate-600">Loading venue data...</div>
+          ) : venuesError ? (
+            <div className="p-8 text-sm text-rose-700">{venuesError}</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gradient-to-r from-slate-100 to-slate-50 border-b-2 border-slate-200">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      ID
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Venue Name
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Capacity
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Status
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {venues.map((venue) => (
+                    <tr key={venue.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-5 text-sm font-semibold text-slate-900">
+                        {venue.id}
+                      </td>
+                      <td className="px-6 py-5 text-sm font-semibold text-slate-900">
+                        {venue.name}
+                      </td>
+                      <td className="px-6 py-5 text-sm text-slate-700">
+                        {venue.capacity} people
+                      </td>
+                      <td className="px-6 py-5">
+                        <span className="inline-flex items-center px-4 py-1.5 text-xs font-bold rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
+                          {venue.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

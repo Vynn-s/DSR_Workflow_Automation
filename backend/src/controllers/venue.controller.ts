@@ -25,6 +25,37 @@ export async function getVenues(req: Request, res: Response, next: NextFunction)
 			[req.user.id],
 		);
 
+		if (req.user.role === "ADMIN") {
+			const allVenuesResult = await client.query(
+				`SELECT * FROM "Venue" ORDER BY name ASC`,
+			);
+
+			const venues = await Promise.all(
+				allVenuesResult.rows.map(async (venue) => {
+					const ministriesResult = await client.query(
+						`SELECT vm.id, vm."venueId", vm."ministryId", m.id as ministry_id, m.name as ministry_name 
+						 FROM "VenueMinistry" vm
+						 LEFT JOIN "Ministry" m ON vm."ministryId" = m.id
+						 WHERE vm."venueId" = $1`,
+						[venue.id]
+					);
+
+					return {
+						...venue,
+						authorizedMinistries: ministriesResult.rows.map(row => ({
+							id: row.id,
+							venueId: row.venueId,
+							ministryId: row.ministryId,
+							ministry: row.ministry_id ? { id: row.ministry_id, name: row.ministry_name } : null,
+						})),
+					};
+				})
+			);
+
+			console.log("getVenues: Found venues:", venues.length);
+			return res.json({ venues });
+		}
+
 		const ministryId = ministryResult.rows[0]?.ministryId as string | undefined;
 
 		if (!ministryId) {

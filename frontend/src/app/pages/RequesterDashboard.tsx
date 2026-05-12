@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { Plus, Clock, CheckCircle2, XCircle, Eye, X, FileEdit, Bell } from "lucide-react";
 import api from "../../lib/api";
+import { formatRequestId } from "../../lib/requestId";
 
 interface Request {
   id: string;
@@ -339,7 +340,7 @@ export function RequesterDashboard() {
                 {requests.map((request) => (
                   <tr key={request.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-5 text-sm font-semibold text-slate-900">
-                      {request.id}
+                      {formatRequestId(request.id)}
                     </td>
                     <td className="px-6 py-5 text-sm font-medium text-slate-900">
                       {request.venue}
@@ -388,7 +389,7 @@ export function RequesterDashboard() {
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6 flex items-center justify-between">
               <div>
                 <h3 className="font-semibold text-white text-xl">Request Status Timeline</h3>
-                <p className="text-sm text-blue-100 mt-1">{selectedRequest.id}</p>
+                <p className="text-sm text-blue-100 mt-1">{formatRequestId(selectedRequest.id)}</p>
               </div>
               <button
                 onClick={() => setSelectedRequest(null)}

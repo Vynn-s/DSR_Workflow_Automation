@@ -3,8 +3,6 @@ import { randomUUID } from "crypto";
 import { Pool } from "pg";
 
 const { z } = require("zod") as typeof import("zod");
-
-const prisma = require("../config/database").default as typeof import("../config/database").default;
 const {
 	evaluateRequest: runDssEvaluation,
 } = require("../dss/rulesEngine") as typeof import("../dss/rulesEngine");
@@ -245,6 +243,7 @@ export async function getRequests(req: Request, res: Response, next: NextFunctio
 }
 
 export async function getRequestById(req: Request, res: Response, next: NextFunction) {
+	const client = await pool.connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);
@@ -256,41 +255,113 @@ export async function getRequestById(req: Request, res: Response, next: NextFunc
 			throw new AppError("Invalid request id", 400);
 		}
 
-		const requestRecord = await prisma.venueRequest.findUnique({
-			where: {
-				id: parsedParams.data.id,
-			},
-			include: {
-				venue: true,
-				ministry: true,
-				requester: true,
-				currentApprover: true,
-				approvalActions: {
-					include: {
-						approver: true,
-					},
-					orderBy: {
-						createdAt: "asc",
-					},
-				},
-			},
-		});
+		const requestResult = await client.query(
+			`SELECT
+				vr.id,
+				vr."requesterId",
+				vr."venueId",
+				vr."ministryId",
+				vr."eventName",
+				vr.purpose,
+				vr."startDateTime",
+				vr."endDateTime",
+				vr.attendees,
+				vr."specialRequirements",
+				vr.status,
+				vr."currentApproverId",
+				vr."createdAt",
+				vr."updatedAt",
+				v.name AS venue_name,
+				v.description AS venue_description,
+				v.capacity AS venue_capacity,
+				m.name AS ministry_name,
+				u.name AS requester_name,
+				u.email AS requester_email,
+				ca.name AS current_approver_name,
+				ca.email AS current_approver_email
+			 FROM "VenueRequest" vr
+			 INNER JOIN "Venue" v ON v.id = vr."venueId"
+			 INNER JOIN "Ministry" m ON m.id = vr."ministryId"
+			 INNER JOIN "User" u ON u.id = vr."requesterId"
+			 LEFT JOIN "User" ca ON ca.id = vr."currentApproverId"
+			 WHERE vr.id = $1`,
+			[parsedParams.data.id],
+		);
 
-		if (!requestRecord) {
+		if (requestResult.rows.length === 0) {
 			throw new AppError("Request not found", 404);
 		}
+
+		const requestRecord = requestResult.rows[0];
 
 		if (req.user.role === "REQUESTER" && requestRecord.requesterId !== req.user.id) {
 			throw new AppError("Insufficient permissions", 403);
 		}
 
-		return res.json(requestRecord);
+		const approvalActionsResult = await client.query(
+			`SELECT
+				aa.id,
+				aa."requestId",
+				aa."approverId",
+				aa.action,
+				aa.remarks,
+				aa."createdAt",
+				u.name AS approver_name,
+				u.email AS approver_email
+			 FROM "ApprovalAction" aa
+			 INNER JOIN "User" u ON u.id = aa."approverId"
+			 WHERE aa."requestId" = $1
+			 ORDER BY aa."createdAt" ASC`,
+			[requestRecord.id],
+		);
+
+		return res.json({
+			...requestRecord,
+			venue: {
+				id: requestRecord.venueId,
+				name: requestRecord.venue_name,
+				description: requestRecord.venue_description,
+				capacity: requestRecord.venue_capacity,
+			},
+			ministry: {
+				id: requestRecord.ministryId,
+				name: requestRecord.ministry_name,
+			},
+			requester: {
+				id: requestRecord.requesterId,
+				name: requestRecord.requester_name,
+				email: requestRecord.requester_email,
+			},
+			currentApprover: requestRecord.currentApproverId
+				? {
+					id: requestRecord.currentApproverId,
+					name: requestRecord.current_approver_name,
+					email: requestRecord.current_approver_email,
+				}
+				: null,
+			approvalActions: approvalActionsResult.rows.map((action) => ({
+				id: action.id,
+				requestId: action.requestId,
+				approverId: action.approverId,
+				action: action.action,
+				remarks: action.remarks,
+				createdAt: action.createdAt,
+				approver: {
+					id: action.approverId,
+					name: action.approver_name,
+					email: action.approver_email,
+				},
+			})),
+		});
 	} catch (error) {
 		return next(error);
+	} finally {
+		client.release();
 	}
 }
 
 export async function cancelRequest(req: Request, res: Response, next: NextFunction) {
+	const client = await pool.connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);
@@ -302,15 +373,16 @@ export async function cancelRequest(req: Request, res: Response, next: NextFunct
 			throw new AppError("Invalid request id", 400);
 		}
 
-		const existingRequest = await prisma.venueRequest.findUnique({
-			where: {
-				id: parsedParams.data.id,
-			},
-		});
+		const existingRequestResult = await client.query(
+			`SELECT id, "requesterId", status FROM "VenueRequest" WHERE id = $1`,
+			[parsedParams.data.id],
+		);
 
-		if (!existingRequest) {
+		if (existingRequestResult.rows.length === 0) {
 			throw new AppError("Request not found", 404);
 		}
+
+		const existingRequest = existingRequestResult.rows[0];
 
 		if (existingRequest.requesterId !== req.user.id) {
 			throw new AppError("Insufficient permissions", 403);
@@ -320,32 +392,38 @@ export async function cancelRequest(req: Request, res: Response, next: NextFunct
 			throw new AppError("Only PENDING requests can be cancelled", 400);
 		}
 
-		const updatedRequest = await prisma.venueRequest.update({
-			where: {
-				id: existingRequest.id,
-			},
-			data: {
-				status: "REJECTED",
-				currentApproverId: null,
-			},
-		});
+		await client.query(
+			`UPDATE "VenueRequest"
+			 SET status = 'REJECTED', "currentApproverId" = NULL, "updatedAt" = NOW()
+			 WHERE id = $1`,
+			[existingRequest.id],
+		);
 
-		await prisma.auditLog.create({
-			data: {
-				requestId: existingRequest.id,
-				performedById: req.user.id,
-				action: "REQUEST_CANCELLED",
-				details: {
+		await client.query(
+			`INSERT INTO "AuditLog" (id, "requestId", "performedById", action, details, "ipAddress", "createdAt")
+			 VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())`,
+			[
+				randomUUID(),
+				existingRequest.id,
+				req.user.id,
+				"REQUEST_CANCELLED",
+				JSON.stringify({
 					previousStatus: existingRequest.status,
 					nextStatus: "REJECTED",
-				},
-				ipAddress: req.ip,
-			},
-		});
+				}),
+				req.ip,
+			],
+		);
 
-		return res.json(updatedRequest);
+		return res.json({
+			id: existingRequest.id,
+			status: "REJECTED",
+			currentApproverId: null,
+		});
 	} catch (error) {
 		return next(error);
+	} finally {
+		client.release();
 	}
 }
 

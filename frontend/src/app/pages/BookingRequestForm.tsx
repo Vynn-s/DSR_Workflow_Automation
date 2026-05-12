@@ -87,9 +87,11 @@ const combineDateAndTimeToIso = (dateStr: string, timeStr: string) => {
 export function BookingRequestForm() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const today = new Date();
+  const todayDateString = today.toISOString().slice(0, 10);
   const [formData, setFormData] = useState({
     venue: "",
-    date: "",
+    date: todayDateString,
     startTime: "",
     endTime: "",
     purpose: "",
@@ -107,7 +109,7 @@ export function BookingRequestForm() {
 
   // Calendar modal state
   const [showCalendar, setShowCalendar] = useState(false);
-  const [calendarDate, setCalendarDate] = useState(new Date(2026, 1, 1)); // February 2026
+  const [calendarDate, setCalendarDate] = useState(today);
   const calendarButtonRef = useRef<HTMLButtonElement>(null);
 
   // Time picker states
@@ -291,6 +293,16 @@ export function BookingRequestForm() {
     });
   };
 
+  const isPastDate = (year: number, monthIndex: number, day: number) => {
+    const date = new Date(year, monthIndex, day);
+    date.setHours(0, 0, 0, 0);
+    return date < today;
+  };
+
+  const isPreviousMonthDisabled =
+    new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1) <=
+    new Date(today.getFullYear(), today.getMonth(), 1);
+
   const handleSubmit = async (e: React.FormEvent, isDraft: boolean = false) => {
     e.preventDefault();
     
@@ -380,6 +392,8 @@ export function BookingRequestForm() {
   };
 
   const canSaveDraft = formData.venue || formData.date || formData.purpose;
+  const calendarYear = calendarDate.getFullYear();
+  const calendarMonthIndex = calendarDate.getMonth();
 
   return (
     <div>
@@ -785,7 +799,8 @@ export function BookingRequestForm() {
             <div className="px-6 py-3 border-b border-slate-200 flex items-center justify-between">
               <button
                 onClick={previousMonth}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                disabled={isPreviousMonthDisabled}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <ChevronLeft className="w-5 h-5 text-slate-600" />
               </button>
@@ -825,16 +840,25 @@ export function BookingRequestForm() {
 
                   // Days of month
                   for (let day = 1; day <= daysInMonth; day++) {
-                    const isSelected = formData.date === `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const dateString = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const isSelected = formData.date === dateString;
+                    const isDisabled = isPastDate(calendarDate.getFullYear(), calendarDate.getMonth(), day);
                     days.push(
                       <button
                         key={day}
                         type="button"
-                        onClick={() => handleDateSelect(day)}
+                        onClick={() => {
+                          if (!isDisabled) {
+                            handleDateSelect(day);
+                          }
+                        }}
+                        disabled={isDisabled}
                         className={`aspect-square rounded-xl font-medium transition-all ${
                           isSelected
                             ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg'
-                            : 'hover:bg-blue-50 text-slate-700'
+                            : isDisabled
+                              ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                              : 'hover:bg-blue-50 text-slate-700'
                         }`}
                       >
                         {day}

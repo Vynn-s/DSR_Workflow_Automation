@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CheckCircle, XCircle, FileText, User, Calendar as CalendarIcon, Paperclip, Download, Eye, AlertCircle, CheckCircle2, Brain, TrendingUp, Shield, AlertTriangle } from "lucide-react";
+import { formatRequestId } from "../../lib/requestId";
 
 interface Attachment {
   id: string;
@@ -182,7 +183,7 @@ export function ApproverDashboard() {
 
   const handleApprove = () => {
     if (selectedRequest) {
-      alert(`Request ${selectedRequest.id} approved!`);
+      alert(`Request ${formatRequestId(selectedRequest.id)} approved!`);
       setRequests(requests.filter((r) => r.id !== selectedRequest.id));
       setSelectedRequest(null);
       setRemarks("");
@@ -191,7 +192,7 @@ export function ApproverDashboard() {
 
   const handleReject = () => {
     if (selectedRequest) {
-      alert(`Request ${selectedRequest.id} rejected.`);
+      alert(`Request ${formatRequestId(selectedRequest.id)} rejected.`);
       setRequests(requests.filter((r) => r.id !== selectedRequest.id));
       setSelectedRequest(null);
       setRemarks("");
@@ -322,7 +323,7 @@ export function ApproverDashboard() {
                     <div className="flex items-start justify-between mb-4">
                       <div>
                         <h3 className="font-bold text-slate-900 mb-1.5 text-lg">
-                          {request.id}
+                          {formatRequestId(request.id)}
                         </h3>
                         <div className="flex items-center gap-2 text-sm text-slate-700">
                           <FileText className="w-4 h-4 text-slate-500" />
@@ -386,7 +387,7 @@ export function ApproverDashboard() {
                 <div>
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Request ID</p>
                   <p className="text-sm font-semibold text-slate-900">
-                    {selectedRequest.id}
+                    {formatRequestId(selectedRequest.id)}
                   </p>
                 </div>
 

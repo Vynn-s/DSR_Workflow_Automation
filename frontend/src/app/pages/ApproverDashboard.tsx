@@ -33,6 +33,7 @@ interface Request {
   time: string;
   purpose: string;
   requester: string;
+  queueStatus: "PENDING" | "SECRETARY_REVIEW" | "APPROVED" | "REJECTED" | "REVISION_REQUESTED";
   status: "Approved" | "Rejected" | "Pending" | "Under Review";
   submittedDate: string;
   attachments?: Attachment[];
@@ -99,14 +100,25 @@ function mapApprovalStatus(status: string): Request["status"] {
   }
 }
 
+function isActionableQueueStatus(status: Request["queueStatus"]) {
+  return status === "PENDING" || status === "SECRETARY_REVIEW";
+}
+
 export function ApproverDashboard() {
   const [requests, setRequests] = useState<Request[]>([]);
+  const [archivedRequests, setArchivedRequests] = useState<Request[]>([]);
+  const [activeTab, setActiveTab] = useState<"queue" | "archive">("queue");
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
   const [remarks, setRemarks] = useState("");
   const [venues, setVenues] = useState<LiveVenue[]>([]);
   const [venuesLoading, setVenuesLoading] = useState(true);
   const [requestsLoading, setRequestsLoading] = useState(true);
+  const [archiveLoading, setArchiveLoading] = useState(true);
   const [requestsError, setRequestsError] = useState<string | null>(null);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [isActionLoading, setIsActionLoading] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -124,6 +136,7 @@ export function ApproverDashboard() {
           time: formatTimeRange(request.startDateTime, request.endDateTime),
           purpose: request.purpose || request.eventName,
           requester: request.requester.name,
+          queueStatus: request.status as Request["queueStatus"],
           status: mapApprovalStatus(request.status),
           submittedDate: formatDateTime(request.createdAt),
           attachments: [],
@@ -173,29 +186,177 @@ export function ApproverDashboard() {
       }
     }
 
+    async function loadArchive() {
+      try {
+        setArchiveLoading(true);
+        setArchiveError(null);
+
+        const response = await api.get<{ archive: ApiApprovalQueueItem[] }>("/approvals/archive");
+        const liveArchive = (response.archive ?? []).map((request) => ({
+          id: request.id,
+          venue: request.venue.name,
+          date: formatDateTime(request.startDateTime).split(",")[0],
+          time: formatTimeRange(request.startDateTime, request.endDateTime),
+          purpose: request.purpose || request.eventName,
+          requester: request.requester.name,
+          queueStatus: request.status as Request["queueStatus"],
+          status: mapApprovalStatus(request.status),
+          submittedDate: formatDateTime(request.createdAt),
+          attachments: [],
+          signatures: [],
+        } satisfies Request));
+
+        if (isMounted) {
+          setArchivedRequests(liveArchive);
+        }
+      } catch (error) {
+        console.error("Failed to load approval archive:", error);
+        if (isMounted) {
+          setArchivedRequests([]);
+          setArchiveError("Unable to load approval archive right now.");
+        }
+      } finally {
+        if (isMounted) {
+          setArchiveLoading(false);
+        }
+      }
+    }
+
     void loadRequests();
     void loadVenues();
+    void loadArchive();
+
+    const refreshInterval = window.setInterval(() => {
+      void loadRequests();
+    }, 10000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void loadRequests();
+      }
+    };
+
+    window.addEventListener("focus", handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       isMounted = false;
+      window.clearInterval(refreshInterval);
+      window.removeEventListener("focus", handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
-  const handleApprove = () => {
-    if (selectedRequest) {
-      alert(`Request ${formatRequestId(selectedRequest.id)} approved!`);
-      setRequests(requests.filter((r) => r.id !== selectedRequest.id));
-      setSelectedRequest(null);
+  const refreshQueue = async () => {
+    const response = await api.get<{ queue: ApiApprovalQueueItem[] }>("/approvals/queue");
+    const liveRequests = (response.queue ?? []).map((request) => ({
+      id: request.id,
+      venue: request.venue.name,
+      date: formatDateTime(request.startDateTime).split(",")[0],
+      time: formatTimeRange(request.startDateTime, request.endDateTime),
+      purpose: request.purpose || request.eventName,
+      requester: request.requester.name,
+      queueStatus: request.status as Request["queueStatus"],
+      status: mapApprovalStatus(request.status),
+      submittedDate: formatDateTime(request.createdAt),
+      attachments: [],
+      signatures: [],
+    } satisfies Request));
+
+    setRequests(liveRequests);
+    setSelectedRequest((currentSelected) => {
+      if (!currentSelected) {
+        return liveRequests[0] ?? null;
+      }
+
+      return liveRequests.find((request) => request.id === currentSelected.id) ?? liveRequests[0] ?? null;
+    });
+  };
+
+  const handleApprove = async () => {
+    if (!selectedRequest || isActionLoading) {
+      return;
+    }
+
+    if (!isActionableQueueStatus(selectedRequest.queueStatus)) {
+      setActionError("This request has already been processed.");
+      await refreshQueue();
+      return;
+    }
+
+    const requestId = selectedRequest.id;
+
+    try {
+      setIsActionLoading(true);
+      setActionError(null);
+      setActionSuccess(null);
+
+      await api.post(`/approvals/${requestId}/approve`, {
+        remarks: remarks.trim() || undefined,
+      });
+
       setRemarks("");
+
+      try {
+        await refreshQueue();
+      } catch (refreshError) {
+        console.error("Failed to refresh approval queue after approve:", refreshError);
+      }
+
+      setActionSuccess("Request accepted successfully.");
+    } catch (error) {
+      console.error("Failed to approve request:", error);
+      setActionError("Unable to approve this request right now.");
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
-  const handleReject = () => {
-    if (selectedRequest) {
-      alert(`Request ${formatRequestId(selectedRequest.id)} rejected.`);
-      setRequests(requests.filter((r) => r.id !== selectedRequest.id));
-      setSelectedRequest(null);
+  const handleReject = async () => {
+    if (!selectedRequest || isActionLoading) {
+      return;
+    }
+
+    if (!isActionableQueueStatus(selectedRequest.queueStatus)) {
+      setActionError("This request has already been processed.");
+      await refreshQueue();
+      return;
+    }
+
+    const requestId = selectedRequest.id;
+
+    try {
+      setIsActionLoading(true);
+      setActionError(null);
+      setActionSuccess(null);
+
+      await api.post(`/approvals/${requestId}/reject`, {
+        remarks: remarks.trim() || "Rejected from approver dashboard",
+      });
+
+      setRequests((currentRequests) => currentRequests.filter((request) => request.id !== requestId));
+      setSelectedRequest((currentSelected) => {
+        if (currentSelected?.id !== requestId) {
+          return currentSelected;
+        }
+
+        const nextRequests = requests.filter((request) => request.id !== requestId);
+        return nextRequests[0] ?? null;
+      });
       setRemarks("");
+
+      try {
+        await refreshQueue();
+      } catch (refreshError) {
+        console.error("Failed to refresh approval queue after reject:", refreshError);
+      }
+
+      setActionSuccess("Request rejected successfully.");
+    } catch (error) {
+      console.error("Failed to reject request:", error);
+      setActionError("Unable to reject this request right now.");
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
@@ -209,6 +370,36 @@ export function ApproverDashboard() {
         <p className="text-lg text-slate-600">
           Review and approve or reject booking requests
         </p>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="mb-8 flex gap-4 border-b border-slate-200">
+        <button
+          onClick={() => {
+            setActiveTab("queue");
+            setSelectedRequest(requests[0] ?? null);
+          }}
+          className={`px-6 py-3 font-medium transition-colors ${
+            activeTab === "queue"
+              ? "text-blue-600 border-b-2 border-b-blue-600"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          Queue ({requests.length})
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("archive");
+            setSelectedRequest(archivedRequests[0] ?? null);
+          }}
+          className={`px-6 py-3 font-medium transition-colors ${
+            activeTab === "archive"
+              ? "text-blue-600 border-b-2 border-b-blue-600"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          Archive ({archivedRequests.length})
+        </button>
       </div>
 
       <div className="mb-8 bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10 overflow-hidden">
@@ -243,6 +434,18 @@ export function ApproverDashboard() {
       <div className="grid grid-cols-3 gap-6">
         {/* Requests List */}
         <div className="col-span-2 space-y-6">
+          {actionSuccess && (
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-4 py-3 text-sm">
+              {actionSuccess}
+            </div>
+          )}
+
+          {actionError && (
+            <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-xl px-4 py-3 text-sm">
+              {actionError}
+            </div>
+          )}
+
           {/* DSS Insights Panel */}
           {selectedRequest && selectedRequest.dssRecommendation && (
             <div className={`bg-gradient-to-br ${
@@ -330,80 +533,104 @@ export function ApproverDashboard() {
           <div className="bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10 overflow-hidden">
             <div className="px-8 py-6 bg-gradient-to-r from-slate-50 to-amber-50/30 border-b border-slate-200 flex items-center justify-between">
               <h2 className="font-semibold text-slate-900 text-xl">
-                Pending Requests
+                {activeTab === "queue" ? "Pending Requests" : "Archived Requests"}
               </h2>
               <span className="px-4 py-2 bg-gradient-to-br from-amber-500 to-amber-600 text-white text-sm font-bold rounded-full shadow-lg shadow-amber-500/40">
-                {requests.length} pending
+                {activeTab === "queue" ? requests.length : archivedRequests.length} {activeTab === "queue" ? "pending" : "archived"}
               </span>
             </div>
 
-            {requestsLoading ? (
-              <div className="p-10 text-sm text-slate-600">Loading approval queue...</div>
-            ) : requestsError ? (
-              <div className="p-10 text-sm text-rose-700">{requestsError}</div>
-            ) : requests.length > 0 ? (
-              <div className="divide-y divide-slate-100">
-                {requests.map((request) => (
-                  <div
-                    key={request.id}
-                    className={`p-6 cursor-pointer transition-all ${
-                      selectedRequest?.id === request.id
-                        ? "bg-blue-50 border-l-4 border-l-blue-600"
-                        : "hover:bg-slate-50"
-                    }`}
-                    onClick={() => setSelectedRequest(request)}
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="font-bold text-slate-900 mb-1.5 text-lg">
-                          {formatRequestId(request.id)}
-                        </h3>
-                        <div className="flex items-center gap-2 text-sm text-slate-700">
-                          <FileText className="w-4 h-4 text-slate-500" />
-                          <span className="font-medium">{request.venue}</span>
+            {activeTab === "queue" ? (
+              <>
+                {requestsLoading ? (
+                  <div className="p-10 text-sm text-slate-600">Loading approval queue...</div>
+                ) : requestsError ? (
+                  <div className="p-10 text-sm text-rose-700">{requestsError}</div>
+                ) : requests.length > 0 ? (
+                  <div className="divide-y divide-slate-100">
+                    {requests.map((request) => (
+                      <div
+                        key={request.id}
+                        className={`p-6 cursor-pointer transition-all ${
+                          selectedRequest?.id === request.id
+                            ? "bg-blue-50 border-l-4 border-l-blue-600"
+                            : "hover:bg-slate-50"
+                        }`}
+                        onClick={() => setSelectedRequest(request)}
+                      >
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <h3 className="font-bold text-slate-900 mb-1.5 text-lg">
+                              {formatRequestId(request.id)}
+                            </h3>
+                            <div className="flex items-center gap-2 text-sm text-slate-700">
+                              <FileText className="w-4 h-4 text-slate-500" />
+                              <span className="font-medium">{request.venue}</span>
+                            </div>
+                          </div>
+                          <span className="px-3 py-1 text-xs font-bold rounded-full bg-amber-100 text-amber-700">
+                            {request.status}
+                          </span>
                         </div>
+                        <p className="text-sm text-slate-600">{request.purpose}</p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-4 py-1.5 text-xs font-bold rounded-full shadow-sm ${
-                          request.status === "Approved"
-                            ? "bg-emerald-500 text-white"
-                            : request.status === "Rejected"
-                            ? "bg-rose-500 text-white"
-                            : request.status === "Under Review"
-                            ? "bg-blue-500 text-white"
-                            : "bg-amber-500 text-white"
-                        }`}>
-                          {request.status}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-                      <div className="flex items-center gap-2 text-slate-700 font-medium">
-                        <CalendarIcon className="w-4 h-4 text-slate-500" />
-                        <span>{request.date}</span>
-                      </div>
-                      <div className="text-slate-600">{request.time}</div>
-                    </div>
-                    <div className="flex items-center justify-between pt-3 border-t border-slate-200">
-                      <div className="flex items-center gap-2 text-sm text-slate-700">
-                        <User className="w-4 h-4 text-slate-500" />
-                        <span className="font-medium">{request.requester}</span>
-                      </div>
-                      <span className="text-xs text-slate-600 font-medium">
-                        Submitted {request.submittedDate}
-                      </span>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                ) : (
+                  <div className="p-10 text-center">
+                    <CheckCircle2 className="w-12 h-12 text-emerald-300 mx-auto mb-4" />
+                    <p className="text-slate-600 font-medium">No pending requests</p>
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="p-16 text-center">
-                <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-emerald-100 to-emerald-50 rounded-full mb-6 shadow-lg shadow-emerald-900/10">
-                  <CheckCircle className="w-10 h-10 text-emerald-600" />
-                </div>
-                <p className="text-slate-900 font-semibold text-lg">No pending requests</p>
-                <p className="text-slate-500 mt-2">All caught up!</p>
-              </div>
+              <>
+                {archiveLoading ? (
+                  <div className="p-10 text-sm text-slate-600">Loading archive...</div>
+                ) : archiveError ? (
+                  <div className="p-10 text-sm text-rose-700">{archiveError}</div>
+                ) : archivedRequests.length > 0 ? (
+                  <div className="divide-y divide-slate-100">
+                    {archivedRequests.map((request) => (
+                      <div
+                        key={request.id}
+                        className={`p-6 cursor-pointer transition-all ${
+                          selectedRequest?.id === request.id
+                            ? "bg-blue-50 border-l-4 border-l-blue-600"
+                            : "hover:bg-slate-50"
+                        }`}
+                        onClick={() => setSelectedRequest(request)}
+                      >
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <h3 className="font-bold text-slate-900 mb-1.5 text-lg">
+                              {formatRequestId(request.id)}
+                            </h3>
+                            <div className="flex items-center gap-2 text-sm text-slate-700">
+                              <FileText className="w-4 h-4 text-slate-500" />
+                              <span className="font-medium">{request.venue}</span>
+                            </div>
+                          </div>
+                          <span className={`px-3 py-1 text-xs font-bold rounded-full ${
+                            request.status === "Approved" ? "bg-emerald-100 text-emerald-700" :
+                            request.status === "Rejected" ? "bg-rose-100 text-rose-700" :
+                            "bg-amber-100 text-amber-700"
+                          }`}>
+                            {request.status}
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-600">{request.purpose}</p>
+                        <p className="text-xs text-slate-500 mt-2">Processed on {request.submittedDate}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-10 text-center">
+                    <CheckCircle2 className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-600 font-medium">No archived requests</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -563,41 +790,47 @@ export function ApproverDashboard() {
                   </div>
                 )}
 
-                {/* Remarks Field */}
-                <div className="pt-5 border-t border-slate-200">
-                  <label
-                    htmlFor="remarks"
-                    className="block text-sm font-semibold text-slate-700 mb-2"
-                  >
-                    Remarks (Optional)
-                  </label>
-                  <textarea
-                    id="remarks"
-                    value={remarks}
-                    onChange={(e) => setRemarks(e.target.value)}
-                    rows={3}
-                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all resize-none"
-                    placeholder="Add any notes or comments"
-                  />
-                </div>
+                {/* Remarks Field - Only for Queue */}
+                {activeTab === "queue" && (
+                  <div className="pt-5 border-t border-slate-200">
+                    <label
+                      htmlFor="remarks"
+                      className="block text-sm font-semibold text-slate-700 mb-2"
+                    >
+                      Remarks (Optional)
+                    </label>
+                    <textarea
+                      id="remarks"
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                      rows={3}
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all resize-none"
+                      placeholder="Add any notes or comments"
+                    />
+                  </div>
+                )}
 
-                {/* Action Buttons */}
-                <div className="pt-5 border-t border-slate-200 space-y-3">
-                  <button
-                    onClick={handleApprove}
-                    className="w-full flex items-center justify-center gap-2.5 px-6 py-4 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition-all shadow-xl shadow-emerald-900/30 hover:shadow-2xl hover:shadow-emerald-900/40 font-semibold text-base hover:-translate-y-0.5 transform"
-                  >
-                    <CheckCircle className="w-5 h-5" />
-                    Approve Request
-                  </button>
-                  <button
-                    onClick={handleReject}
-                    className="w-full flex items-center justify-center gap-2.5 px-6 py-4 bg-gradient-to-r from-rose-600 to-rose-700 text-white rounded-xl hover:from-rose-700 hover:to-rose-800 transition-all shadow-xl shadow-rose-900/30 hover:shadow-2xl hover:shadow-rose-900/40 font-semibold text-base hover:-translate-y-0.5 transform"
-                  >
-                    <XCircle className="w-5 h-5" />
-                    Reject Request
-                  </button>
-                </div>
+                {/* Action Buttons - Only for Queue */}
+                {activeTab === "queue" && (
+                  <div className="pt-5 border-t border-slate-200 space-y-3">
+                    <button
+                      onClick={handleApprove}
+                      disabled={isActionLoading}
+                      className="w-full flex items-center justify-center gap-2.5 px-6 py-4 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition-all shadow-xl shadow-emerald-900/30 hover:shadow-2xl hover:shadow-emerald-900/40 font-semibold text-base hover:-translate-y-0.5 transform disabled:opacity-60 disabled:hover:translate-y-0"
+                    >
+                      <CheckCircle className="w-5 h-5" />
+                      {isActionLoading ? "Processing..." : "Approve Request"}
+                    </button>
+                    <button
+                      onClick={handleReject}
+                      disabled={isActionLoading}
+                      className="w-full flex items-center justify-center gap-2.5 px-6 py-4 bg-gradient-to-r from-rose-600 to-rose-700 text-white rounded-xl hover:from-rose-700 hover:to-rose-800 transition-all shadow-xl shadow-rose-900/30 hover:shadow-2xl hover:shadow-rose-900/40 font-semibold text-base hover:-translate-y-0.5 transform disabled:opacity-60 disabled:hover:translate-y-0"
+                    >
+                      <XCircle className="w-5 h-5" />
+                      {isActionLoading ? "Processing..." : "Reject Request"}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ) : (

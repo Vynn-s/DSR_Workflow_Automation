@@ -3,6 +3,8 @@ import { useNavigate } from "react-router";
 import { LogIn, Church, Shield, Calendar, Users } from "lucide-react";
 import { useAuth, UserRole } from "../../context/AuthContext";
 
+
+
 export function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -21,9 +23,9 @@ export function LoginPage() {
 
       if (role === UserRole.REQUESTER) {
         navigate("/requester");
-      } else if (role === UserRole.PARISH_SECRETARY || role === UserRole.PARISH_PRIEST) {
+      } else if (role === UserRole.PARISH_SECRETARY) {
         navigate("/approver");
-      } else if (role === UserRole.ADMIN) {
+      } else if (role === UserRole.ADMIN || role === UserRole.PARISH_PRIEST) {
         navigate("/admin");
       } else {
         navigate("/");

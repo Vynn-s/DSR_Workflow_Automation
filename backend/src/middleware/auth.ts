@@ -84,10 +84,35 @@ export async function authenticate(
 			return res.status(401).json({ message: "Invalid token" });
 		}
 
+		let role = mapGroupToRole(group);
+		console.log(`[AUTH] Email: ${email}, Cognito groups: ${JSON.stringify(groups)}, Mapped role: ${role}`);
+
+		// If no Cognito group was found, try to use the database role as fallback
+		if (!group) {
+			console.log(`[AUTH] No Cognito group for ${email}, checking database for role fallback`);
+			const { Pool } = require("pg");
+			const dbPool = new Pool({
+				connectionString: process.env.DATABASE_URL,
+				ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : true,
+			});
+			const client = await dbPool.connect();
+			try {
+				const userResult = await client.query(`SELECT role FROM "User" WHERE email = $1`, [email]);
+				if (userResult.rows.length > 0) {
+					const dbRole = userResult.rows[0].role;
+					console.log(`[AUTH] Found database role ${dbRole} for ${email}`);
+					role = mapGroupToRole(dbRole);
+				}
+			} finally {
+				client.release();
+				await dbPool.end();
+			}
+		}
+
 		req.user = {
 			id: sub,
 			email,
-			role: mapGroupToRole(group),
+			role,
 		};
 
 		return next();
@@ -100,6 +125,7 @@ export async function authenticate(
 export function requireRole(allowedRoles: Role[]) {
 	return (req: Request, res: Response, next: NextFunction) => {
 		if (!req.user || !allowedRoles.includes(req.user.role)) {
+			console.warn(`[ROLE_GUARD] User ${req.user?.email} has role ${req.user?.role}, allowed: ${allowedRoles.join(", ")}`);
 			return res.status(403).json({ message: "Insufficient permissions" });
 		}
 

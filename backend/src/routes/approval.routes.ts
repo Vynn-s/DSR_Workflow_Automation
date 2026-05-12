@@ -6,6 +6,7 @@ const {
 	approveRequest,
 	rejectRequest,
 	requestRevision,
+	getArchive,
 } = require("../controllers/approval.controller") as typeof import("../controllers/approval.controller");
 
 const approvalRoutes = Router();
@@ -14,6 +15,7 @@ approvalRoutes.use(authenticate);
 approvalRoutes.use(requireRole([Role.PARISH_SECRETARY, Role.PARISH_PRIEST]));
 
 approvalRoutes.get("/queue", getApprovalQueue);
+approvalRoutes.get("/archive", getArchive);
 approvalRoutes.post("/:requestId/approve", approveRequest);
 approvalRoutes.post("/:requestId/reject", rejectRequest);
 approvalRoutes.post("/:requestId/revise", requestRevision);

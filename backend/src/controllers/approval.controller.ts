@@ -1,9 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
+import { randomUUID } from "crypto";
 import { Pool } from "pg";
 
 const { z } = require("zod") as typeof import("zod");
-
-const prisma = require("../config/database").default as typeof import("../config/database").default;
 const { AppError } = require("../middleware/errorHandler") as typeof import("../middleware/errorHandler");
 
 const connectionString = process.env.DATABASE_URL;
@@ -29,34 +28,59 @@ const optionalRemarksSchema = z.object({
 	remarks: z.string().optional(),
 });
 
-function getQueueStatusForRole(role: string): "PENDING" | "SECRETARY_REVIEW" | null {
-	if (role === "PARISH_SECRETARY") {
+function getQueueStatusForRole(role: string): "PENDING" | null {
+	if (role === "PARISH_SECRETARY" || role === "PARISH_PRIEST") {
 		return "PENDING";
-	}
-
-	if (role === "PARISH_PRIEST") {
-		return "SECRETARY_REVIEW";
 	}
 
 	return null;
 }
 
-async function getRequestOrThrow(requestId: string) {
-	const requestRecord = await prisma.venueRequest.findUnique({
-		where: { id: requestId },
-		include: {
-			requester: true,
-			venue: true,
-			ministry: true,
-			approvalActions: true,
-		},
-	});
+async function getRequestOrThrow(client: import("pg").PoolClient, requestId: string) {
+	const requestResult = await client.query(
+		`SELECT id, status, "requesterId", "venueId", "ministryId", "currentApproverId", "createdAt", "updatedAt"
+		 FROM "VenueRequest"
+		 WHERE id = $1`,
+		[requestId],
+	);
 
-	if (!requestRecord) {
+	if (requestResult.rows.length === 0) {
 		throw new AppError("Request not found", 404);
 	}
 
-	return requestRecord;
+	return requestResult.rows[0] as {
+		id: string;
+		status: string;
+		requesterId: string;
+		venueId: string;
+		ministryId: string;
+		currentApproverId: string | null;
+		createdAt: string;
+		updatedAt: string;
+	};
+}
+
+async function getUserIdForEmail(client: import("pg").PoolClient, email: string, role: string) {
+	const userResult = await client.query(
+		`SELECT id FROM "User" WHERE email = $1 LIMIT 1`,
+		[email],
+	);
+
+	if (userResult.rows.length === 0) {
+		console.warn(`Creating fallback user for authenticated email: ${email} with role: ${role}`);
+		const fallbackUserId = randomUUID();
+		await client.query(
+			`INSERT INTO "User" (id, email, name, role, "createdAt", "updatedAt")
+			 VALUES ($1, $2, $3, $4, NOW(), NOW())
+			 ON CONFLICT (email) DO UPDATE SET "updatedAt" = NOW()
+			 RETURNING id`,
+			[fallbackUserId, email, email.split("@")[0], role]
+		);
+		const createdResult = await client.query(`SELECT id FROM "User" WHERE email = $1`, [email]);
+		return createdResult.rows[0].id as string;
+	}
+
+	return userResult.rows[0].id as string;
 }
 
 export async function getApprovalQueue(req: Request, res: Response, next: NextFunction) {
@@ -106,7 +130,7 @@ export async function getApprovalQueue(req: Request, res: Response, next: NextFu
 				u.email AS approver_email
 			 FROM "ApprovalAction" aa
 			 INNER JOIN "User" u ON u.id = aa."approverId"
-			 WHERE aa."requestId" = ANY($1::uuid[])
+			 WHERE aa."requestId" = ANY($1::text[])
 			 ORDER BY aa."createdAt" ASC`,
 			[queueResult.rows.map((row) => row.id)],
 		);
@@ -158,8 +182,9 @@ export async function getApprovalQueue(req: Request, res: Response, next: NextFu
 }
 
 export async function approveRequest(req: Request, res: Response, next: NextFunction) {
+	const client = await pool.connect();
 	try {
-		if (!req.user?.id) {
+		if (!req.user?.email) {
 			throw new AppError("Unauthorized", 401);
 		}
 
@@ -173,90 +198,76 @@ export async function approveRequest(req: Request, res: Response, next: NextFunc
 			throw new AppError("Invalid approval payload", 400);
 		}
 
-		const requestRecord = await getRequestOrThrow(parsedParams.data.requestId);
+		const requestRecord = await getRequestOrThrow(client, parsedParams.data.requestId);
+		const actorUserId = await getUserIdForEmail(client, req.user.email, req.user.role);
 
-		let nextStatus: "SECRETARY_REVIEW" | "APPROVED";
+		let nextStatus: "APPROVED";
 		let nextApproverId: string | null = null;
 
-		if (req.user.role === "PARISH_SECRETARY") {
-			if (requestRecord.status !== "PENDING") {
-				throw new AppError("Request is not in PENDING status", 400);
-			}
+		if (requestRecord.status !== "PENDING") {
+			throw new AppError("Request is not in PENDING status", 400);
+		}
 
-			const priest = await prisma.user.findFirst({
-				where: {
-					role: "PARISH_PRIEST",
-				},
-				select: {
-					id: true,
-				},
-			});
-
-			if (!priest) {
-				throw new AppError("No PARISH_PRIEST approver configured", 500);
-			}
-
-			nextStatus = "SECRETARY_REVIEW";
-			nextApproverId = priest.id;
-		} else if (req.user.role === "PARISH_PRIEST") {
-			if (requestRecord.status !== "SECRETARY_REVIEW") {
-				throw new AppError("Request is not in SECRETARY_REVIEW status", 400);
-			}
-
-			nextStatus = "APPROVED";
-			nextApproverId = null;
-		} else {
+		if (!["PARISH_SECRETARY", "PARISH_PRIEST"].includes(req.user.role)) {
 			throw new AppError("Insufficient permissions", 403);
 		}
 
-		const updatedRequest = await prisma.venueRequest.update({
-			where: {
-				id: requestRecord.id,
-			},
-			data: {
-				status: nextStatus,
-				currentApproverId: nextApproverId,
-			},
-			include: {
-				venue: true,
-				ministry: true,
-				requester: true,
-			},
-		});
+		nextStatus = "APPROVED";
+		nextApproverId = null;
 
-		await prisma.approvalAction.create({
-			data: {
-				requestId: requestRecord.id,
-				approverId: req.user.id,
-				action: "APPROVED",
-				remarks: parsedBody.data.remarks,
-			},
-		});
+		await client.query(
+			`UPDATE "VenueRequest"
+			 SET status = $1, "currentApproverId" = $2, "updatedAt" = NOW()
+			 WHERE id = $3`,
+			[nextStatus, nextApproverId, requestRecord.id],
+		);
 
-		await prisma.auditLog.create({
-			data: {
-				requestId: requestRecord.id,
-				performedById: req.user.id,
-				action: "REQUEST_APPROVED",
-				details: {
+		await client.query(
+			`INSERT INTO "ApprovalAction" (id, "requestId", "approverId", action, remarks, "createdAt")
+			 VALUES ($1, $2, $3, $4, $5, NOW())`,
+			[
+				randomUUID(),
+				requestRecord.id,
+				actorUserId,
+				"APPROVED",
+				parsedBody.data.remarks ?? null,
+			],
+		);
+
+		await client.query(
+			`INSERT INTO "AuditLog" (id, "requestId", "performedById", action, details, "ipAddress", "createdAt")
+			 VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())`,
+			[
+				randomUUID(),
+				requestRecord.id,
+				actorUserId,
+				"REQUEST_APPROVED",
+				JSON.stringify({
 					previousStatus: requestRecord.status,
 					nextStatus,
 					approvedByRole: req.user.role,
-					remarks: parsedBody.data.remarks,
-				},
-				ipAddress: req.ip,
-			},
-		});
+					remarks: parsedBody.data.remarks ?? null,
+				}),
+				req.ip,
+			],
+		);
 
-		return res.json(updatedRequest);
+		return res.json({
+			id: requestRecord.id,
+			status: nextStatus,
+			currentApproverId: nextApproverId,
+		});
 	} catch (error) {
 		return next(error);
+	} finally {
+		client.release();
 	}
 }
 
 export async function rejectRequest(req: Request, res: Response, next: NextFunction) {
+	const client = await pool.connect();
 	try {
-		if (!req.user?.id) {
+		if (!req.user?.email) {
 			throw new AppError("Unauthorized", 401);
 		}
 
@@ -270,62 +281,69 @@ export async function rejectRequest(req: Request, res: Response, next: NextFunct
 			throw new AppError("Remarks are required", 400);
 		}
 
-		const requestRecord = await getRequestOrThrow(parsedParams.data.requestId);
+		const requestRecord = await getRequestOrThrow(client, parsedParams.data.requestId);
+		const actorUserId = await getUserIdForEmail(client, req.user.email, req.user.role);
 
-		if (req.user.role === "PARISH_SECRETARY" && requestRecord.status !== "PENDING") {
+		if (requestRecord.status !== "PENDING") {
 			throw new AppError("Request is not in PENDING status", 400);
-		}
-
-		if (req.user.role === "PARISH_PRIEST" && requestRecord.status !== "SECRETARY_REVIEW") {
-			throw new AppError("Request is not in SECRETARY_REVIEW status", 400);
 		}
 
 		if (!["PARISH_SECRETARY", "PARISH_PRIEST"].includes(req.user.role)) {
 			throw new AppError("Insufficient permissions", 403);
 		}
 
-		const updatedRequest = await prisma.venueRequest.update({
-			where: {
-				id: requestRecord.id,
-			},
-			data: {
-				status: "REJECTED",
-				currentApproverId: null,
-			},
-		});
+		await client.query(
+			`UPDATE "VenueRequest"
+			 SET status = 'REJECTED', "currentApproverId" = NULL, "updatedAt" = NOW()
+			 WHERE id = $1`,
+			[requestRecord.id],
+		);
 
-		await prisma.approvalAction.create({
-			data: {
-				requestId: requestRecord.id,
-				approverId: req.user.id,
-				action: "REJECTED",
-				remarks: parsedBody.data.remarks,
-			},
-		});
+		await client.query(
+			`INSERT INTO "ApprovalAction" (id, "requestId", "approverId", action, remarks, "createdAt")
+			 VALUES ($1, $2, $3, $4, $5, NOW())`,
+			[
+				randomUUID(),
+				requestRecord.id,
+				actorUserId,
+				"REJECTED",
+				parsedBody.data.remarks,
+			],
+		);
 
-		await prisma.auditLog.create({
-			data: {
-				requestId: requestRecord.id,
-				performedById: req.user.id,
-				action: "REQUEST_REJECTED",
-				details: {
+		await client.query(
+			`INSERT INTO "AuditLog" (id, "requestId", "performedById", action, details, "ipAddress", "createdAt")
+			 VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())`,
+			[
+				randomUUID(),
+				requestRecord.id,
+				actorUserId,
+				"REQUEST_REJECTED",
+				JSON.stringify({
 					previousStatus: requestRecord.status,
 					nextStatus: "REJECTED",
 					remarks: parsedBody.data.remarks,
-				},
-				ipAddress: req.ip,
-			},
-		});
+				}),
+				req.ip,
+			],
+		);
 
-		return res.json(updatedRequest);
+		return res.json({
+			id: requestRecord.id,
+			status: "REJECTED",
+			currentApproverId: null,
+		});
 	} catch (error) {
 		return next(error);
+	} finally {
+		client.release();
 	}
 }
 
 export async function requestRevision(req: Request, res: Response, next: NextFunction) {
+	const client = await pool.connect();
 	try {
-		if (!req.user?.id) {
+		if (!req.user?.email) {
 			throw new AppError("Unauthorized", 401);
 		}
 
@@ -339,47 +357,145 @@ export async function requestRevision(req: Request, res: Response, next: NextFun
 			throw new AppError("Remarks are required", 400);
 		}
 
-		const requestRecord = await getRequestOrThrow(parsedParams.data.requestId);
+		const requestRecord = await getRequestOrThrow(client, parsedParams.data.requestId);
+		const actorUserId = await getUserIdForEmail(client, req.user.email, req.user.role);
 
-		if (req.user.role === "PARISH_SECRETARY" && requestRecord.status !== "PENDING") {
+		if (requestRecord.status !== "PENDING") {
 			throw new AppError("Request is not in PENDING status", 400);
-		}
-
-		if (req.user.role === "PARISH_PRIEST" && requestRecord.status !== "SECRETARY_REVIEW") {
-			throw new AppError("Request is not in SECRETARY_REVIEW status", 400);
 		}
 
 		if (!["PARISH_SECRETARY", "PARISH_PRIEST"].includes(req.user.role)) {
 			throw new AppError("Insufficient permissions", 403);
 		}
 
-		const updatedRequest = await prisma.venueRequest.update({
-			where: {
-				id: requestRecord.id,
-			},
-			data: {
-				status: "REVISION_REQUESTED",
-				currentApproverId: requestRecord.requesterId,
-			},
-		});
+		await client.query(
+			`UPDATE "VenueRequest"
+			 SET status = 'REVISION_REQUESTED', "currentApproverId" = $1, "updatedAt" = NOW()
+			 WHERE id = $2`,
+			[requestRecord.requesterId, requestRecord.id],
+		);
 
-		await prisma.auditLog.create({
-			data: {
-				requestId: requestRecord.id,
-				performedById: req.user.id,
-				action: "REQUEST_REVISION_REQUESTED",
-				details: {
+		await client.query(
+			`INSERT INTO "AuditLog" (id, "requestId", "performedById", action, details, "ipAddress", "createdAt")
+			 VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())`,
+			[
+				randomUUID(),
+				requestRecord.id,
+				actorUserId,
+				"REQUEST_REVISION_REQUESTED",
+				JSON.stringify({
 					previousStatus: requestRecord.status,
 					nextStatus: "REVISION_REQUESTED",
 					remarks: parsedBody.data.remarks,
-				},
-				ipAddress: req.ip,
-			},
-		});
+				}),
+				req.ip,
+			],
+		);
 
-		return res.json(updatedRequest);
+		return res.json({
+			id: requestRecord.id,
+			status: "REVISION_REQUESTED",
+			currentApproverId: requestRecord.requesterId,
+		});
 	} catch (error) {
 		return next(error);
+	} finally {
+		client.release();
+	}
+}
+
+export async function getArchive(req: Request, res: Response, next: NextFunction) {
+	const client = await pool.connect();
+	try {
+		if (!req.user) {
+			throw new AppError("Unauthorized", 401);
+		}
+
+		if (!["PARISH_SECRETARY", "PARISH_PRIEST"].includes(req.user.role)) {
+			throw new AppError("Insufficient permissions", 403);
+		}
+
+		const archiveResult = await client.query(
+			`SELECT
+				vr.id,
+				vr."eventName",
+				vr.purpose,
+				vr."startDateTime",
+				vr."endDateTime",
+				vr.status,
+				vr."createdAt",
+				vr."updatedAt",
+				r.name AS requester_name,
+				r.email AS requester_email,
+				v.name AS venue_name,
+				m.name AS ministry_name
+			 FROM "VenueRequest" vr
+			 INNER JOIN "User" r ON r.id = vr."requesterId"
+			 INNER JOIN "Venue" v ON v.id = vr."venueId"
+			 INNER JOIN "Ministry" m ON m.id = vr."ministryId"
+			 WHERE vr.status IN ('APPROVED', 'REJECTED', 'REVISION_REQUESTED')
+			 ORDER BY vr."updatedAt" DESC`,
+		);
+
+		const approvalActionsResult = await client.query(
+			`SELECT
+				aa."requestId",
+				aa."approverId",
+				aa.action,
+				aa.remarks,
+				aa."createdAt",
+				u.name AS approver_name,
+				u.email AS approver_email
+			 FROM "ApprovalAction" aa
+			 INNER JOIN "User" u ON u.id = aa."approverId"
+			 WHERE aa."requestId" = ANY($1::text[])
+			 ORDER BY aa."createdAt" ASC`,
+			[archiveResult.rows.map((row) => row.id)],
+		);
+
+		const approvalActionsByRequestId = new Map<string, Array<Record<string, unknown>>>();
+		for (const action of approvalActionsResult.rows) {
+			const requestActions = approvalActionsByRequestId.get(action.requestId) ?? [];
+			requestActions.push({
+				remarks: action.remarks,
+				createdAt: action.createdAt,
+				approver: {
+					id: action.approverId,
+					name: action.approver_name,
+					email: action.approver_email,
+				},
+				action: action.action,
+			});
+			approvalActionsByRequestId.set(action.requestId, requestActions);
+		}
+
+		const archive = archiveResult.rows.map((request) => ({
+			id: request.id,
+			eventName: request.eventName,
+			purpose: request.purpose,
+			startDateTime: request.startDateTime,
+			endDateTime: request.endDateTime,
+			status: request.status,
+			createdAt: request.createdAt,
+			updatedAt: request.updatedAt,
+			requester: {
+				name: request.requester_name,
+				email: request.requester_email,
+			},
+			venue: {
+				name: request.venue_name,
+			},
+			ministry: {
+				name: request.ministry_name,
+			},
+			approvalActions: approvalActionsByRequestId.get(request.id) ?? [],
+		}));
+
+		return res.json({ archive });
+	} catch (error) {
+		return next(error);
+	} finally {
+		client.release();
 	}
 }
 
@@ -388,4 +504,5 @@ export default {
 	approveRequest,
 	rejectRequest,
 	requestRevision,
+	getArchive,
 };

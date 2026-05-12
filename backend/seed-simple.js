@@ -72,6 +72,15 @@ async function seed() {
     );
     console.log("✓ Created test secretary");
 
+    // Create parish priest
+    await client.query(
+      `INSERT INTO "User" (id, email, name, role, "createdAt", "updatedAt") 
+       VALUES ($1, $2, $3, $4, NOW(), NOW())
+       ON CONFLICT (email) DO NOTHING`,
+      [generateId(), "priest@test.com", "Test Priest", "PARISH_PRIEST"]
+    );
+    console.log("✓ Created test priest");
+
     const venues = [
       {
         name: "Main Chapel",
@@ -116,6 +125,103 @@ async function seed() {
       );
 
       console.log(`✓ Ready venue: ${venue.name}`);
+    }
+
+    // Get secretary and priest IDs for approval actions
+    const secretaryResult = await client.query(
+      `SELECT id FROM "User" WHERE email = $1`,
+      ["secretary@test.com"]
+    );
+    const secretaryId = secretaryResult.rows[0].id;
+
+    const priestResult = await client.query(
+      `SELECT id FROM "User" WHERE email = $1`,
+      ["priest@test.com"]
+    );
+    const priestId = priestResult.rows[0].id;
+
+    // Get Main Chapel venue ID
+    const mainChapelResult = await client.query(
+      `SELECT id FROM "Venue" WHERE name = $1`,
+      ["Main Chapel"]
+    );
+    const mainChapelId = mainChapelResult.rows[0].id;
+
+    // Create archived requests (approved and rejected) for testing
+    const archivedRequests = [
+      {
+        eventName: "Sunday Choir Practice - Approved",
+        purpose: "Weekly choir rehearsal for Sunday Mass",
+        startDateTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
+        endDateTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000 + 3600000),
+        attendees: 25,
+        status: "APPROVED",
+        approverAction: "APPROVED",
+        approverRemarks: "Approved - Regular weekly choir practice",
+        approverId: secretaryId,
+      },
+      {
+        eventName: "Wedding Reception - Rejected",
+        purpose: "Reception for wedding ceremony",
+        startDateTime: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+        endDateTime: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 + 7200000),
+        attendees: 150,
+        status: "REJECTED",
+        approverAction: "REJECTED",
+        approverRemarks: "Rejected - Main Chapel not available due to maintenance",
+        approverId: priestId,
+      },
+      {
+        eventName: "Youth Group Meeting - Approved",
+        purpose: "Monthly youth formation and social gathering",
+        startDateTime: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+        endDateTime: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 5400000),
+        attendees: 45,
+        status: "APPROVED",
+        approverAction: "APPROVED",
+        approverRemarks: "Approved - Youth Center available and fully equipped",
+        approverId: priestId,
+      },
+    ];
+
+    for (const archivedReq of archivedRequests) {
+      const requestId = generateId();
+      
+      // Create venue request
+      await client.query(
+        `INSERT INTO "VenueRequest" (id, "eventName", purpose, "startDateTime", "endDateTime", attendees, status, "requesterId", "venueId", "ministryId", "createdAt", "updatedAt") 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        [
+          requestId,
+          archivedReq.eventName,
+          archivedReq.purpose,
+          archivedReq.startDateTime,
+          archivedReq.endDateTime,
+          archivedReq.attendees,
+          archivedReq.status,
+          userId,
+          mainChapelId,
+          actualMinistryId,
+          new Date(archivedReq.startDateTime.getTime() - 30 * 24 * 60 * 60 * 1000), // created 30 days before event
+          archivedReq.startDateTime,
+        ]
+      );
+
+      // Create approval action
+      await client.query(
+        `INSERT INTO "ApprovalAction" (id, "requestId", "approverId", action, remarks, "createdAt") 
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          generateId(),
+          requestId,
+          archivedReq.approverId,
+          archivedReq.approverAction,
+          archivedReq.approverRemarks,
+          archivedReq.startDateTime,
+        ]
+      );
+
+      console.log(`✓ Created archived request: ${archivedReq.eventName}`);
     }
 
     console.log("\n✅ Seeding completed successfully!");

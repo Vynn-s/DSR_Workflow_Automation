@@ -97,6 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
+     localStorage.clear();  // ← add this
+      sessionStorage.clear(); // ← add this
     await signIn({ username: email, password });
 
     const [session, currentUser, attributes] = await Promise.all([
@@ -104,8 +106,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       getCurrentUser(),
       fetchUserAttributes(),
     ]);
-
-    console.log('ID Token:', session.tokens?.idToken?.toString())
 
     const role = getRoleFromSessionGroups(session);
     const nextUser: User = {
@@ -122,12 +122,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await signOut();
+  try {
+    await signOut({ global: true });
+  } catch (error) {
+    console.error("Logout error:", error);
+  } finally {
     setUser(null);
-    if (typeof window !== "undefined") {
-      window.location.assign("/");
-    }
-  };
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.assign("/");
+  }
+};
 
   return (
     <AuthContext.Provider

@@ -1,15 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MapPin, Clock, CheckCircle2, Calendar, List, ChevronLeft, ChevronRight, X, User, UserCheck } from "lucide-react";
-
-// Mock data for venue schedules
-const venues = [
-  "Main Chapel",
-  "Parish Hall",
-  "Multipurpose Room",
-  "Chapel Garden",
-  "Conference Room",
-  "Youth Center",
-];
+import api from "../../lib/api";
 
 interface BookedSlot {
   date: string;
@@ -24,329 +15,151 @@ interface BookedSlot {
   attendees?: number;
 }
 
-// Mock booked slots with more dates for calendar view
-const mockBookedSlots: Record<string, BookedSlot[]> = {
-  "Main Chapel": [
-    {
-      requestId: "REQ-101",
-      date: "2026-02-15",
-      time: "10:00 AM - 12:00 PM",
-      purpose: "Wedding Ceremony",
-      status: "Approved",
-      requester: "Maria Santos",
-      requesterEmail: "maria.santos@email.com",
-      approver: "Bishop Antonio",
-      approvedDate: "2026-02-01",
-      attendees: 200,
-    },
-    {
-      requestId: "REQ-102",
-      date: "2026-02-22",
-      time: "9:00 AM - 11:00 AM",
-      purpose: "Sunday Mass",
-      status: "Approved",
-      requester: "Fr. Michael Santos",
-      requesterEmail: "fr.michael@spcathedral.org",
-      approver: "Bishop Antonio",
-      approvedDate: "2026-02-10",
-      attendees: 500,
-    },
-    {
-      requestId: "REQ-103",
-      date: "2026-02-08",
-      time: "2:00 PM - 4:00 PM",
-      purpose: "Baptism Ceremony",
-      status: "Approved",
-      requester: "John Reyes",
-      requesterEmail: "john.reyes@email.com",
-      approver: "Fr. Michael Santos",
-      approvedDate: "2026-01-25",
-      attendees: 50,
-    },
-    {
-      requestId: "REQ-104",
-      date: "2026-02-28",
-      time: "3:00 PM - 5:00 PM",
-      purpose: "First Communion",
-      status: "Pending",
-      requester: "Teresa Martinez",
-      requesterEmail: "teresa.m@email.com",
-      attendees: 80,
-    },
-    {
-      requestId: "REQ-105",
-      date: "2026-03-07",
-      time: "10:00 AM - 12:00 PM",
-      purpose: "Wedding Ceremony",
-      status: "Approved",
-      requester: "Carlos Dela Cruz",
-      requesterEmail: "carlos.dc@email.com",
-      approver: "Bishop Antonio",
-      approvedDate: "2026-02-20",
-      attendees: 250,
-    },
-    {
-      requestId: "REQ-106",
-      date: "2026-03-14",
-      time: "4:00 PM - 6:00 PM",
-      purpose: "Confirmation Mass",
-      status: "Approved",
-      requester: "Fr. Michael Santos",
-      requesterEmail: "fr.michael@spcathedral.org",
-      approver: "Bishop Antonio",
-      approvedDate: "2026-03-01",
-      attendees: 150,
-    },
-  ],
-  "Parish Hall": [
-    {
-      requestId: "REQ-201",
-      date: "2026-02-20",
-      time: "2:00 PM - 5:00 PM",
-      purpose: "Youth Ministry Meeting",
-      status: "Pending",
-      requester: "Fr. Michael Santos",
-      requesterEmail: "fr.michael@spcathedral.org",
-      attendees: 60,
-    },
-    {
-      requestId: "REQ-202",
-      date: "2026-02-18",
-      time: "6:00 PM - 9:00 PM",
-      purpose: "Community Dinner",
-      status: "Approved",
-      requester: "Maria Cruz",
-      requesterEmail: "maria.cruz@spcathedral.org",
-      approver: "Sr. Teresa",
-      approvedDate: "2026-02-05",
-      attendees: 120,
-    },
-    {
-      requestId: "REQ-203",
-      date: "2026-02-05",
-      time: "5:00 PM - 8:00 PM",
-      purpose: "Parish Council Meeting",
-      status: "Approved",
-      requester: "Admin User",
-      requesterEmail: "admin@spcathedral.org",
-      approver: "Bishop Antonio",
-      approvedDate: "2026-01-28",
-      attendees: 30,
-    },
-    {
-      requestId: "REQ-204",
-      date: "2026-02-12",
-      time: "7:00 PM - 9:00 PM",
-      purpose: "Bible Study Group",
-      status: "Approved",
-      requester: "John Reyes",
-      requesterEmail: "john.reyes@spcathedral.org",
-      approver: "Fr. Michael Santos",
-      approvedDate: "2026-02-01",
-      attendees: 25,
-    },
-    {
-      requestId: "REQ-205",
-      date: "2026-02-25",
-      time: "3:00 PM - 6:00 PM",
-      purpose: "Children's Ministry Event",
-      status: "Approved",
-      requester: "Sr. Maria Lopez",
-      requesterEmail: "sr.maria@spcathedral.org",
-      approver: "Sr. Teresa",
-      approvedDate: "2026-02-15",
-      attendees: 75,
-    },
-    {
-      requestId: "REQ-206",
-      date: "2026-03-03",
-      time: "6:00 PM - 9:00 PM",
-      purpose: "Fundraising Dinner",
-      status: "Pending",
-      requester: "Roberto Cruz",
-      requesterEmail: "roberto.c@spcathedral.org",
-      attendees: 100,
-    },
-  ],
-  "Multipurpose Room": [
-    {
-      requestId: "REQ-301",
-      date: "2026-02-10",
-      time: "3:00 PM - 5:00 PM",
-      purpose: "Choir Practice",
-      status: "Approved",
-      requester: "Music Director",
-      requesterEmail: "music@spcathedral.org",
-      approver: "Fr. Michael Santos",
-      approvedDate: "2026-02-01",
-      attendees: 40,
-    },
-    {
-      requestId: "REQ-302",
-      date: "2026-02-17",
-      time: "3:00 PM - 5:00 PM",
-      purpose: "Choir Practice",
-      status: "Approved",
-      requester: "Music Director",
-      requesterEmail: "music@spcathedral.org",
-      approver: "Fr. Michael Santos",
-      approvedDate: "2026-02-01",
-      attendees: 40,
-    },
-    {
-      requestId: "REQ-303",
-      date: "2026-02-24",
-      time: "3:00 PM - 5:00 PM",
-      purpose: "Choir Practice",
-      status: "Approved",
-      requester: "Music Director",
-      requesterEmail: "music@spcathedral.org",
-      approver: "Fr. Michael Santos",
-      approvedDate: "2026-02-01",
-      attendees: 40,
-    },
-    {
-      requestId: "REQ-304",
-      date: "2026-03-10",
-      time: "2:00 PM - 4:00 PM",
-      purpose: "Music Rehearsal",
-      status: "Approved",
-      requester: "Music Director",
-      requesterEmail: "music@spcathedral.org",
-      approver: "Fr. Michael Santos",
-      approvedDate: "2026-03-01",
-      attendees: 35,
-    },
-  ],
-  "Chapel Garden": [
-    {
-      requestId: "REQ-401",
-      date: "2026-03-05",
-      time: "3:00 PM - 6:00 PM",
-      purpose: "Baptism Reception",
-      status: "Pending",
-      requester: "Maria Cruz",
-      requesterEmail: "maria.cruz@email.com",
-      attendees: 60,
-    },
-    {
-      requestId: "REQ-402",
-      date: "2026-02-14",
-      time: "11:00 AM - 2:00 PM",
-      purpose: "Wedding Reception",
-      status: "Approved",
-      requester: "Anna Rodriguez",
-      requesterEmail: "anna.r@email.com",
-      approver: "Sr. Teresa",
-      approvedDate: "2026-01-30",
-      attendees: 150,
-    },
-    {
-      requestId: "REQ-403",
-      date: "2026-03-21",
-      time: "1:00 PM - 4:00 PM",
-      purpose: "Garden Party",
-      status: "Approved",
-      requester: "Parish Events Committee",
-      requesterEmail: "events@spcathedral.org",
-      approver: "Bishop Antonio",
-      approvedDate: "2026-03-10",
-      attendees: 80,
-    },
-  ],
-  "Conference Room": [
-    {
-      requestId: "REQ-501",
-      date: "2026-02-06",
-      time: "10:00 AM - 12:00 PM",
-      purpose: "Staff Meeting",
-      status: "Approved",
-      requester: "Admin User",
-      requesterEmail: "admin@spcathedral.org",
-      approver: "Bishop Antonio",
-      approvedDate: "2026-01-28",
-      attendees: 15,
-    },
-    {
-      requestId: "REQ-502",
-      date: "2026-02-13",
-      time: "2:00 PM - 4:00 PM",
-      purpose: "Finance Committee",
-      status: "Approved",
-      requester: "Roberto Cruz",
-      requesterEmail: "roberto.c@spcathedral.org",
-      approver: "Bishop Antonio",
-      approvedDate: "2026-02-01",
-      attendees: 10,
-    },
-    {
-      requestId: "REQ-503",
-      date: "2026-02-27",
-      time: "9:00 AM - 11:00 AM",
-      purpose: "Planning Session",
-      status: "Pending",
-      requester: "Sr. Maria Lopez",
-      requesterEmail: "sr.maria@spcathedral.org",
-      attendees: 12,
-    },
-  ],
-  "Youth Center": [
-    {
-      requestId: "REQ-601",
-      date: "2026-02-07",
-      time: "4:00 PM - 7:00 PM",
-      purpose: "Youth Group Meeting",
-      status: "Approved",
-      requester: "Youth Ministry Coordinator",
-      requesterEmail: "youth@spcathedral.org",
-      approver: "Fr. Michael Santos",
-      approvedDate: "2026-01-25",
-      attendees: 50,
-    },
-    {
-      requestId: "REQ-602",
-      date: "2026-02-14",
-      time: "5:00 PM - 8:00 PM",
-      purpose: "Game Night",
-      status: "Approved",
-      requester: "Youth Ministry Coordinator",
-      requesterEmail: "youth@spcathedral.org",
-      approver: "Fr. Michael Santos",
-      approvedDate: "2026-02-01",
-      attendees: 65,
-    },
-    {
-      requestId: "REQ-603",
-      date: "2026-02-21",
-      time: "4:00 PM - 7:00 PM",
-      purpose: "Youth Group Meeting",
-      status: "Approved",
-      requester: "Youth Ministry Coordinator",
-      requesterEmail: "youth@spcathedral.org",
-      approver: "Fr. Michael Santos",
-      approvedDate: "2026-02-10",
-      attendees: 50,
-    },
-    {
-      requestId: "REQ-604",
-      date: "2026-03-15",
-      time: "3:00 PM - 6:00 PM",
-      purpose: "Teen Workshop",
-      status: "Pending",
-      requester: "Youth Ministry Coordinator",
-      requesterEmail: "youth@spcathedral.org",
-      attendees: 40,
-    },
-  ],
-};
+function formatTimeFromDateTime(startDateTime: string, endDateTime: string): string {
+  try {
+    const start = new Date(startDateTime);
+    const end = new Date(endDateTime);
+    const startHour = start.getHours().toString().padStart(2, '0');
+    const startMin = start.getMinutes().toString().padStart(2, '0');
+    const endHour = end.getHours().toString().padStart(2, '0');
+    const endMin = end.getMinutes().toString().padStart(2, '0');
+    return `${startHour}:${startMin} - ${endHour}:${endMin}`;
+  } catch {
+    return "N/A";
+  }
+}
+
+function formatDate(dateTime: string): string {
+  try {
+    const date = new Date(dateTime);
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  } catch {
+    return "N/A";
+  }
+}
+
+function getLastApprovalAction(approvalActions: any[]): { approver?: string; approvedDate?: string } {
+  if (!approvalActions || approvalActions.length === 0) return {};
+  const lastAction = approvalActions[approvalActions.length - 1];
+  return {
+    approver: lastAction.approver?.name,
+    approvedDate: formatDate(lastAction.createdAt),
+  };
+}
+
+interface ApiResponse {
+  requests: Array<{
+    id: string;
+    eventName: string;
+    purpose: string;
+    startDateTime: string;
+    endDateTime: string;
+    status: "APPROVED" | "PENDING";
+    attendees: number;
+    requester: { name: string; email: string };
+    venue: { name: string };
+    approvalActions: any[];
+  }>;
+}
+
+function convertToBookedSlot(request: ApiResponse['requests'][0]): BookedSlot {
+  const approvalInfo = getLastApprovalAction(request.approvalActions);
+  return {
+    requestId: request.id,
+    date: formatDate(request.startDateTime),
+    time: formatTimeFromDateTime(request.startDateTime, request.endDateTime),
+    purpose: request.purpose,
+    status: request.status === "APPROVED" ? "Approved" : "Pending",
+    requester: request.requester.name,
+    requesterEmail: request.requester.email,
+    approver: approvalInfo.approver,
+    approvedDate: approvalInfo.approvedDate,
+    attendees: request.attendees,
+  };
+}
 
 export function VenueAvailability() {
-  const [selectedVenue, setSelectedVenue] = useState("Main Chapel");
+  const [selectedVenue, setSelectedVenue] = useState<string | null>(null);
+  const [venues, setVenues] = useState<string[]>([]);
+  const [bookingsByVenue, setBookingsByVenue] = useState<Record<string, BookedSlot[]>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 1)); // February 2026
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayBookings, setSelectedDayBookings] = useState<BookedSlot[] | null>(null);
 
-  const bookedSlots = mockBookedSlots[selectedVenue] || [];
+  // Fetch availability on mount
+  useEffect(() => {
+    async function loadAvailability() {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await api.get<ApiResponse>("/requests/availability");
+        
+        // Group requests by venue
+        const grouped: Record<string, BookedSlot[]> = {};
+        const venueSet = new Set<string>();
+        
+        for (const request of response.requests || []) {
+          const slot = convertToBookedSlot(request);
+          const venueName = request.venue.name;
+          
+          if (!grouped[venueName]) {
+            grouped[venueName] = [];
+          }
+          grouped[venueName].push(slot);
+          venueSet.add(venueName);
+        }
+        
+        // Sort requests by date within each venue
+        Object.keys(grouped).forEach(venue => {
+          grouped[venue].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        });
+        
+        const sortedVenues = Array.from(venueSet).sort();
+        setVenues(sortedVenues);
+        setBookingsByVenue(grouped);
+        
+        // Set first venue as selected
+        if (sortedVenues.length > 0) {
+          setSelectedVenue(sortedVenues[0]);
+        }
+      } catch (err) {
+        console.error("Failed to load availability:", err);
+        setError("Unable to load venue availability. Please try again later.");
+        setVenues([]);
+        setBookingsByVenue({});
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    void loadAvailability();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-16">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600 font-medium">Loading venue availability...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-10 text-center">
+        <p className="text-rose-700 font-medium">{error}</p>
+      </div>
+    );
+  }
+
+  const bookedSlots = selectedVenue ? (bookingsByVenue[selectedVenue] || []) : [];
 
   // Helper function to get days in month
   const getDaysInMonth = (date: Date) => {
@@ -427,7 +240,7 @@ export function VenueAvailability() {
             <MapPin className="w-5 h-5 text-slate-400" />
             <select
               id="venue-select"
-              value={selectedVenue}
+              value={selectedVenue || ""}
               onChange={(e) => setSelectedVenue(e.target.value)}
               className="px-4 py-3 bg-white border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
             >
@@ -798,113 +611,39 @@ export function VenueAvailability() {
                         {booking.status === "Pending" && <Clock className="w-4 h-4" />}
                         {booking.status}
                       </span>
-                      <span className="text-sm font-semibold text-slate-600">
-                        {booking.requestId}
-                      </span>
                     </div>
 
-                    {/* Event Information Grid */}
+                    {/* Details Grid */}
                     <div className="grid grid-cols-2 gap-6 mb-6">
                       <div>
-                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
-                          Time
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-5 h-5 text-slate-500" />
-                          <p className="text-base font-semibold text-slate-900">
-                            {booking.time}
-                          </p>
-                        </div>
+                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Time</p>
+                        <p className="text-sm font-semibold text-slate-900">{booking.time}</p>
                       </div>
-
                       {booking.attendees && (
                         <div>
-                          <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
-                            Expected Attendees
-                          </p>
-                          <p className="text-base font-semibold text-slate-900">
-                            {booking.attendees} people
-                          </p>
+                          <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Attendees</p>
+                          <p className="text-sm font-semibold text-slate-900">{booking.attendees} people</p>
                         </div>
                       )}
                     </div>
 
-                    {/* Purpose */}
-                    <div className="mb-6 pb-6 border-b border-slate-200">
-                      <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
-                        Purpose
-                      </p>
-                      <p className="text-base text-slate-900 font-medium">
-                        {booking.purpose}
-                      </p>
+                    <div className="mb-6 pb-6 border-b border-slate-300">
+                      <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Purpose</p>
+                      <p className="text-sm text-slate-900">{booking.purpose}</p>
                     </div>
 
-                    {/* Requester Information */}
-                    <div className="mb-6">
-                      <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-3">
-                        Requested By
-                      </p>
-                      <div className="flex items-start gap-3 bg-white p-4 rounded-lg border border-slate-200">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                          <User className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-slate-900">
-                            {booking.requester}
-                          </p>
-                          <p className="text-sm text-slate-600 mt-0.5">
-                            {booking.requesterEmail}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Approver Information */}
-                    {booking.status === "Approved" && booking.approver && (
+                    {/* Requester Info */}
+                    <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-slate-200">
+                      <User className="w-4 h-4 text-blue-600 mt-1" />
                       <div>
-                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-3">
-                          Approved By
-                        </p>
-                        <div className="flex items-start gap-3 bg-white p-4 rounded-lg border border-emerald-200">
-                          <div className="p-2 bg-emerald-100 rounded-lg">
-                            <UserCheck className="w-5 h-5 text-emerald-600" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-semibold text-slate-900">
-                              {booking.approver}
-                            </p>
-                            {booking.approvedDate && (
-                              <p className="text-sm text-slate-600 mt-0.5">
-                                Approved on {booking.approvedDate}
-                              </p>
-                            )}
-                          </div>
-                          <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                        </div>
+                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Requested By</p>
+                        <p className="text-sm font-semibold text-slate-900">{booking.requester}</p>
+                        <p className="text-xs text-slate-600 mt-0.5">{booking.requesterEmail}</p>
                       </div>
-                    )}
-
-                    {/* Pending Notice */}
-                    {booking.status === "Pending" && (
-                      <div className="bg-amber-100 border border-amber-300 rounded-lg p-4">
-                        <p className="text-sm text-amber-800 font-medium">
-                          ⏳ This booking is awaiting approval from an authorized approver.
-                        </p>
-                      </div>
-                    )}
+                    </div>
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="border-t border-slate-200 px-8 py-5 bg-slate-50">
-              <button
-                onClick={() => setSelectedDayBookings(null)}
-                className="w-full px-6 py-3.5 bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-xl hover:from-slate-900 hover:to-black transition-all shadow-lg shadow-slate-900/30 font-medium"
-              >
-                Close Details
-              </button>
             </div>
           </div>
         </div>

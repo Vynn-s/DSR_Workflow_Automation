@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { MapPin, Plus, Edit2, Trash2, Check, X, Calendar as CalendarIcon } from "lucide-react";
+import { useEffect } from "react";
+import api from "../../lib/api";
 
 interface BookedSlot {
   id: string;
@@ -10,59 +12,62 @@ interface BookedSlot {
   requester: string;
 }
 
-const venues = [
-  "Main Chapel",
-  "Parish Hall",
-  "Multipurpose Room",
-  "Chapel Garden",
-  "Conference Room",
-  "Youth Center",
-];
 
-const initialMockBookedSlots: Record<string, BookedSlot[]> = {
-  "Main Chapel": [
-    {
-      id: "SLOT-001",
-      date: "2026-02-15",
-      time: "10:00 AM - 12:00 PM",
-      purpose: "Sunday Mass",
-      status: "Approved",
-      requester: "Fr. Michael Santos"
-    },
-    {
-      id: "SLOT-002",
-      date: "2026-02-22",
-      time: "2:00 PM - 5:00 PM",
-      purpose: "Wedding Ceremony",
-      status: "Approved",
-      requester: "Maria Cruz"
-    },
-  ],
-  "Parish Hall": [
-    {
-      id: "SLOT-003",
-      date: "2026-02-20",
-      time: "2:00 PM - 5:00 PM",
-      purpose: "Youth Ministry Meeting",
-      status: "Pending",
-      requester: "Fr. Michael Santos"
-    },
-  ],
-  "Chapel Garden": [
-    {
-      id: "SLOT-004",
-      date: "2026-03-05",
-      time: "3:00 PM - 6:00 PM",
-      purpose: "Baptism Reception",
-      status: "Approved",
-      requester: "Maria Cruz"
-    },
-  ],
-};
+function formatTimeFromDateTime(startDateTime: string, endDateTime: string): string {
+  try {
+    const start = new Date(startDateTime);
+    const end = new Date(endDateTime);
+    const startHour = start.getHours().toString().padStart(2, '0');
+    const startMin = start.getMinutes().toString().padStart(2, '0');
+    const endHour = end.getHours().toString().padStart(2, '0');
+    const endMin = end.getMinutes().toString().padStart(2, '0');
+    return `${startHour}:${startMin} - ${endHour}:${endMin}`;
+  } catch {
+    return "N/A";
+  }
+}
 
+function formatDate(dateTime: string): string {
+  try {
+    const date = new Date(dateTime);
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  } catch {
+    return "N/A";
+  }
+}
+
+interface ApiResponse {
+  requests: Array<{
+    id: string;
+    eventName: string;
+    purpose: string;
+    startDateTime: string;
+    endDateTime: string;
+    status: "APPROVED" | "PENDING";
+    requester: { name: string };
+    venue: { name: string };
+  }>;
+}
+
+function convertToBookedSlot(request: ApiResponse['requests'][0]): BookedSlot {
+  return {
+    id: request.id,
+    date: formatDate(request.startDateTime),
+    time: formatTimeFromDateTime(request.startDateTime, request.endDateTime),
+    purpose: request.purpose,
+    status: request.status === "APPROVED" ? "Approved" : "Pending",
+    requester: request.requester.name,
+  };
+}
 export function AdminVenueAvailability() {
   const [selectedVenue, setSelectedVenue] = useState("Main Chapel");
-  const [bookedSlots, setBookedSlots] = useState(initialMockBookedSlots);
+  const [venues, setVenues] = useState<string[]>([]);
+  const [bookingsByVenue, setBookingsByVenue] = useState<Record<string, BookedSlot[]>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isAddingSlot, setIsAddingSlot] = useState(false);
   const [editingSlot, setEditingSlot] = useState<string | null>(null);
   
@@ -76,6 +81,54 @@ export function AdminVenueAvailability() {
     status: "Pending" as "Approved" | "Pending" | "Cancelled"
   });
 
+  // Fetch availability on mount
+  useEffect(() => {
+    async function loadAvailability() {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await api.get<ApiResponse>("/requests/availability");
+        
+        // Group requests by venue
+        const grouped: Record<string, BookedSlot[]> = {};
+        const venueSet = new Set<string>();
+        
+        for (const request of response.requests || []) {
+          const slot = convertToBookedSlot(request);
+          const venueName = request.venue.name;
+          
+          if (!grouped[venueName]) {
+            grouped[venueName] = [];
+          }
+          grouped[venueName].push(slot);
+          venueSet.add(venueName);
+        }
+        
+        // Sort requests by date within each venue
+        Object.keys(grouped).forEach(venue => {
+          grouped[venue].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        });
+        
+        const sortedVenues = Array.from(venueSet).sort();
+        setVenues(sortedVenues.length > 0 ? sortedVenues : ["Main Chapel", "Parish Hall", "Multipurpose Room", "Chapel Garden", "Conference Room", "Youth Center"]);
+        setBookingsByVenue(grouped);
+        
+        // Ensure selected venue exists
+        if (sortedVenues.length > 0) {
+          setSelectedVenue(sortedVenues[0]);
+        }
+      } catch (err) {
+        console.error("Failed to load availability:", err);
+        setError("Unable to load venue availability. Please try again later.");
+        setVenues(["Main Chapel", "Parish Hall", "Multipurpose Room", "Chapel Garden", "Conference Room", "Youth Center"]);
+        setBookingsByVenue({});
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    void loadAvailability();
+  }, []);
   const currentSlots = bookedSlots[selectedVenue] || [];
 
   const resetForm = () => {
@@ -96,9 +149,26 @@ export function AdminVenueAvailability() {
       alert("Please fill in all fields");
       return;
     }
-
+      const currentSlots = bookingsByVenue[selectedVenue] || [];
     const newSlot: BookedSlot = {
+      if (isLoading) {
+        return (
+          <div className="flex items-center justify-center p-16">
+            <div className="text-center">
+              <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-slate-600 font-medium">Loading venue availability...</p>
+            </div>
+          </div>
+        );
+      }
       id: `SLOT-${Date.now()}`,
+      if (error) {
+        return (
+          <div className="p-10 text-center">
+            <p className="text-rose-700 font-medium">{error}</p>
+          </div>
+        );
+      }
       date: formData.date,
       time: `${formData.startTime} - ${formData.endTime}`,
       purpose: formData.purpose,
@@ -106,8 +176,8 @@ export function AdminVenueAvailability() {
       requester: formData.requester
     };
 
-    setBookedSlots({
-      ...bookedSlots,
+    setBookingsByVenue({
+      ...bookingsByVenue,
       [selectedVenue]: [...currentSlots, newSlot]
     });
 
@@ -133,8 +203,8 @@ export function AdminVenueAvailability() {
         : slot
     );
 
-    setBookedSlots({
-      ...bookedSlots,
+    setBookingsByVenue({
+      ...bookingsByVenue,
       [selectedVenue]: updatedSlots
     });
 
@@ -144,8 +214,8 @@ export function AdminVenueAvailability() {
   const handleDelete = (slotId: string) => {
     if (confirm("Are you sure you want to delete this booking?")) {
       const updatedSlots = currentSlots.filter(slot => slot.id !== slotId);
-      setBookedSlots({
-        ...bookedSlots,
+      setBookingsByVenue({
+        ...bookingsByVenue,
         [selectedVenue]: updatedSlots
       });
     }

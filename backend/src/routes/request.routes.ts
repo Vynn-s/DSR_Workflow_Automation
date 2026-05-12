@@ -6,13 +6,15 @@ const {
 	getRequests,
 	getRequestById,
 	cancelRequest,
-} = require("../controllers/request.controller") as typeof import("../controllers/request.controller");
+	getAvailability,
+	} = require("../controllers/request.controller") as typeof import("../controllers/request.controller");
 
 const requestRoutes = Router();
 
 requestRoutes.use(authenticate);
 
 requestRoutes.post("/", requireRole([Role.REQUESTER]), createRequest);
+requestRoutes.get("/availability", getAvailability);
 requestRoutes.get("/", getRequests);
 requestRoutes.get("/:id", getRequestById);
 requestRoutes.patch("/:id/cancel", requireRole([Role.REQUESTER]), cancelRequest);

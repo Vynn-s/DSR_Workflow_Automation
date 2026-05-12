@@ -1,0 +1,105 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Role = void 0;
+exports.authenticate = authenticate;
+exports.requireRole = requireRole;
+const aws_jwt_verify_1 = require("aws-jwt-verify");
+var Role;
+(function (Role) {
+    Role["REQUESTER"] = "REQUESTER";
+    Role["PARISH_SECRETARY"] = "PARISH_SECRETARY";
+    Role["PARISH_PRIEST"] = "PARISH_PRIEST";
+    Role["ADMIN"] = "ADMIN";
+})(Role || (exports.Role = Role = {}));
+const userPoolId = process.env.COGNITO_USER_POOL_ID;
+const clientId = process.env.COGNITO_CLIENT_ID;
+if (!userPoolId || !clientId) {
+    throw new Error("Missing COGNITO_USER_POOL_ID or COGNITO_CLIENT_ID environment variables");
+}
+const verifier = aws_jwt_verify_1.CognitoJwtVerifier.create({
+    userPoolId: userPoolId,
+    tokenUse: "id",
+    clientId: clientId,
+});
+function mapGroupToRole(group) {
+    switch (group) {
+        case Role.ADMIN:
+            return Role.ADMIN;
+        case Role.PARISH_PRIEST:
+            return Role.PARISH_PRIEST;
+        case Role.PARISH_SECRETARY:
+            return Role.PARISH_SECRETARY;
+        case Role.REQUESTER:
+        default:
+            return Role.REQUESTER;
+    }
+}
+function getBearerToken(req) {
+    const authorizationHeader = req.headers.authorization;
+    if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
+        return null;
+    }
+    const token = authorizationHeader.slice("Bearer ".length).trim();
+    return token || null;
+}
+async function authenticate(req, res, next) {
+    try {
+        const token = getBearerToken(req);
+        if (!token) {
+            return res.status(401).json({ message: "No token provided" });
+        }
+        const payload = await verifier.verify(token);
+        const groups = payload["cognito:groups"];
+        const group = Array.isArray(groups) && groups.length > 0 ? groups[0] : undefined;
+        const sub = payload.sub;
+        const email = typeof payload.email === "string" ? payload.email : "";
+        if (!sub || !email) {
+            console.error("Token verified but missing required claims:", { sub, email, payload });
+            return res.status(401).json({ message: "Invalid token" });
+        }
+        let role = mapGroupToRole(group);
+        console.log(`[AUTH] Email: ${email}, Cognito groups: ${JSON.stringify(groups)}, Mapped role: ${role}`);
+        // If no Cognito group was found, try to use the database role as fallback
+        if (!group) {
+            console.log(`[AUTH] No Cognito group for ${email}, checking database for role fallback`);
+            const { Pool } = require("pg");
+            const dbPool = new Pool({
+                connectionString: process.env.DATABASE_URL,
+                ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : true,
+            });
+            const client = await dbPool.connect();
+            try {
+                const userResult = await client.query(`SELECT role FROM "User" WHERE email = $1`, [email]);
+                if (userResult.rows.length > 0) {
+                    const dbRole = userResult.rows[0].role;
+                    console.log(`[AUTH] Found database role ${dbRole} for ${email}`);
+                    role = mapGroupToRole(dbRole);
+                }
+            }
+            finally {
+                client.release();
+                await dbPool.end();
+            }
+        }
+        req.user = {
+            id: sub,
+            email,
+            role,
+        };
+        return next();
+    }
+    catch (error) {
+        console.error("Token verification failed:", error);
+        return res.status(401).json({ message: "Invalid token" });
+    }
+}
+function requireRole(allowedRoles) {
+    return (req, res, next) => {
+        if (!req.user || !allowedRoles.includes(req.user.role)) {
+            console.warn(`[ROLE_GUARD] User ${req.user?.email} has role ${req.user?.role}, allowed: ${allowedRoles.join(", ")}`);
+            return res.status(403).json({ message: "Insufficient permissions" });
+        }
+        return next();
+    };
+}
+//# sourceMappingURL=auth.js.map

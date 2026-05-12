@@ -427,9 +427,106 @@ export async function cancelRequest(req: Request, res: Response, next: NextFunct
 	}
 }
 
+export async function getAvailability(req: Request, res: Response, next: NextFunction) {
+	const client = await pool.connect();
+	try {
+		if (!req.user) {
+			throw new AppError("Unauthorized", 401);
+		}
+
+		const requestsResult = await client.query(
+			`SELECT
+				vr.id,
+				vr."requesterId",
+				vr."venueId",
+				vr."ministryId",
+				vr."eventName",
+				vr.purpose,
+				vr."startDateTime",
+				vr."endDateTime",
+				vr.attendees,
+				vr.status,
+				vr."createdAt",
+				vr."updatedAt",
+				v.name AS venue_name,
+				m.name AS ministry_name,
+				u.name AS requester_name,
+				u.email AS requester_email
+			 FROM "VenueRequest" vr
+			 INNER JOIN "Venue" v ON v.id = vr."venueId"
+			 INNER JOIN "Ministry" m ON m.id = vr."ministryId"
+			 INNER JOIN "User" u ON u.id = vr."requesterId"
+			 WHERE vr.status IN ('APPROVED', 'PENDING')
+			 ORDER BY vr."startDateTime" ASC`,
+		);
+
+		const approvalActionsResult = await client.query(
+			`SELECT
+				aa."requestId",
+				aa."approverId",
+				aa.action,
+				aa.remarks,
+				aa."createdAt",
+				u.name AS approver_name,
+				u.email AS approver_email
+			 FROM "ApprovalAction" aa
+			 INNER JOIN "User" u ON u.id = aa."approverId"
+			 WHERE aa."requestId" = ANY($1::text[])
+			 ORDER BY aa."createdAt" ASC`,
+			[requestsResult.rows.map((row) => row.id)],
+		);
+
+		const approvalActionsByRequestId = new Map<string, Array<Record<string, unknown>>>();
+		for (const action of approvalActionsResult.rows) {
+			const requestActions = approvalActionsByRequestId.get(action.requestId) ?? [];
+			requestActions.push({
+				remarks: action.remarks,
+				createdAt: action.createdAt,
+				approver: {
+					id: action.approverId,
+					name: action.approver_name,
+					email: action.approver_email,
+				},
+				action: action.action,
+			});
+			approvalActionsByRequestId.set(action.requestId, requestActions);
+		}
+
+		const requests = requestsResult.rows.map((request) => ({
+			id: request.id,
+			eventName: request.eventName,
+			purpose: request.purpose,
+			startDateTime: request.startDateTime,
+			endDateTime: request.endDateTime,
+			status: request.status,
+			attendees: request.attendees,
+			createdAt: request.createdAt,
+			updatedAt: request.updatedAt,
+			requester: {
+				name: request.requester_name,
+				email: request.requester_email,
+			},
+			venue: {
+				name: request.venue_name,
+			},
+			ministry: {
+				name: request.ministry_name,
+			},
+			approvalActions: approvalActionsByRequestId.get(request.id) ?? [],
+		}));
+
+		return res.json({ requests });
+	} catch (error) {
+		return next(error);
+	} finally {
+		client.release();
+	}
+}
+
 export default {
 	createRequest,
 	getRequests,
 	getRequestById,
 	cancelRequest,
+	getAvailability,
 };

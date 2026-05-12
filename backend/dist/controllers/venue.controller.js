@@ -1,0 +1,119 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getVenues = getVenues;
+exports.getVenueById = getVenueById;
+const pg_1 = require("pg");
+const pool = new pg_1.Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === "production"
+        ? { rejectUnauthorized: true }
+        : true,
+});
+const { AppError } = require("../middleware/errorHandler");
+async function getVenues(req, res, next) {
+    const client = await pool.connect();
+    try {
+        console.log("getVenues: Starting request");
+        if (!req.user) {
+            console.log("getVenues: User not authenticated");
+            throw new AppError("Unauthorized", 401);
+        }
+        const ministryResult = await client.query(`SELECT "ministryId" FROM "User" WHERE id = $1`, [req.user.id]);
+        if (req.user.role === "ADMIN") {
+            const allVenuesResult = await client.query(`SELECT * FROM "Venue" ORDER BY name ASC`);
+            const venues = await Promise.all(allVenuesResult.rows.map(async (venue) => {
+                const ministriesResult = await client.query(`SELECT vm.id, vm."venueId", vm."ministryId", m.id as ministry_id, m.name as ministry_name 
+						 FROM "VenueMinistry" vm
+						 LEFT JOIN "Ministry" m ON vm."ministryId" = m.id
+						 WHERE vm."venueId" = $1`, [venue.id]);
+                return {
+                    ...venue,
+                    authorizedMinistries: ministriesResult.rows.map(row => ({
+                        id: row.id,
+                        venueId: row.venueId,
+                        ministryId: row.ministryId,
+                        ministry: row.ministry_id ? { id: row.ministry_id, name: row.ministry_name } : null,
+                    })),
+                };
+            }));
+            console.log("getVenues: Found venues:", venues.length);
+            return res.json({ venues });
+        }
+        const ministryId = ministryResult.rows[0]?.ministryId;
+        if (!ministryId) {
+            console.log("getVenues: No ministry found for user", req.user.id);
+            return res.json({ venues: [] });
+        }
+        console.log("getVenues: Fetching venues for ministry", ministryId);
+        const venueResult = await client.query(`SELECT DISTINCT v.*
+			 FROM "Venue" v
+			 INNER JOIN "VenueMinistry" vm ON vm."venueId" = v.id
+			 WHERE vm."ministryId" = $1
+			 ORDER BY v.name ASC`, [ministryId]);
+        // For each venue, get authorized ministries
+        const venues = await Promise.all(venueResult.rows.map(async (venue) => {
+            const ministriesResult = await client.query(`SELECT vm.id, vm."venueId", vm."ministryId", m.id as ministry_id, m.name as ministry_name 
+					 FROM "VenueMinistry" vm
+					 LEFT JOIN "Ministry" m ON vm."ministryId" = m.id
+					 WHERE vm."venueId" = $1`, [venue.id]);
+            return {
+                ...venue,
+                authorizedMinistries: ministriesResult.rows.map(row => ({
+                    id: row.id,
+                    venueId: row.venueId,
+                    ministryId: row.ministryId,
+                    ministry: row.ministry_id ? { id: row.ministry_id, name: row.ministry_name } : null,
+                })),
+            };
+        }));
+        console.log("getVenues: Found venues:", venues.length);
+        return res.json({ venues });
+    }
+    catch (error) {
+        console.error("getVenues error:", error);
+        return next(error);
+    }
+    finally {
+        client.release();
+    }
+}
+async function getVenueById(req, res, next) {
+    const client = await pool.connect();
+    try {
+        if (!req.user) {
+            throw new AppError("Unauthorized", 401);
+        }
+        const { id } = req.params;
+        const venueResult = await client.query(`SELECT * FROM "Venue" WHERE id = $1`, [id]);
+        if (venueResult.rows.length === 0) {
+            throw new AppError("Venue not found", 404);
+        }
+        const venue = venueResult.rows[0];
+        const activeBookingsResult = await client.query(`SELECT id, "eventName", "startDateTime", "endDateTime", status 
+			 FROM "VenueRequest" 
+			 WHERE "venueId" = $1 
+			 AND status IN ('PENDING', 'SECRETARY_REVIEW', 'PRIEST_REVIEW', 'APPROVED')
+			 AND "endDateTime" > NOW()
+			 ORDER BY "startDateTime" ASC
+			 LIMIT 20`, [id]);
+        return res.json({
+            venue,
+            availability: {
+                activeBookingCount: activeBookingsResult.rows.length,
+                activeBookings: activeBookingsResult.rows,
+            },
+        });
+    }
+    catch (error) {
+        console.error("getVenueById error:", error);
+        return next(error);
+    }
+    finally {
+        client.release();
+    }
+}
+exports.default = {
+    getVenues,
+    getVenueById,
+};
+//# sourceMappingURL=venue.controller.js.map

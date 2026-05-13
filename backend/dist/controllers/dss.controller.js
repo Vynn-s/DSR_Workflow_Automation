@@ -111,7 +111,7 @@ async function evaluateRequest(req, res, next) {
     }
 }
 async function checkConflicts(req, res, next) {
-    const client = await pool.connect();
+    const client = await getPool().connect();
     try {
         const parsed = conflictQuerySchema.safeParse(req.query);
         if (!parsed.success) {

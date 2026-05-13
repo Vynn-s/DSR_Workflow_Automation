@@ -195,7 +195,7 @@ export async function createRequest(req: Request, res: Response, next: NextFunct
 }
 
 export async function getRequests(req: Request, res: Response, next: NextFunction) {
-	const client = await pool.connect();
+	const client = await getPool().connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);
@@ -249,7 +249,7 @@ export async function getRequests(req: Request, res: Response, next: NextFunctio
 }
 
 export async function getRequestById(req: Request, res: Response, next: NextFunction) {
-	const client = await pool.connect();
+	const client = await getPool().connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);
@@ -367,7 +367,7 @@ export async function getRequestById(req: Request, res: Response, next: NextFunc
 }
 
 export async function cancelRequest(req: Request, res: Response, next: NextFunction) {
-	const client = await pool.connect();
+	const client = await getPool().connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);
@@ -434,7 +434,7 @@ export async function cancelRequest(req: Request, res: Response, next: NextFunct
 }
 
 export async function getAvailability(req: Request, res: Response, next: NextFunction) {
-	const client = await pool.connect();
+	const client = await getPool().connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);

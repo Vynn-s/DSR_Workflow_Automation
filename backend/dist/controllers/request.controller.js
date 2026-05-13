@@ -10,14 +10,20 @@ const pg_1 = require("pg");
 const { z } = require("zod");
 const { evaluateRequest: runDssEvaluation, } = require("../dss/rulesEngine");
 const { AppError } = require("../middleware/errorHandler");
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-    throw new Error("Missing required environment variable: DATABASE_URL");
+let pool = null;
+function getPool() {
+    if (pool)
+        return pool;
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+        throw new AppError("Missing required environment variable: DATABASE_URL", 500);
+    }
+    pool = new pg_1.Pool({
+        connectionString,
+        ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : true,
+    });
+    return pool;
 }
-const pool = new pg_1.Pool({
-    connectionString,
-    ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : true,
-});
 const createRequestSchema = z.object({
     venueId: z.string().min(1),
     ministryId: z.string().min(1).optional(),
@@ -37,7 +43,7 @@ function toTimeString(date) {
     return `${hours}:${minutes}`;
 }
 async function createRequest(req, res, next) {
-    const client = await pool.connect();
+    const client = await getPool().connect();
     try {
         if (!req.user?.id) {
             throw new AppError("Unauthorized", 401);

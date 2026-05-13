@@ -27,16 +27,22 @@ const conflictQuerySchema = z.object({
 	endTime: z.string().regex(timePattern),
 });
 
-const connectionString = process.env.DATABASE_URL;
+let pool: Pool | null = null;
 
-if (!connectionString) {
-	throw new Error("Missing required environment variable: DATABASE_URL");
+function getPool(): Pool {
+	if (pool) return pool;
+
+	const connectionString = process.env.DATABASE_URL;
+	if (!connectionString) {
+		throw new AppError("Missing required environment variable: DATABASE_URL", 500);
+	}
+
+	pool = new Pool({
+		connectionString,
+		ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : true,
+	});
+	return pool;
 }
-
-const pool = new Pool({
-	connectionString,
-	ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : true,
-});
 
 function combineDateAndTime(date: Date, time: string): Date {
 	const [hours, minutes] = time.split(":").map((value) => Number(value));
@@ -50,7 +56,7 @@ export async function evaluateRequest(
 	res: Response,
 	next: NextFunction,
 ) {
-	const client = await pool.connect();
+	const client = await getPool().connect();
 	try {
 		const parsed = evaluateRequestSchema.safeParse(req.body);
 

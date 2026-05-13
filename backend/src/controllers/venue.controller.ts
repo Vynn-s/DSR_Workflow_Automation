@@ -1,17 +1,29 @@
 import type { NextFunction, Request, Response } from "express";
 import { Pool } from "pg";
 
-const pool = new Pool({
-	connectionString: process.env.DATABASE_URL,
-	ssl: process.env.NODE_ENV === "production" 
-		? { rejectUnauthorized: true }
-		: true,
-});
+let pool: Pool | null = null;
+
+function getPool(): Pool {
+	if (pool) return pool;
+
+	const connectionString = process.env.DATABASE_URL;
+	if (!connectionString) {
+		throw new Error("Missing required environment variable: DATABASE_URL");
+	}
+
+	pool = new Pool({
+		connectionString,
+		ssl: process.env.NODE_ENV === "production" 
+			? { rejectUnauthorized: true }
+			: true,
+	});
+	return pool;
+}
 
 const { AppError } = require("../middleware/errorHandler") as typeof import("../middleware/errorHandler");
 
 export async function getVenues(req: Request, res: Response, next: NextFunction) {
-	const client = await pool.connect();
+	const client = await getPool().connect();
 	try {
 		console.log("getVenues: Starting request");
 		
@@ -107,7 +119,7 @@ export async function getVenues(req: Request, res: Response, next: NextFunction)
 }
 
 export async function getVenueById(req: Request, res: Response, next: NextFunction) {
-	const client = await pool.connect();
+	const client = await getPool().connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);

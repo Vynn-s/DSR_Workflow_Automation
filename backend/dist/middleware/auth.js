@@ -11,16 +11,23 @@ var Role;
     Role["PARISH_PRIEST"] = "PARISH_PRIEST";
     Role["ADMIN"] = "ADMIN";
 })(Role || (exports.Role = Role = {}));
-const userPoolId = process.env.COGNITO_USER_POOL_ID;
-const clientId = process.env.COGNITO_CLIENT_ID;
-if (!userPoolId || !clientId) {
-    throw new Error("Missing COGNITO_USER_POOL_ID or COGNITO_CLIENT_ID environment variables");
+let verifier = null;
+function getVerifier() {
+    if (verifier) {
+        return verifier;
+    }
+    const userPoolId = process.env.COGNITO_USER_POOL_ID;
+    const clientId = process.env.COGNITO_CLIENT_ID;
+    if (!userPoolId || !clientId) {
+        throw new Error("Missing COGNITO_USER_POOL_ID or COGNITO_CLIENT_ID environment variables");
+    }
+    verifier = aws_jwt_verify_1.CognitoJwtVerifier.create({
+        userPoolId,
+        tokenUse: "id",
+        clientId,
+    });
+    return verifier;
 }
-const verifier = aws_jwt_verify_1.CognitoJwtVerifier.create({
-    userPoolId: userPoolId,
-    tokenUse: "id",
-    clientId: clientId,
-});
 function mapGroupToRole(group) {
     switch (group) {
         case Role.ADMIN:
@@ -48,7 +55,7 @@ async function authenticate(req, res, next) {
         if (!token) {
             return res.status(401).json({ message: "No token provided" });
         }
-        const payload = await verifier.verify(token);
+        const payload = await getVerifier().verify(token);
         const groups = payload["cognito:groups"];
         const group = Array.isArray(groups) && groups.length > 0 ? groups[0] : undefined;
         const sub = payload.sub;

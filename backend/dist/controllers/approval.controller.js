@@ -9,14 +9,20 @@ const crypto_1 = require("crypto");
 const pg_1 = require("pg");
 const { z } = require("zod");
 const { AppError } = require("../middleware/errorHandler");
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-    throw new Error("Missing required environment variable: DATABASE_URL");
+let pool = null;
+function getPool() {
+    if (pool)
+        return pool;
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+        throw new AppError("Missing required environment variable: DATABASE_URL", 500);
+    }
+    pool = new pg_1.Pool({
+        connectionString,
+        ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : true,
+    });
+    return pool;
 }
-const pool = new pg_1.Pool({
-    connectionString,
-    ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : true,
-});
 const requestIdParamsSchema = z.object({
     requestId: z.string().min(1),
 });
@@ -56,7 +62,7 @@ async function getUserIdForEmail(client, email, role) {
     return userResult.rows[0].id;
 }
 async function getApprovalQueue(req, res, next) {
-    const client = await pool.connect();
+    const client = await getPool().connect();
     try {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);
@@ -142,7 +148,7 @@ async function getApprovalQueue(req, res, next) {
     }
 }
 async function approveRequest(req, res, next) {
-    const client = await pool.connect();
+    const client = await getPool().connect();
     try {
         if (!req.user?.email) {
             throw new AppError("Unauthorized", 401);
@@ -206,7 +212,7 @@ async function approveRequest(req, res, next) {
     }
 }
 async function rejectRequest(req, res, next) {
-    const client = await pool.connect();
+    const client = await getPool().connect();
     try {
         if (!req.user?.email) {
             throw new AppError("Unauthorized", 401);
@@ -265,7 +271,7 @@ async function rejectRequest(req, res, next) {
     }
 }
 async function requestRevision(req, res, next) {
-    const client = await pool.connect();
+    const client = await getPool().connect();
     try {
         if (!req.user?.email) {
             throw new AppError("Unauthorized", 401);
@@ -316,7 +322,7 @@ async function requestRevision(req, res, next) {
     }
 }
 async function getArchive(req, res, next) {
-    const client = await pool.connect();
+    const client = await getPool().connect();
     try {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);

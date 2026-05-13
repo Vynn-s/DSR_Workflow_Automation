@@ -3,15 +3,25 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getVenues = getVenues;
 exports.getVenueById = getVenueById;
 const pg_1 = require("pg");
-const pool = new pg_1.Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === "production"
-        ? { rejectUnauthorized: true }
-        : true,
-});
+let pool = null;
+function getPool() {
+    if (pool)
+        return pool;
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+        throw new Error("Missing required environment variable: DATABASE_URL");
+    }
+    pool = new pg_1.Pool({
+        connectionString,
+        ssl: process.env.NODE_ENV === "production"
+            ? { rejectUnauthorized: true }
+            : true,
+    });
+    return pool;
+}
 const { AppError } = require("../middleware/errorHandler");
 async function getVenues(req, res, next) {
-    const client = await pool.connect();
+    const client = await getPool().connect();
     try {
         console.log("getVenues: Starting request");
         if (!req.user) {
@@ -78,7 +88,7 @@ async function getVenues(req, res, next) {
     }
 }
 async function getVenueById(req, res, next) {
-    const client = await pool.connect();
+    const client = await getPool().connect();
     try {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);

@@ -8,16 +8,22 @@ const {
 } = require("../dss/rulesEngine") as typeof import("../dss/rulesEngine");
 const { AppError } = require("../middleware/errorHandler") as typeof import("../middleware/errorHandler");
 
-const connectionString = process.env.DATABASE_URL;
+let pool: Pool | null = null;
 
-if (!connectionString) {
-	throw new Error("Missing required environment variable: DATABASE_URL");
+function getPool(): Pool {
+	if (pool) return pool;
+
+	const connectionString = process.env.DATABASE_URL;
+	if (!connectionString) {
+		throw new AppError("Missing required environment variable: DATABASE_URL", 500);
+	}
+
+	pool = new Pool({
+		connectionString,
+		ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : true,
+	});
+	return pool;
 }
-
-const pool = new Pool({
-	connectionString,
-	ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : true,
-});
 
 const createRequestSchema = z.object({
 	venueId: z.string().min(1),
@@ -41,7 +47,7 @@ function toTimeString(date: Date): string {
 }
 
 export async function createRequest(req: Request, res: Response, next: NextFunction) {
-	const client = await pool.connect();
+	const client = await getPool().connect();
 	try {
 		if (!req.user?.id) {
 			throw new AppError("Unauthorized", 401);

@@ -22,18 +22,28 @@ declare global {
 	}
 }
 
-const userPoolId = process.env.COGNITO_USER_POOL_ID;
-const clientId = process.env.COGNITO_CLIENT_ID;
+let verifier: ReturnType<typeof CognitoJwtVerifier.create> | null = null;
 
-if (!userPoolId || !clientId) {
-	throw new Error("Missing COGNITO_USER_POOL_ID or COGNITO_CLIENT_ID environment variables");
+function getVerifier() {
+	if (verifier) {
+		return verifier;
+	}
+
+	const userPoolId = process.env.COGNITO_USER_POOL_ID;
+	const clientId = process.env.COGNITO_CLIENT_ID;
+
+	if (!userPoolId || !clientId) {
+		throw new Error("Missing COGNITO_USER_POOL_ID or COGNITO_CLIENT_ID environment variables");
+	}
+
+	verifier = CognitoJwtVerifier.create({
+		userPoolId,
+		tokenUse: "id",
+		clientId,
+	});
+
+	return verifier;
 }
-
-const verifier = CognitoJwtVerifier.create({
-	userPoolId: userPoolId,
-	tokenUse: "id",
-	clientId: clientId,
-});
 
 function mapGroupToRole(group?: string): Role {
 	switch (group) {
@@ -72,7 +82,7 @@ export async function authenticate(
 			return res.status(401).json({ message: "No token provided" });
 		}
 
-		const payload = await verifier.verify(token);
+		const payload = await getVerifier().verify(token);
 		const groups = payload["cognito:groups"];
 		const group = Array.isArray(groups) && groups.length > 0 ? groups[0] : undefined;
 

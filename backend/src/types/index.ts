@@ -62,11 +62,3 @@ export interface PaginatedResponse<T> extends ApiResponse<T> {
 	totalPages: number;
 }
 
-declare global {
-	namespace Express {
-		interface Request {
-			user?: AuthUser;
-		}
-	}
-}
-

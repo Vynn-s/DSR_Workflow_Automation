@@ -132,4 +132,3 @@ export function requireRole(allowedRoles: Role[]) {
 		return next();
 	};
 }
-export { authenticate, requireRole };

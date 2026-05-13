@@ -4,7 +4,7 @@ dotenv.config();
 
 const express = require("express") as typeof import("express");
 const cors = require("cors") as typeof import("cors");
-const helmet = require("helmet") as typeof import("helmet");
+const helmet = require("helmet");
 
 const { routes } = require("./routes") as typeof import("./routes");
 const { errorHandler } = require("./middleware/errorHandler") as typeof import("./middleware/errorHandler");

@@ -44,8 +44,8 @@ async function createRequest(req, res, next) {
         }
         const parsed = createRequestSchema.safeParse(req.body);
         if (!parsed.success) {
-            console.error("Validation errors:", parsed.error.errors);
-            throw new AppError(`Invalid request payload: ${parsed.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ")}`, 400);
+            console.error("Validation errors:", parsed.error.issues);
+            throw new AppError(`Invalid request payload: ${parsed.error.issues.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ")}`, 400);
         }
         const input = parsed.data;
         if (input.endDateTime <= input.startDateTime) {

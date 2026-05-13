@@ -1,1 +1,1 @@
-{"version":3,"file":"audit.routes.d.ts","sourceRoot":"","sources":["../../src/routes/audit.routes.ts"],"names":[],"mappings":"AAKA,QAAA,MAAM,WAAW,4CAAW,CAAC;AAQ7B,OAAO,EAAE,WAAW,EAAE,CAAC;AACvB,eAAe,WAAW,CAAC"}
+{"version":3,"file":"audit.routes.d.ts","sourceRoot":"","sources":["../../src/routes/audit.routes.ts"],"names":[],"mappings":"AAKA,QAAA,MAAM,WAAW,4CAAW,CAAC;AAa7B,OAAO,EAAE,WAAW,EAAE,CAAC;AACvB,eAAe,WAAW,CAAC"}

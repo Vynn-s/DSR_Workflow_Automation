@@ -7,6 +7,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "rimraf dist && tsc",
     "start": "node dist/index.js",
+    "postinstall": "npx prisma generate",
     "seed": "NODE_TLS_REJECT_UNAUTHORIZED=0 node seed-simple.js"
   },
   "keywords": [],
@@ -33,5 +34,9 @@
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^6.0.3"
-  }
+  },
+  "engines": {
+  "node": ">=22.0.0",
+  "npm": ">=10.0.0"
+}
 }

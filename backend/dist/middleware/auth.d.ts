@@ -19,5 +19,4 @@ declare global {
 }
 export declare function authenticate(req: Request, res: Response, next: NextFunction): Promise<void | Response<any, Record<string, any>>>;
 export declare function requireRole(allowedRoles: Role[]): (req: Request, res: Response, next: NextFunction) => void | Response<any, Record<string, any>>;
-export { authenticate, requireRole };
 //# sourceMappingURL=auth.d.ts.map

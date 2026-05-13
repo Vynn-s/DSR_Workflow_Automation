@@ -50,9 +50,9 @@ export async function createRequest(req: Request, res: Response, next: NextFunct
 		const parsed = createRequestSchema.safeParse(req.body);
 
 		if (!parsed.success) {
-			console.error("Validation errors:", parsed.error.errors);
+			console.error("Validation errors:", parsed.error.issues);
 			throw new AppError(
-				`Invalid request payload: ${parsed.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ")}`,
+				`Invalid request payload: ${parsed.error.issues.map((e: any) => `${e.path.join(".")}: ${e.message}`).join(", ")}`,
 				400,
 			);
 		}

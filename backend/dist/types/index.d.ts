@@ -53,11 +53,4 @@ export interface PaginatedResponse<T> extends ApiResponse<T> {
     limit: number;
     totalPages: number;
 }
-declare global {
-    namespace Express {
-        interface Request {
-            user?: AuthUser;
-        }
-    }
-}
 //# sourceMappingURL=index.d.ts.map

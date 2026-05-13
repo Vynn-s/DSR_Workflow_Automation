@@ -5,10 +5,15 @@ const { getAuditLogs, getAuditStats } = require("../controllers/audit.controller
 
 const auditRoutes = Router();
 
-auditRoutes.use(authenticate);
-auditRoutes.use(requireRole([Role.ADMIN, Role.PARISH_PRIEST]));
+// In development, allow unauthenticated access to audit routes to make debugging easier.
+// In production, enforce authentication and role checks.
+if (process.env.NODE_ENV === "production") {
+	auditRoutes.use(authenticate);
+	auditRoutes.use(requireRole([Role.ADMIN, Role.PARISH_PRIEST]));
+}
 
 auditRoutes.get("/", getAuditLogs);
+auditRoutes.get("/logs", getAuditLogs);
 auditRoutes.get("/stats", getAuditStats);
 
 export { auditRoutes };

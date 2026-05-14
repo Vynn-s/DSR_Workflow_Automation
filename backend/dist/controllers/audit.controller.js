@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getAuditLogs = getAuditLogs;
 exports.getAuditStats = getAuditStats;
 const { z } = require("zod");
-const prisma = require("../config/database").default;
 const { AppError } = require("../middleware/errorHandler");
 const auditQuerySchema = z.object({
     dateFrom: z.coerce.date().optional(),

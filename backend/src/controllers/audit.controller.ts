@@ -2,7 +2,6 @@ import type { NextFunction, Request, Response } from "express";
 
 const { z } = require("zod") as typeof import("zod");
 
-const prisma = require("../config/database").default as typeof import("../config/database").default;
 const { AppError } = require("../middleware/errorHandler") as typeof import("../middleware/errorHandler");
 
 const auditQuerySchema = z.object({

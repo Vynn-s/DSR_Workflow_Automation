@@ -139,10 +139,6 @@ export function RequesterDashboard() {
 
     void loadRequests();
 
-    const refreshInterval = window.setInterval(() => {
-      void loadRequests();
-    }, 15000);
-
     const handleWindowFocus = () => {
       void loadRequests();
     };
@@ -158,7 +154,6 @@ export function RequesterDashboard() {
 
     return () => {
       isMounted = false;
-      window.clearInterval(refreshInterval);
       window.removeEventListener("focus", handleWindowFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };

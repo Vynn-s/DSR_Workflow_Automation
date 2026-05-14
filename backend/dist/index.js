@@ -12,6 +12,9 @@ const port = Number(process.env.PORT) || 3000;
 app.use(helmet());
 app.use(cors({
     origin: process.env.FRONTEND_URL,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Ngrok-Skip-Browser-Warning'],
 }));
 app.use(express.json());
 app.get("/api/health", (_req, res) => {

@@ -226,24 +226,8 @@ export function ApproverDashboard() {
     void loadVenues();
     void loadArchive();
 
-    const refreshInterval = window.setInterval(() => {
-      void loadRequests();
-    }, 10000);
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        void loadRequests();
-      }
-    };
-
-    window.addEventListener("focus", handleVisibilityChange);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
     return () => {
       isMounted = false;
-      window.clearInterval(refreshInterval);
-      window.removeEventListener("focus", handleVisibilityChange);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 

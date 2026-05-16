@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
-import { MapPin, Clock, CheckCircle2, Calendar, List, ChevronLeft, ChevronRight, X, User, UserCheck } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { MapPin, Clock, CheckCircle2, Calendar, List, ChevronLeft, ChevronRight, X, User, UserCheck, RefreshCw } from "lucide-react";
 import api from "../../lib/api";
+import { fetchVenues } from "../../lib/venues";
 
 interface BookedSlot {
   date: string;
@@ -86,59 +87,97 @@ export function VenueAvailability() {
   const [venues, setVenues] = useState<string[]>([]);
   const [bookingsByVenue, setBookingsByVenue] = useState<Record<string, BookedSlot[]>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayBookings, setSelectedDayBookings] = useState<BookedSlot[] | null>(null);
 
-  // Fetch availability on mount
-  useEffect(() => {
-    async function loadAvailability() {
-      try {
+  const loadAvailability = useCallback(async (mode: "initial" | "refresh" = "initial") => {
+    try {
+      if (mode === "initial") {
         setIsLoading(true);
-        setError(null);
-        const response = await api.get<ApiResponse>("/requests/availability");
-        
-        // Group requests by venue
-        const grouped: Record<string, BookedSlot[]> = {};
-        const venueSet = new Set<string>();
-        
-        for (const request of response.requests || []) {
-          const slot = convertToBookedSlot(request);
-          const venueName = request.venue.name;
-          
-          if (!grouped[venueName]) {
-            grouped[venueName] = [];
-          }
-          grouped[venueName].push(slot);
-          venueSet.add(venueName);
-        }
-        
-        // Sort requests by date within each venue
-        Object.keys(grouped).forEach(venue => {
-          grouped[venue].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        });
-        
-        const sortedVenues = Array.from(venueSet).sort();
-        setVenues(sortedVenues);
-        setBookingsByVenue(grouped);
-        
-        // Set first venue as selected
-        if (sortedVenues.length > 0) {
-          setSelectedVenue(sortedVenues[0]);
-        }
-      } catch (err) {
-        console.error("Failed to load availability:", err);
-        setError("Unable to load venue availability. Please try again later.");
-        setVenues([]);
-        setBookingsByVenue({});
-      } finally {
-        setIsLoading(false);
+      } else {
+        setIsRefreshing(true);
       }
-    }
 
-    void loadAvailability();
+      setError(null);
+
+      const [availabilityResponse, liveVenues] = await Promise.all([
+        api.get<ApiResponse>("/requests/availability"),
+        fetchVenues(),
+      ]);
+
+      const grouped: Record<string, BookedSlot[]> = {};
+      const venueSet = new Set<string>();
+
+      for (const venue of liveVenues) {
+        if (venue.name) {
+          venueSet.add(venue.name);
+        }
+      }
+
+      for (const request of availabilityResponse.requests || []) {
+        const slot = convertToBookedSlot(request);
+        const venueName = request.venue.name;
+
+        if (!grouped[venueName]) {
+          grouped[venueName] = [];
+        }
+
+        grouped[venueName].push(slot);
+        venueSet.add(venueName);
+      }
+
+      Object.keys(grouped).forEach((venue) => {
+        grouped[venue].sort((a, b) => {
+          const left = new Date(`${a.date}T${a.time.slice(0, 5)}:00`).getTime();
+          const right = new Date(`${b.date}T${b.time.slice(0, 5)}:00`).getTime();
+          return left - right;
+        });
+      });
+
+      const sortedVenues = Array.from(venueSet).sort((a, b) => a.localeCompare(b));
+
+      setBookingsByVenue(grouped);
+      setVenues(sortedVenues);
+      setSelectedVenue((previous) => {
+        if (previous && sortedVenues.includes(previous)) {
+          return previous;
+        }
+        return sortedVenues[0] ?? null;
+      });
+      setSelectedDayBookings(null);
+    } catch (err) {
+      console.error("Failed to load availability:", err);
+      setError("Unable to load venue availability. Please try again later.");
+      setVenues([]);
+      setBookingsByVenue({});
+      setSelectedVenue(null);
+      setSelectedDayBookings(null);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadAvailability("initial");
+
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === "visible") {
+        void loadAvailability("refresh");
+      }
+    };
+
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+
+    return () => {
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+    };
+  }, [loadAvailability]);
 
   if (isLoading) {
     return (
@@ -250,6 +289,16 @@ export function VenueAvailability() {
                 </option>
               ))}
             </select>
+            <button
+              onClick={() => void loadAvailability("refresh")}
+              disabled={isRefreshing}
+              className="px-4 py-3 bg-white border-2 border-slate-200 rounded-xl hover:bg-slate-50 hover:border-blue-300 transition-all disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 text-slate-600 ${isRefreshing ? "animate-spin" : ""}`} />
+              <span className="text-sm font-semibold text-slate-700">
+                {isRefreshing ? "Refreshing" : "Refresh"}
+              </span>
+            </button>
           </div>
         </div>
 

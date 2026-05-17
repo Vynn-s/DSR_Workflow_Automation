@@ -82,8 +82,10 @@ function convertToBookedSlot(request: ApiResponse['requests'][0]): BookedSlot {
   };
 }
 
+const ALL_VENUES_VALUE = "__all__";
+
 export function VenueAvailability() {
-  const [selectedVenue, setSelectedVenue] = useState<string | null>(null);
+  const [selectedVenue, setSelectedVenue] = useState<string>(ALL_VENUES_VALUE);
   const [venues, setVenues] = useState<string[]>([]);
   const [bookingsByVenue, setBookingsByVenue] = useState<Record<string, BookedSlot[]>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -142,10 +144,14 @@ export function VenueAvailability() {
       setBookingsByVenue(grouped);
       setVenues(sortedVenues);
       setSelectedVenue((previous) => {
+        if (previous === ALL_VENUES_VALUE) {
+          return ALL_VENUES_VALUE;
+        }
+
         if (previous && sortedVenues.includes(previous)) {
           return previous;
         }
-        return sortedVenues[0] ?? null;
+        return sortedVenues[0] ?? ALL_VENUES_VALUE;
       });
       setSelectedDayBookings(null);
     } catch (err) {
@@ -198,7 +204,21 @@ export function VenueAvailability() {
     );
   }
 
-  const bookedSlots = selectedVenue ? (bookingsByVenue[selectedVenue] || []) : [];
+  const allBookedSlots = Object.entries(bookingsByVenue)
+    .flatMap(([venueName, slots]) => slots.map((slot) => ({ ...slot, venueName })))
+    .sort((left, right) => {
+      const leftTime = new Date(`${left.date}T${left.time.slice(0, 5)}:00`).getTime();
+      const rightTime = new Date(`${right.date}T${right.time.slice(0, 5)}:00`).getTime();
+      if (leftTime !== rightTime) {
+        return leftTime - rightTime;
+      }
+
+      return left.venueName.localeCompare(right.venueName);
+    });
+
+  const bookedSlots = selectedVenue === ALL_VENUES_VALUE
+    ? allBookedSlots
+    : (bookingsByVenue[selectedVenue] || []).map((slot) => ({ ...slot, venueName: selectedVenue }));
 
   // Helper function to get days in month
   const getDaysInMonth = (date: Date) => {
@@ -283,6 +303,7 @@ export function VenueAvailability() {
               onChange={(e) => setSelectedVenue(e.target.value)}
               className="px-4 py-3 bg-white border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
             >
+              <option value={ALL_VENUES_VALUE}>All Venues</option>
               {venues.map((venue) => (
                 <option key={venue} value={venue}>
                   {venue}
@@ -334,9 +355,11 @@ export function VenueAvailability() {
         <div className="bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10 overflow-hidden">
           <div className="px-8 py-6 bg-gradient-to-r from-slate-50 to-blue-50/30 border-b border-slate-200">
             <h2 className="font-semibold text-slate-900 text-xl">
-              Schedule for {selectedVenue}
+              Schedule for {selectedVenue === ALL_VENUES_VALUE ? "All Venues" : selectedVenue}
             </h2>
-            <p className="text-sm text-slate-600 mt-1">All bookings for this venue</p>
+            <p className="text-sm text-slate-600 mt-1">
+              {selectedVenue === ALL_VENUES_VALUE ? "All bookings across every venue" : "All bookings for this venue"}
+            </p>
           </div>
 
           {bookedSlots.length > 0 ? (
@@ -392,9 +415,16 @@ export function VenueAvailability() {
                     </div>
 
                     <div className="mb-5 pb-5 border-b border-slate-200">
-                      <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Purpose</p>
+                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Purpose</p>
                       <p className="text-sm text-slate-900 font-medium">{slot.purpose}</p>
                     </div>
+
+                    {selectedVenue === ALL_VENUES_VALUE && (
+                      <div className="mb-5 pb-5 border-b border-slate-200">
+                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Venue</p>
+                        <p className="text-sm text-slate-900 font-medium">{slot.venueName}</p>
+                      </div>
+                    )}
 
                     {/* Requester and Approver */}
                     <div className="grid grid-cols-2 gap-4">
@@ -485,7 +515,7 @@ export function VenueAvailability() {
           <div className="px-8 py-6 bg-gradient-to-r from-slate-50 to-blue-50/30 border-b border-slate-200 flex items-center justify-between">
             <div>
               <h2 className="font-semibold text-slate-900 text-xl">
-                {selectedVenue} - {currentMonthName} {currentYear}
+                {selectedVenue === ALL_VENUES_VALUE ? "All Venues" : selectedVenue} - {currentMonthName} {currentYear}
               </h2>
               <p className="text-sm text-slate-600 mt-1">Click on a date to see booking details</p>
             </div>
@@ -680,6 +710,13 @@ export function VenueAvailability() {
                       <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Purpose</p>
                       <p className="text-sm text-slate-900">{booking.purpose}</p>
                     </div>
+
+                    {selectedVenue === ALL_VENUES_VALUE && (
+                      <div className="mb-6 pb-6 border-b border-slate-300">
+                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Venue</p>
+                        <p className="text-sm text-slate-900">{(booking as BookedSlot & { venueName?: string }).venueName}</p>
+                      </div>
+                    )}
 
                     {/* Requester Info */}
                     <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-slate-200">

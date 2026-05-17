@@ -80,6 +80,8 @@ model VenueRequest {
   endDateTime         DateTime
   attendees           Int
   specialRequirements String?
+  attachments         Json?
+  signatures          Json?
   status              RequestStatus @default(PENDING)
   currentApproverId   String?
   createdAt           DateTime      @default(now())

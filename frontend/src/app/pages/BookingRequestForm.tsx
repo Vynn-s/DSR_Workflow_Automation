@@ -13,6 +13,15 @@ interface Signature {
   signedDate?: string;
 }
 
+interface RequestAttachment {
+  id: string;
+  name: string;
+  type: string;
+  size: string;
+  uploadedDate: string;
+  dataUrl: string;
+}
+
 interface VenueApiMinistry {
   ministryId: string;
   ministry?: {
@@ -327,6 +336,17 @@ export function BookingRequestForm() {
     setSubmitError(null);
 
     try {
+      const attachments: RequestAttachment[] = attachment
+        ? [{
+            id: crypto.randomUUID(),
+            name: attachment.name,
+            type: attachment.type || "application/octet-stream",
+            size: `${Math.max(1, Math.round(attachment.size / 1024))} KB`,
+            uploadedDate: new Date().toISOString(),
+            dataUrl: await fileToDataUrl(attachment),
+          }]
+        : [];
+
       await api.post("/requests", {
         venueId: selectedVenue.id,
         eventName: formData.purpose,
@@ -335,6 +355,8 @@ export function BookingRequestForm() {
         endDateTime: combineDateAndTimeToIso(formData.date, formData.endTime),
         attendees: 1,
         specialRequirements: "",
+        attachments,
+        signatures,
       });
 
       navigate("/requester", {
@@ -370,6 +392,14 @@ export function BookingRequestForm() {
       setAttachment(e.target.files[0]);
     }
   };
+
+  const fileToDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error("Unable to read attachment file"));
+      reader.readAsDataURL(file);
+    });
 
   const markSignatureAsCollected = (index: number) => {
     const updated = [...signatures];

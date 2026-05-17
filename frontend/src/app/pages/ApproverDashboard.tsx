@@ -10,6 +10,7 @@ interface Attachment {
   type: string;
   size: string;
   uploadedDate: string;
+  dataUrl: string;
 }
 
 interface Signature {
@@ -67,6 +68,8 @@ type ApiApprovalQueueItem = {
       email: string;
     };
   }>;
+  attachments?: Attachment[];
+  signatures?: Signature[];
 };
 
 function formatDateTime(value: string) {
@@ -119,6 +122,16 @@ export function ApproverDashboard() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
+
+  const handleDownloadAttachment = (attachment: Attachment) => {
+    const link = document.createElement("a");
+    link.href = attachment.dataUrl;
+    link.download = attachment.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -139,8 +152,8 @@ export function ApproverDashboard() {
           queueStatus: request.status as Request["queueStatus"],
           status: mapApprovalStatus(request.status),
           submittedDate: formatDateTime(request.createdAt),
-          attachments: [],
-          signatures: [],
+          attachments: request.attachments ?? [],
+          signatures: request.signatures ?? [],
         } satisfies Request));
 
         if (isMounted) {
@@ -202,8 +215,8 @@ export function ApproverDashboard() {
           queueStatus: request.status as Request["queueStatus"],
           status: mapApprovalStatus(request.status),
           submittedDate: formatDateTime(request.createdAt),
-          attachments: [],
-          signatures: [],
+          attachments: request.attachments ?? [],
+          signatures: request.signatures ?? [],
         } satisfies Request));
 
         if (isMounted) {
@@ -243,8 +256,8 @@ export function ApproverDashboard() {
       queueStatus: request.status as Request["queueStatus"],
       status: mapApprovalStatus(request.status),
       submittedDate: formatDateTime(request.createdAt),
-      attachments: [],
-      signatures: [],
+      attachments: request.attachments ?? [],
+      signatures: request.signatures ?? [],
     } satisfies Request));
 
     setRequests(liveRequests);
@@ -700,11 +713,18 @@ export function ApproverDashboard() {
                             </div>
                           </div>
                           <button 
-                            onClick={() => alert(`Downloading ${attachment.name}...`)}
+                            onClick={() => handleDownloadAttachment(attachment)}
                             className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                           >
                             <Download className="w-3.5 h-3.5" />
                             Download
+                          </button>
+                          <button
+                            onClick={() => setPreviewAttachment(attachment)}
+                            className="ml-2 flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            Preview
                           </button>
                         </div>
                       ))}
@@ -828,6 +848,45 @@ export function ApproverDashboard() {
           )}
         </div>
       </div>
+
+      {previewAttachment && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full overflow-hidden border border-slate-200 max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">Preview Attachment</h3>
+                <p className="text-sm text-slate-600">{previewAttachment.name}</p>
+              </div>
+              <button
+                onClick={() => setPreviewAttachment(null)}
+                className="p-2 rounded-lg hover:bg-slate-100"
+              >
+                <X className="w-5 h-5 text-slate-700" />
+              </button>
+            </div>
+            <div className="p-4 bg-slate-50 flex-1 overflow-auto">
+              {previewAttachment.type.startsWith("image/") ? (
+                <img
+                  src={previewAttachment.dataUrl}
+                  alt={previewAttachment.name}
+                  className="max-w-full h-auto mx-auto rounded-lg shadow-lg"
+                />
+              ) : previewAttachment.type === "application/pdf" ? (
+                <iframe
+                  title={previewAttachment.name}
+                  src={previewAttachment.dataUrl}
+                  className="w-full h-[70vh] rounded-lg bg-white"
+                />
+              ) : (
+                <div className="text-center py-16">
+                  <p className="text-slate-700 font-medium">Preview not available for this file type.</p>
+                  <p className="text-sm text-slate-500 mt-2">Use Download to open the document locally.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

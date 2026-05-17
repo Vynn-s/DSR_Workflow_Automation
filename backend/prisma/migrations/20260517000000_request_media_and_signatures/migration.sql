@@ -1,0 +1,3 @@
+ALTER TABLE "VenueRequest"
+ADD COLUMN IF NOT EXISTS "attachments" JSONB,
+ADD COLUMN IF NOT EXISTS "signatures" JSONB;

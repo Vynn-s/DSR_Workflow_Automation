@@ -33,6 +33,21 @@ const createRequestSchema = z.object({
     endDateTime: z.coerce.date(),
     attendees: z.coerce.number().int().positive(),
     specialRequirements: z.string().optional(),
+    attachments: z.array(z.object({
+        id: z.string(),
+        name: z.string(),
+        type: z.string(),
+        size: z.string(),
+        uploadedDate: z.string(),
+        dataUrl: z.string(),
+    })).optional(),
+    signatures: z.array(z.object({
+        role: z.string(),
+        signatory: z.string(),
+        required: z.boolean(),
+        status: z.enum(["pending", "signed"]),
+        signedDate: z.string().optional(),
+    })).optional(),
 });
 const requestIdParamsSchema = z.object({
     id: z.string().min(1),
@@ -54,6 +69,8 @@ async function createRequest(req, res, next) {
             throw new AppError(`Invalid request payload: ${parsed.error.issues.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ")}`, 400);
         }
         const input = parsed.data;
+        const attachments = input.attachments ?? [];
+        const signatures = input.signatures ?? [];
         if (input.endDateTime <= input.startDateTime) {
             throw new AppError("endDateTime must be later than startDateTime", 400);
         }
@@ -95,9 +112,9 @@ async function createRequest(req, res, next) {
         const requestId = (0, crypto_1.randomUUID)();
         await client.query(`INSERT INTO "VenueRequest" (
 				id, "requesterId", "venueId", "ministryId", "eventName", purpose,
-				"startDateTime", "endDateTime", attendees, "specialRequirements",
+				"startDateTime", "endDateTime", attendees, "specialRequirements", attachments, signatures,
 				status, "currentApproverId", "createdAt", "updatedAt"
-			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW(),NOW())`, [
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb,NOW(),NOW())`, [
             requestId,
             req.user.id,
             input.venueId,
@@ -108,6 +125,8 @@ async function createRequest(req, res, next) {
             input.endDateTime,
             input.attendees,
             input.specialRequirements ?? null,
+            JSON.stringify(attachments),
+            JSON.stringify(signatures),
             "PENDING",
             secretaryId,
         ]);
@@ -134,6 +153,8 @@ async function createRequest(req, res, next) {
             endDateTime: input.endDateTime,
             attendees: input.attendees,
             specialRequirements: input.specialRequirements ?? null,
+            attachments,
+            signatures,
             status: "PENDING",
             currentApproverId: secretaryId,
         });
@@ -162,6 +183,8 @@ async function getRequests(req, res, next) {
 				vr."endDateTime",
 				vr.attendees,
 				vr."specialRequirements",
+				vr.attachments,
+				vr.signatures,
 				vr.status,
 				vr."currentApproverId",
 				vr."createdAt",
@@ -184,6 +207,8 @@ async function getRequests(req, res, next) {
                 name: request.ministry_name,
             },
             approvalActions: [],
+            attachments: request.attachments ?? [],
+            signatures: request.signatures ?? [],
         }));
         return res.json({ requests });
     }
@@ -215,6 +240,8 @@ async function getRequestById(req, res, next) {
 				vr."endDateTime",
 				vr.attendees,
 				vr."specialRequirements",
+				vr.attachments,
+				vr.signatures,
 				vr.status,
 				vr."currentApproverId",
 				vr."createdAt",
@@ -290,6 +317,8 @@ async function getRequestById(req, res, next) {
                     email: action.approver_email,
                 },
             })),
+            attachments: requestRecord.attachments ?? [],
+            signatures: requestRecord.signatures ?? [],
         });
     }
     catch (error) {

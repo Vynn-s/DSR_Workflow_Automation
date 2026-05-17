@@ -93,6 +93,21 @@ const combineDateAndTimeToIso = (dateStr: string, timeStr: string) => {
   return date.toISOString();
 };
 
+const MAX_ATTACHMENT_SIZE_BYTES = 5 * 1024 * 1024;
+
+const formatBytes = (bytes: number) => {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  const kilobytes = bytes / 1024;
+  if (kilobytes < 1024) {
+    return `${kilobytes.toFixed(1)} KB`;
+  }
+
+  return `${(kilobytes / 1024).toFixed(1)} MB`;
+};
+
 export function BookingRequestForm() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -332,6 +347,13 @@ export function BookingRequestForm() {
       return;
     }
 
+    if (attachment && attachment.size > MAX_ATTACHMENT_SIZE_BYTES) {
+      setSubmitError(
+        `Attachment is too large. The maximum allowed size is ${formatBytes(MAX_ATTACHMENT_SIZE_BYTES)}.`
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitError(null);
 
@@ -389,7 +411,19 @@ export function BookingRequestForm() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setAttachment(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+
+      if (selectedFile.size > MAX_ATTACHMENT_SIZE_BYTES) {
+        setAttachment(null);
+        setSubmitError(
+          `Attachment is too large. Please choose a file smaller than ${formatBytes(MAX_ATTACHMENT_SIZE_BYTES)}.`
+        );
+        e.target.value = "";
+        return;
+      }
+
+      setSubmitError(null);
+      setAttachment(selectedFile);
     }
   };
 
@@ -607,7 +641,7 @@ export function BookingRequestForm() {
                   />
                 </div>
                 <p className="mt-2 text-xs text-slate-500">
-                  Upload any supporting documents (e.g., event plan, schedule)
+                  Upload any supporting documents (e.g., event plan, schedule). Maximum size: {formatBytes(MAX_ATTACHMENT_SIZE_BYTES)}.
                 </p>
                 {attachment && (
                   <div className="mt-3 flex items-center gap-2 text-sm text-slate-700 bg-slate-50 px-4 py-2 rounded-lg">

@@ -157,7 +157,7 @@ export async function createRequest(req: Request, res: Response, next: NextFunct
 				id, "requesterId", "venueId", "ministryId", "eventName", purpose,
 				"startDateTime", "endDateTime", attendees, "specialRequirements", attachments, signatures,
 				status, "currentApproverId", "createdAt", "updatedAt"
-			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb,NOW(),NOW())`,
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::"RequestStatus",$14,NOW(),NOW())`,
 			[
 				requestId,
 				req.user.id,

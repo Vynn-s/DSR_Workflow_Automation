@@ -295,13 +295,22 @@ function buildInsights(stats: AuditStats | null, logs: AuditLogItem[]): DSSInsig
 
 export function AdminDashboard() {
   const [reportView, setReportView] = useState<ReportView>("weekly");
-  const [venues, setVenues] = useState<Array<LiveVenue & { status: string }>>([]);
+  const [venues, setVenues] = useState<LiveVenue[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [auditStats, setAuditStats] = useState<AuditStats | null>(null);
   const [venuesLoading, setVenuesLoading] = useState(true);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [venuesError, setVenuesError] = useState<string | null>(null);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
+  const [venueDraft, setVenueDraft] = useState({
+    name: "",
+    description: "",
+    capacity: "",
+    status: "ACTIVE" as LiveVenue["status"],
+  });
+  const [savingVenueId, setSavingVenueId] = useState<string | null>(null);
+  const [venueSaveMessage, setVenueSaveMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -323,7 +332,14 @@ export function AdminDashboard() {
       }
 
       if (liveVenuesResult.status === "fulfilled") {
-        setVenues(liveVenuesResult.value.map((venue) => ({ ...venue, status: "Active" })));
+        setVenues(liveVenuesResult.value);
+        setSelectedVenueId((currentSelectedVenueId) => {
+          if (currentSelectedVenueId && liveVenuesResult.value.some((venue) => venue.id === currentSelectedVenueId)) {
+            return currentSelectedVenueId;
+          }
+
+          return liveVenuesResult.value[0]?.id ?? null;
+        });
       } else {
         console.error("Failed to load venue data:", liveVenuesResult.reason);
         setVenues([]);
@@ -347,6 +363,9 @@ export function AdminDashboard() {
       if (auditStatsResult.status === "rejected" || auditLogsResult.status === "rejected") {
         setAnalyticsError("Unable to load dashboard analytics right now.");
       }
+
+      setVenuesLoading(false);
+      setAnalyticsLoading(false);
     }
 
     void loadDashboard();
@@ -360,6 +379,63 @@ export function AdminDashboard() {
   const reportData = useMemo(() => buildReportRows(auditLogs, reportView), [auditLogs, reportView]);
   const insights = useMemo(() => buildInsights(auditStats, auditLogs), [auditStats, auditLogs]);
   const requestsThisMonth = auditStats?.totalRequestsThisMonth ?? reportData.reduce((sum, row) => sum + row.requests, 0);
+  const selectedVenue = venues.find((venue) => venue.id === selectedVenueId) ?? null;
+
+  useEffect(() => {
+    if (!selectedVenue) {
+      return;
+    }
+
+    setVenueDraft({
+      name: selectedVenue.name,
+      description: selectedVenue.description ?? "",
+      capacity: String(selectedVenue.capacity),
+      status: selectedVenue.status,
+    });
+  }, [selectedVenue]);
+
+  const startEditingVenue = (venue: LiveVenue) => {
+    setSelectedVenueId(venue.id);
+    setVenueDraft({
+      name: venue.name,
+      description: venue.description ?? "",
+      capacity: String(venue.capacity),
+      status: venue.status,
+    });
+    setVenueSaveMessage(null);
+  };
+
+  const saveVenueChanges = async () => {
+    if (!selectedVenueId) {
+      return;
+    }
+
+    setSavingVenueId(selectedVenueId);
+    setVenueSaveMessage(null);
+
+    try {
+      const updatedVenue = await api.put<{ venue: LiveVenue }>(`/venues/${selectedVenueId}`, {
+        name: venueDraft.name.trim(),
+        description: venueDraft.description.trim() || null,
+        capacity: Number(venueDraft.capacity),
+        status: venueDraft.status,
+      });
+
+      setVenues((current) => current.map((venue) => (venue.id === selectedVenueId ? updatedVenue.venue : venue)));
+      setVenueSaveMessage("Venue updated successfully.");
+    } catch (error) {
+      console.error("Failed to save venue:", error);
+      setVenueSaveMessage("Unable to save venue changes right now.");
+    } finally {
+      setSavingVenueId(null);
+    }
+  };
+
+  const statusStyles: Record<LiveVenue["status"], string> = {
+    ACTIVE: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    INACTIVE: "bg-slate-100 text-slate-700 border-slate-200",
+    MAINTENANCE: "bg-amber-50 text-amber-700 border-amber-200",
+  };
 
   const getXAxisKey = () => "label";
 
@@ -625,6 +701,7 @@ export function AdminDashboard() {
                     <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Venue Name</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Capacity</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
@@ -634,9 +711,19 @@ export function AdminDashboard() {
                       <td className="px-6 py-5 text-sm font-semibold text-slate-900">{venue.name}</td>
                       <td className="px-6 py-5 text-sm text-slate-700">{venue.capacity} people</td>
                       <td className="px-6 py-5">
-                        <span className="inline-flex items-center px-4 py-1.5 text-xs font-bold rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
+                        <span className={`inline-flex items-center px-4 py-1.5 text-xs font-bold rounded-full border ${statusStyles[venue.status]}`}>
                           {venue.status}
                         </span>
+                      </td>
+                      <td className="px-6 py-5 text-sm text-slate-700">
+                        <button
+                          type="button"
+                          onClick={() => startEditingVenue(venue)}
+                          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                          Edit
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -646,6 +733,83 @@ export function AdminDashboard() {
           )}
         </div>
       </div>
+
+      {selectedVenue && (
+        <div className="mb-10 bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10 p-8">
+          <div className="flex items-center justify-between gap-4 mb-6">
+            <div>
+              <h2 className="font-semibold text-slate-900 text-xl">Edit Venue</h2>
+              <p className="text-sm text-slate-600 mt-0.5">Update the selected venue details and status.</p>
+            </div>
+            <span className={`inline-flex items-center px-4 py-1.5 text-xs font-bold rounded-full border ${statusStyles[selectedVenue.status]}`}>
+              {selectedVenue.status}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Venue Name</label>
+              <input
+                value={venueDraft.name}
+                onChange={(e) => setVenueDraft((current) => ({ ...current, name: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Capacity</label>
+              <input
+                type="number"
+                min={1}
+                value={venueDraft.capacity}
+                onChange={(e) => setVenueDraft((current) => ({ ...current, capacity: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              />
+            </div>
+
+            <div className="col-span-2">
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Description</label>
+              <textarea
+                rows={4}
+                value={venueDraft.description}
+                onChange={(e) => setVenueDraft((current) => ({ ...current, description: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Status</label>
+              <select
+                value={venueDraft.status}
+                onChange={(e) => setVenueDraft((current) => ({ ...current, status: e.target.value as LiveVenue["status"] }))}
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              >
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="INACTIVE">INACTIVE</option>
+                <option value="MAINTENANCE">MAINTENANCE</option>
+              </select>
+            </div>
+
+            <div className="flex items-end justify-end gap-3">
+              <button
+                type="button"
+                onClick={saveVenueChanges}
+                disabled={savingVenueId === selectedVenue.id}
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-900/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                {savingVenueId === selectedVenue.id ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+
+          {venueSaveMessage && (
+            <p className="mt-4 text-sm text-slate-600" role="status">
+              {venueSaveMessage}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

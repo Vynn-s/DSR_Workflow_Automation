@@ -1,3 +1,13 @@
 ALTER TABLE "VenueRequest"
 ADD COLUMN IF NOT EXISTS "attachments" JSONB,
 ADD COLUMN IF NOT EXISTS "signatures" JSONB;
+
+DO $$
+BEGIN
+	IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'VenueStatus') THEN
+		CREATE TYPE "VenueStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'MAINTENANCE');
+	END IF;
+END $$;
+
+ALTER TABLE "Venue"
+ADD COLUMN IF NOT EXISTS "status" "VenueStatus" NOT NULL DEFAULT 'ACTIVE';

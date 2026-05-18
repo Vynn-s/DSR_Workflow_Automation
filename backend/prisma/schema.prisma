@@ -29,6 +29,12 @@ enum ApprovalActionType {
   FORWARDED
 }
 
+enum VenueStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+}
+
 model User {
   id         String    @id @default(cuid())
   email      String    @unique
@@ -62,6 +68,7 @@ model Venue {
   name        String
   description String?
   capacity    Int
+  status      VenueStatus @default(ACTIVE)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

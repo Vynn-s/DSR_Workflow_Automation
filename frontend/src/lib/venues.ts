@@ -5,6 +5,7 @@ export interface LiveVenue {
   name: string;
   description?: string | null;
   capacity: number;
+  status: "ACTIVE" | "INACTIVE" | "MAINTENANCE";
   authorizedMinistries?: Array<{
     id: string;
     venueId: string;

@@ -66,27 +66,26 @@ async function authenticate(req, res, next) {
         }
         let role = mapGroupToRole(group);
         console.log(`[AUTH] Email: ${email}, Cognito groups: ${JSON.stringify(groups)}, Mapped role: ${role}`);
-        // If no Cognito group was found, try to use the database role as fallback
-        if (!group) {
-            console.log(`[AUTH] No Cognito group for ${email}, checking database for role fallback`);
-            const { Pool } = require("pg");
-            const dbPool = new Pool({
-                connectionString: process.env.DATABASE_URL,
-                ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : true,
-            });
-            const client = await dbPool.connect();
-            try {
-                const userResult = await client.query(`SELECT role FROM "User" WHERE email = $1`, [email]);
-                if (userResult.rows.length > 0) {
-                    const dbRole = userResult.rows[0].role;
-                    console.log(`[AUTH] Found database role ${dbRole} for ${email}`);
-                    role = mapGroupToRole(dbRole);
-                }
+        const { Pool } = require("pg");
+        const dbPool = new Pool({
+            connectionString: process.env.DATABASE_URL,
+            ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : true,
+        });
+        const client = await dbPool.connect();
+        try {
+            const userResult = await client.query(`SELECT role FROM "User" WHERE email = $1`, [email]);
+            if (userResult.rows.length > 0) {
+                const dbRole = userResult.rows[0].role;
+                console.log(`[AUTH] Found database role ${dbRole} for ${email}`);
+                role = mapGroupToRole(dbRole);
             }
-            finally {
-                client.release();
-                await dbPool.end();
+            else if (!group) {
+                console.log(`[AUTH] No database role found for ${email} and no Cognito group available`);
             }
+        }
+        finally {
+            client.release();
+            await dbPool.end();
         }
         req.user = {
             id: sub,

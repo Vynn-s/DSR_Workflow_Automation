@@ -692,6 +692,10 @@ export function AdminDashboard() {
             <div className="p-8 text-sm text-slate-600">Loading venue data...</div>
           ) : venuesError ? (
             <div className="p-8 text-sm text-rose-700">{venuesError}</div>
+          ) : venues.length === 0 ? (
+            <div className="p-8 text-sm text-slate-600">
+              No venues were returned from the live data source.
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">

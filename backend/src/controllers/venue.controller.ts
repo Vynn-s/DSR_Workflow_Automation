@@ -40,9 +40,11 @@ export async function getVenues(req: Request, res: Response, next: NextFunction)
 			throw new AppError("Unauthorized", 401);
 		}
 
+		// Lookup the user's ministry by email (req.user.id is the Cognito sub,
+		// but the DB "User" row is keyed by email), so query by email.
 		const ministryResult = await client.query(
-			`SELECT "ministryId" FROM "User" WHERE id = $1`,
-			[req.user.id],
+			`SELECT "ministryId" FROM "User" WHERE email = $1`,
+			[req.user.email],
 		);
 
 		if (req.user.role === "ADMIN") {

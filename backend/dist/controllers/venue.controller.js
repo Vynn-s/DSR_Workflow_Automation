@@ -36,7 +36,9 @@ async function getVenues(req, res, next) {
             console.log("getVenues: User not authenticated");
             throw new AppError("Unauthorized", 401);
         }
-        const ministryResult = await client.query(`SELECT "ministryId" FROM "User" WHERE id = $1`, [req.user.id]);
+        // Lookup the user's ministry by email (req.user.id is the Cognito sub,
+        // but the DB "User" row is keyed by email), so query by email.
+        const ministryResult = await client.query(`SELECT "ministryId" FROM "User" WHERE email = $1`, [req.user.email]);
         if (req.user.role === "ADMIN") {
             const allVenuesResult = await client.query(`SELECT id, name, description, capacity, status, "createdAt", "updatedAt" FROM "Venue" ORDER BY name ASC`);
             const venues = await Promise.all(allVenuesResult.rows.map(async (venue) => {

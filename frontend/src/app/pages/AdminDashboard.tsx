@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Users, Building2, Brain, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock, Edit2 } from "lucide-react";
+import { Users, Building2, Brain, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock, Edit2, X } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import api from "../../lib/api";
 import { fetchVenues, type LiveVenue } from "../../lib/venues";
@@ -331,6 +331,8 @@ export function AdminDashboard() {
   });
   const [savingVenueId, setSavingVenueId] = useState<string | null>(null);
   const [venueSaveMessage, setVenueSaveMessage] = useState<string | null>(null);
+  const [venueSaveMessageType, setVenueSaveMessageType] = useState<"success" | "error" | null>(null);
+  const [isVenueModalOpen, setIsVenueModalOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -423,6 +425,14 @@ export function AdminDashboard() {
       status: venue.status,
     });
     setVenueSaveMessage(null);
+    setVenueSaveMessageType(null);
+    setIsVenueModalOpen(true);
+  };
+
+  const closeVenueModal = () => {
+    setIsVenueModalOpen(false);
+    setVenueSaveMessage(null);
+    setVenueSaveMessageType(null);
   };
 
   const saveVenueChanges = async () => {
@@ -432,6 +442,7 @@ export function AdminDashboard() {
 
     setSavingVenueId(selectedVenueId);
     setVenueSaveMessage(null);
+    setVenueSaveMessageType(null);
 
     try {
       const updatedVenue = await api.put<{ venue: LiveVenue }>(`/venues/${selectedVenueId}`, {
@@ -442,10 +453,12 @@ export function AdminDashboard() {
       });
 
       setVenues((current) => current.map((venue) => (venue.id === selectedVenueId ? updatedVenue.venue : venue)));
-      setVenueSaveMessage("Venue updated successfully.");
+      setVenueSaveMessage(`Venue updated successfully at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`);
+      setVenueSaveMessageType("success");
     } catch (error) {
       console.error("Failed to save venue:", error);
       setVenueSaveMessage("Unable to save venue changes right now.");
+      setVenueSaveMessageType("error");
     } finally {
       setSavingVenueId(null);
     }
@@ -453,8 +466,8 @@ export function AdminDashboard() {
 
   const statusStyles: Record<LiveVenue["status"], string> = {
     ACTIVE: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    INACTIVE: "bg-slate-100 text-slate-700 border-slate-200",
-    MAINTENANCE: "bg-amber-50 text-amber-700 border-amber-200",
+    INACTIVE: "bg-rose-50 text-rose-700 border-rose-200",
+    MAINTENANCE: "bg-blue-50 text-blue-700 border-blue-200",
   };
 
   const getXAxisKey = () => "label";
@@ -758,80 +771,109 @@ export function AdminDashboard() {
         </div>
       </div>
 
-      {selectedVenue && (
-        <div className="mb-10 bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10 p-8">
-          <div className="flex items-center justify-between gap-4 mb-6">
-            <div>
-              <h2 className="font-semibold text-slate-900 text-xl">Edit Venue</h2>
-              <p className="text-sm text-slate-600 mt-0.5">Update the selected venue details and status.</p>
-            </div>
-            <span className={`inline-flex items-center px-4 py-1.5 text-xs font-bold rounded-full border ${statusStyles[selectedVenue.status]}`}>
-              {selectedVenue.status}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Venue Name</label>
-              <input
-                value={venueDraft.name}
-                onChange={(e) => setVenueDraft((current) => ({ ...current, name: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Capacity</label>
-              <input
-                type="number"
-                min={1}
-                value={venueDraft.capacity}
-                onChange={(e) => setVenueDraft((current) => ({ ...current, capacity: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-              />
-            </div>
-
-            <div className="col-span-2">
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Description</label>
-              <textarea
-                rows={4}
-                value={venueDraft.description}
-                onChange={(e) => setVenueDraft((current) => ({ ...current, description: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Status</label>
-              <select
-                value={venueDraft.status}
-                onChange={(e) => setVenueDraft((current) => ({ ...current, status: e.target.value as LiveVenue["status"] }))}
-                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+      {selectedVenue && isVenueModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-900">Edit Venue</h2>
+                <p className="mt-0.5 text-sm text-slate-600">Update venue details and status.</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeVenueModal}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
               >
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-                <option value="MAINTENANCE">MAINTENANCE</option>
-              </select>
+                <X className="h-4 w-4" />
+              </button>
             </div>
 
-            <div className="flex items-end justify-end gap-3">
+            <div className="space-y-4 p-6">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-slate-700">Current Status</span>
+                <span className={`inline-flex items-center px-4 py-1.5 text-xs font-bold rounded-full border ${statusStyles[venueDraft.status]}`}>
+                  {venueDraft.status}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">Venue Name</label>
+                  <input
+                    value={venueDraft.name}
+                    onChange={(e) => setVenueDraft((current) => ({ ...current, name: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">Capacity</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={venueDraft.capacity}
+                    onChange={(e) => setVenueDraft((current) => ({ ...current, capacity: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">Description</label>
+                  <textarea
+                    rows={4}
+                    value={venueDraft.description}
+                    onChange={(e) => setVenueDraft((current) => ({ ...current, description: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">Status</label>
+                  <select
+                    value={venueDraft.status}
+                    onChange={(e) => setVenueDraft((current) => ({ ...current, status: e.target.value as LiveVenue["status"] }))}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  >
+                    <option value="ACTIVE">ACTIVE (Green)</option>
+                    <option value="INACTIVE">INACTIVE (Red)</option>
+                    <option value="MAINTENANCE">MAINTENANCE (Blue)</option>
+                  </select>
+                </div>
+              </div>
+
+              {venueSaveMessage && (
+                <div
+                  className={`rounded-lg border px-4 py-3 text-sm ${
+                    venueSaveMessageType === "success"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-rose-200 bg-rose-50 text-rose-700"
+                  }`}
+                  role="status"
+                >
+                  {venueSaveMessage}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+              <button
+                type="button"
+                onClick={closeVenueModal}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
               <button
                 type="button"
                 onClick={saveVenueChanges}
                 disabled={savingVenueId === selectedVenue.id}
-                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-900/20 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-900/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 {savingVenueId === selectedVenue.id ? "Saving..." : "Save Changes"}
               </button>
             </div>
           </div>
-
-          {venueSaveMessage && (
-            <p className="mt-4 text-sm text-slate-600" role="status">
-              {venueSaveMessage}
-            </p>
-          )}
         </div>
       )}
     </div>

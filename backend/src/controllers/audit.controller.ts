@@ -9,7 +9,7 @@ type AuditQueryFilters = {
 	dateFrom?: Date;
 	dateTo?: Date;
 	action?: string;
-	role?: "REQUESTER" | "PARISH_SECRETARY" | "PARISH_PRIEST" | "ADMIN";
+	role?: "REQUESTER" | "APPROVER" | "ADMIN";
 	venueId?: string;
 	requestId?: string;
 	page?: number;
@@ -22,7 +22,7 @@ const auditQuerySchema = z.object({
 	dateFrom: z.coerce.date().optional(),
 	dateTo: z.coerce.date().optional(),
 	action: z.string().min(1).optional(),
-	role: z.enum(["REQUESTER", "PARISH_SECRETARY", "PARISH_PRIEST", "ADMIN"]).optional(),
+	role: z.enum(["REQUESTER", "APPROVER", "ADMIN"]).optional(),
 	venueId: z.string().min(1).optional(),
 	requestId: z.string().min(1).optional(),
 	page: z.coerce.number().int().positive().optional(),
@@ -109,8 +109,16 @@ function buildWhereClause(
 	}
 
 	if (filters.role) {
-		values.push(filters.role);
-		clauses.push(`u.role = $${values.length}`);
+		if (filters.role === "APPROVER") {
+			values.push("PARISH_SECRETARY", "PARISH_PRIEST");
+			clauses.push(`u.role IN ($${values.length - 1}, $${values.length})`);
+		} else if (filters.role === "ADMIN") {
+			values.push("ADMIN");
+			clauses.push(`u.role = $${values.length}`);
+		} else {
+			values.push("REQUESTER");
+			clauses.push(`u.role = $${values.length}`);
+		}
 	}
 
 	if (filters.venueId) {
@@ -219,8 +227,16 @@ function buildAuditFilterClauses(
 	}
 
 	if (filters.role) {
-		values.push(filters.role);
-		clauses.push(`u.role = $${values.length}`);
+		if (filters.role === "APPROVER") {
+			values.push("PARISH_SECRETARY", "PARISH_PRIEST");
+			clauses.push(`u.role IN ($${values.length - 1}, $${values.length})`);
+		} else if (filters.role === "ADMIN") {
+			values.push("ADMIN");
+			clauses.push(`u.role = $${values.length}`);
+		} else {
+			values.push("REQUESTER");
+			clauses.push(`u.role = $${values.length}`);
+		}
 	}
 
 	if (filters.venueId) {

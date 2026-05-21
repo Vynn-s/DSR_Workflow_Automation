@@ -39,7 +39,7 @@ export const router = createBrowserRouter([
   },
   {
     path: "/approver",
-    element: <ProtectedRoute allowedRoles={["PARISH_SECRETARY", "PARISH_PRIEST"]} />,
+    element: <ProtectedRoute allowedRoles={["PARISH_SECRETARY", "PARISH_PRIEST", "ADMIN"]} />,
     children: [
       {
         element: <Layout role="approver" />,

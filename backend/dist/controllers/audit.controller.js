@@ -9,7 +9,7 @@ const auditQuerySchema = z.object({
     dateFrom: z.coerce.date().optional(),
     dateTo: z.coerce.date().optional(),
     action: z.string().min(1).optional(),
-    role: z.enum(["REQUESTER", "PARISH_SECRETARY", "PARISH_PRIEST", "ADMIN"]).optional(),
+    role: z.enum(["REQUESTER", "APPROVER", "ADMIN"]).optional(),
     venueId: z.string().min(1).optional(),
     requestId: z.string().min(1).optional(),
     page: z.coerce.number().int().positive().optional(),
@@ -77,8 +77,18 @@ function buildWhereClause(filters, values) {
         clauses.push(`al.action = $${values.length}`);
     }
     if (filters.role) {
-        values.push(filters.role);
-        clauses.push(`u.role = $${values.length}`);
+        if (filters.role === "APPROVER") {
+            values.push("PARISH_SECRETARY", "PARISH_PRIEST");
+            clauses.push(`u.role IN ($${values.length - 1}, $${values.length})`);
+        }
+        else if (filters.role === "ADMIN") {
+            values.push("ADMIN");
+            clauses.push(`u.role = $${values.length}`);
+        }
+        else {
+            values.push("REQUESTER");
+            clauses.push(`u.role = $${values.length}`);
+        }
     }
     if (filters.venueId) {
         values.push(filters.venueId);
@@ -169,8 +179,18 @@ function buildAuditFilterClauses(filters, values, options = {}) {
         clauses.push(`al.action = $${values.length}`);
     }
     if (filters.role) {
-        values.push(filters.role);
-        clauses.push(`u.role = $${values.length}`);
+        if (filters.role === "APPROVER") {
+            values.push("PARISH_SECRETARY", "PARISH_PRIEST");
+            clauses.push(`u.role IN ($${values.length - 1}, $${values.length})`);
+        }
+        else if (filters.role === "ADMIN") {
+            values.push("ADMIN");
+            clauses.push(`u.role = $${values.length}`);
+        }
+        else {
+            values.push("REQUESTER");
+            clauses.push(`u.role = $${values.length}`);
+        }
     }
     if (filters.venueId) {
         values.push(filters.venueId);

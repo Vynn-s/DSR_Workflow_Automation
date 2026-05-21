@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Filter, Activity, TrendingUp, Eye, X, User, Clock, FileText, MapPin, Monitor, RefreshCw } from "lucide-react";
+import { Filter, Activity, TrendingUp, Eye, X, User, Clock, FileText, MapPin, RefreshCw, ExternalLink } from "lucide-react";
+import { useNavigate } from "react-router";
 import api from "../../lib/api";
 
 interface AuditEntry {
@@ -12,12 +13,15 @@ interface AuditEntry {
   action: string;
   details: string;
   fullDetails?: {
-    ipAddress?: string;
     userAgent?: string;
     requestId?: string; // human-friendly/short display
     requestIdRaw?: string; // raw UUID or canonical id
     requestIdAltRaw?: string; // alternate id present in details if different
     requestIdAlt?: string; // short display for alternate id
+    requestStartDateTime?: string;
+    requestStatus?: string;
+    requestMinistry?: string;
+    requesterName?: string;
     venue?: string;
     previousValue?: string;
     newValue?: string;
@@ -78,6 +82,8 @@ type AuditStats = {
   }>;
 };
 
+type RoleFilter = "All" | "REQUESTER" | "APPROVER" | "ADMIN";
+
 function formatRole(role?: AuditRole): string {
   switch (role) {
     case "REQUESTER":
@@ -111,6 +117,34 @@ function formatAction(action: string): string {
 
 function getString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function formatTimeOnly(value?: string): string {
+  if (!value) {
+    return "N/A";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function getRoleQueryValue(role: RoleFilter): string | undefined {
+  switch (role) {
+    case "REQUESTER":
+    case "APPROVER":
+    case "ADMIN":
+      return role;
+    default:
+      return undefined;
+  }
 }
 
 function mapAuditEntry(item: AuditLogItem): AuditEntry {
@@ -149,6 +183,10 @@ function mapAuditEntry(item: AuditLogItem): AuditEntry {
   const affectedUsers = Array.isArray(details.affectedUsers)
     ? details.affectedUsers.filter((value): value is string => typeof value === "string")
     : undefined;
+  const requestStartDateTime = item.venueRequest?.startDateTime;
+  const requestStatus = item.venueRequest?.status ?? getString(details.requestStatus);
+  const requestMinistry = item.venueRequest?.ministry?.name ?? getString(details.ministry) ?? getString(details.ministryName);
+  const requesterName = item.venueRequest?.requester?.name ?? getString(details.requesterName);
 
   return {
     id: item.id,
@@ -164,12 +202,15 @@ function mapAuditEntry(item: AuditLogItem): AuditEntry {
       ? `${formatAction(item.action)} ${requestIdDisplay}`
       : formatAction(item.action),
     fullDetails: {
-      ipAddress: item.ipAddress ?? undefined,
       userAgent: getString(details.userAgent),
       requestId: requestIdDisplay,
       requestIdRaw: rawPrimary ?? rawDetailsId,
       requestIdAltRaw,
       requestIdAlt: requestIdAltDisplay,
+      requestStartDateTime,
+      requestStatus,
+      requestMinistry,
+      requesterName,
       venue,
       previousValue,
       newValue,
@@ -180,7 +221,8 @@ function mapAuditEntry(item: AuditLogItem): AuditEntry {
 }
 
 export function AuditLogPage() {
-  const [filterRole, setFilterRole] = useState<string>("All");
+  const navigate = useNavigate();
+  const [filterRole, setFilterRole] = useState<RoleFilter>("All");
   const [filterAction, setFilterAction] = useState<string>("All");
   const [filterDate, setFilterDate] = useState<string>("");
   const [selectedEntry, setSelectedEntry] = useState<AuditEntry | null>(null);
@@ -199,8 +241,10 @@ export function AuditLogPage() {
 
       const params: Record<string, string> = {};
 
-      if (filterRole !== "All") {
-        params.role = filterRole;
+      const roleQueryValue = getRoleQueryValue(filterRole);
+
+      if (roleQueryValue) {
+        params.role = roleQueryValue;
       }
 
       if (filterAction !== "All") {
@@ -286,13 +330,12 @@ export function AuditLogPage() {
             <select
               id="role-filter"
               value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value)}
+              onChange={(e) => setFilterRole(e.target.value as RoleFilter)}
               className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
             >
               <option value="All">All Roles</option>
               <option value="REQUESTER">Requester</option>
-              <option value="PARISH_SECRETARY">Parish Secretary</option>
-              <option value="PARISH_PRIEST">Parish Priest</option>
+              <option value="APPROVER">Approver</option>
               <option value="ADMIN">Administrator</option>
             </select>
           </div>
@@ -394,7 +437,7 @@ export function AuditLogPage() {
               {!loading && auditLogs.map((entry) => (
                 <tr key={entry.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-4 text-sm text-slate-900 whitespace-nowrap font-mono">
-                    {new Date(entry.timestamp).toLocaleString()}
+                    {formatTimeOnly(entry.timestamp)}
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-slate-900">
                     {entry.user}
@@ -567,7 +610,7 @@ export function AuditLogPage() {
                     <Clock className="w-3.5 h-3.5" />
                     Timestamp
                   </p>
-                  <p className="text-sm font-mono text-slate-900">{selectedEntry.timestamp}</p>
+                  <p className="text-sm font-mono text-slate-900">{formatTimeOnly(selectedEntry.timestamp)}</p>
                 </div>
               </div>
 
@@ -603,24 +646,62 @@ export function AuditLogPage() {
                 </p>
               </div>
 
+              {selectedEntry.fullDetails && (
+                <div className="border-t border-slate-200 pt-6">
+                  <h4 className="text-sm font-semibold text-slate-900 mb-4">Request Snapshot</h4>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    {selectedEntry.fullDetails.requestId && (
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Request ID</p>
+                        <p className="font-mono text-slate-900">{selectedEntry.fullDetails.requestId}</p>
+                      </div>
+                    )}
+
+                    {selectedEntry.fullDetails.requestStatus && (
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Status</p>
+                        <p className="text-slate-900">{selectedEntry.fullDetails.requestStatus}</p>
+                      </div>
+                    )}
+
+                    {selectedEntry.fullDetails.requesterName && (
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Requester</p>
+                        <p className="text-slate-900">{selectedEntry.fullDetails.requesterName}</p>
+                      </div>
+                    )}
+
+                    {selectedEntry.fullDetails.requestMinistry && (
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Ministry</p>
+                        <p className="text-slate-900">{selectedEntry.fullDetails.requestMinistry}</p>
+                      </div>
+                    )}
+
+                    {selectedEntry.fullDetails.requestStartDateTime && (
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Requested Time</p>
+                        <p className="text-slate-900">{formatTimeOnly(selectedEntry.fullDetails.requestStartDateTime)}</p>
+                      </div>
+                    )}
+
+                    {selectedEntry.fullDetails.venue && (
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Venue</p>
+                        <p className="text-slate-900">{selectedEntry.fullDetails.venue}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Full Details */}
               {selectedEntry.fullDetails && (
                 <div className="border-t border-slate-200 pt-6">
                   <h4 className="text-sm font-semibold text-slate-900 mb-4">Technical Details</h4>
                   
                   <div className="space-y-4">
-                    {selectedEntry.fullDetails.ipAddress && (
-                      <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
-                          <Monitor className="w-3.5 h-3.5" />
-                          IP Address
-                        </p>
-                        <p className="text-sm font-mono text-slate-900 bg-slate-50 px-3 py-2 rounded-lg inline-block">
-                          {selectedEntry.fullDetails.ipAddress}
-                        </p>
-                      </div>
-                    )}
-
                     {selectedEntry.fullDetails.userAgent && (
                       <div>
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">User Agent</p>
@@ -646,6 +727,13 @@ export function AuditLogPage() {
                             className="px-3 py-1 text-xs bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"
                           >
                             Copy
+                          </button>
+                          <button
+                            onClick={() => navigate(`/approver?requestId=${encodeURIComponent(selectedEntry.fullDetails.requestIdRaw ?? "")}`)}
+                            className="inline-flex items-center gap-1 px-3 py-1 text-xs bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            Open Request
                           </button>
                         </div>
 

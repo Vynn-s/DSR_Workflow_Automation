@@ -39,7 +39,7 @@ async function getVenues(req, res, next) {
         // Lookup the user's ministry by email (req.user.id is the Cognito sub,
         // but the DB "User" row is keyed by email), so query by email.
         const ministryResult = await client.query(`SELECT "ministryId" FROM "User" WHERE email = $1`, [req.user.email]);
-        if (req.user.role === "ADMIN") {
+        if (req.user.role === "ADMIN" || req.user.role === "PARISH_PRIEST") {
             const allVenuesResult = await client.query(`SELECT id, name, description, capacity, status, "createdAt", "updatedAt" FROM "Venue" ORDER BY name ASC`);
             const venues = await Promise.all(allVenuesResult.rows.map(async (venue) => {
                 const ministriesResult = await client.query(`SELECT vm.id, vm."venueId", vm."ministryId", m.id as ministry_id, m.name as ministry_name 

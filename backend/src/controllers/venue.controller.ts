@@ -47,7 +47,7 @@ export async function getVenues(req: Request, res: Response, next: NextFunction)
 			[req.user.email],
 		);
 
-		if (req.user.role === "ADMIN") {
+		if (req.user.role === "ADMIN" || req.user.role === "PARISH_PRIEST") {
 			const allVenuesResult = await client.query(
 				`SELECT id, name, description, capacity, status, "createdAt", "updatedAt" FROM "Venue" ORDER BY name ASC`,
 			);

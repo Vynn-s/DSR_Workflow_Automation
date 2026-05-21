@@ -171,6 +171,26 @@ function buildReportRows(logs: AuditLogItem[], view: ReportView): ChartRow[] {
   });
 }
 
+async function fetchAllAuditLogs(): Promise<AuditLogItem[]> {
+  const limit = 100;
+  const firstPage = await api.get<AuditLogsResponse>("/audit", {
+    params: { limit: String(limit), page: "1" },
+  });
+
+  const items = [...(firstPage.data.items ?? [])];
+  const totalPages = Math.max(1, firstPage.data.totalPages ?? 1);
+  const cappedPages = Math.min(totalPages, 10);
+
+  for (let page = 2; page <= cappedPages; page += 1) {
+    const response = await api.get<AuditLogsResponse>("/audit", {
+      params: { limit: String(limit), page: String(page) },
+    });
+    items.push(...(response.data.items ?? []));
+  }
+
+  return items;
+}
+
 function buildLiveUsers(logs: AuditLogItem[]): LiveUserRow[] {
   const users = new Map<string, LiveUserRow>();
 
@@ -324,7 +344,7 @@ export function AdminDashboard() {
       const [liveVenuesResult, auditStatsResult, auditLogsResult] = await Promise.allSettled([
         fetchVenues(),
         api.get<AuditStats>("/audit/stats"),
-        api.get<AuditLogsResponse>("/audit"),
+        fetchAllAuditLogs(),
       ]);
 
       if (!isMounted) {
@@ -354,7 +374,7 @@ export function AdminDashboard() {
       }
 
       if (auditLogsResult.status === "fulfilled") {
-        setAuditLogs(auditLogsResult.value.data.items ?? []);
+        setAuditLogs(auditLogsResult.value);
       } else {
         console.error("Failed to load audit logs:", auditLogsResult.reason);
         setAuditLogs([]);

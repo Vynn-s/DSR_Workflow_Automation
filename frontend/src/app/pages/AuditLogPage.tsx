@@ -159,9 +159,9 @@ function mapAuditEntry(item: AuditLogItem): AuditEntry {
     role: formatRole(item.performedBy?.role),
     action: formatAction(item.action),
     details: venue
-      ? `${formatAction(item.action)}${requestId ? ` ${requestId}` : ""} at ${venue}`
-      : requestId
-      ? `${formatAction(item.action)} ${requestId}`
+      ? `${formatAction(item.action)}${requestIdDisplay ? ` ${requestIdDisplay}` : ""} at ${venue}`
+      : requestIdDisplay
+      ? `${formatAction(item.action)} ${requestIdDisplay}`
       : formatAction(item.action),
     fullDetails: {
       ipAddress: item.ipAddress ?? undefined,

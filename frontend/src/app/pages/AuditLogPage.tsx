@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { Filter, Activity, TrendingUp, Eye, X, User, Clock, FileText, MapPin, RefreshCw, ExternalLink } from "lucide-react";
-import { useNavigate } from "react-router";
+import { Filter, Activity, TrendingUp, Eye, X, User, Clock, FileText, MapPin, RefreshCw } from "lucide-react";
 import api from "../../lib/api";
 
 interface AuditEntry {
@@ -19,6 +18,10 @@ interface AuditEntry {
     requestIdAltRaw?: string; // alternate id present in details if different
     requestIdAlt?: string; // short display for alternate id
     requestStartDateTime?: string;
+    requestEndDateTime?: string;
+    requestEventName?: string;
+    requestPurpose?: string;
+    requestAttendees?: number;
     requestStatus?: string;
     requestMinistry?: string;
     requesterName?: string;
@@ -46,7 +49,11 @@ type AuditLogItem = {
   } | null;
   venueRequest?: {
     id: string;
+    eventName?: string;
+    purpose?: string;
     startDateTime?: string;
+    endDateTime?: string;
+    attendees?: number;
     status?: string;
     venue?: { id: string; name: string } | null;
     requester?: { id: string; name: string; email: string } | null;
@@ -184,6 +191,12 @@ function mapAuditEntry(item: AuditLogItem): AuditEntry {
     ? details.affectedUsers.filter((value): value is string => typeof value === "string")
     : undefined;
   const requestStartDateTime = item.venueRequest?.startDateTime;
+  const requestEndDateTime = item.venueRequest?.endDateTime;
+  const requestEventName = item.venueRequest?.eventName ?? getString(details.eventName);
+  const requestPurpose = item.venueRequest?.purpose ?? getString(details.purpose);
+  const requestAttendees = typeof item.venueRequest?.attendees === "number"
+    ? item.venueRequest.attendees
+    : undefined;
   const requestStatus = item.venueRequest?.status ?? getString(details.requestStatus);
   const requestMinistry = item.venueRequest?.ministry?.name ?? getString(details.ministry) ?? getString(details.ministryName);
   const requesterName = item.venueRequest?.requester?.name ?? getString(details.requesterName);
@@ -208,6 +221,10 @@ function mapAuditEntry(item: AuditLogItem): AuditEntry {
       requestIdAltRaw,
       requestIdAlt: requestIdAltDisplay,
       requestStartDateTime,
+      requestEndDateTime,
+      requestEventName,
+      requestPurpose,
+      requestAttendees,
       requestStatus,
       requestMinistry,
       requesterName,
@@ -221,7 +238,6 @@ function mapAuditEntry(item: AuditLogItem): AuditEntry {
 }
 
 export function AuditLogPage() {
-  const navigate = useNavigate();
   const [filterRole, setFilterRole] = useState<RoleFilter>("All");
   const [filterAction, setFilterAction] = useState<string>("All");
   const [filterDate, setFilterDate] = useState<string>("");
@@ -665,6 +681,13 @@ export function AuditLogPage() {
                       </div>
                     )}
 
+                    {selectedEntry.fullDetails.requestEventName && (
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Event</p>
+                        <p className="text-slate-900">{selectedEntry.fullDetails.requestEventName}</p>
+                      </div>
+                    )}
+
                     {selectedEntry.fullDetails.requesterName && (
                       <div>
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Requester</p>
@@ -681,8 +704,15 @@ export function AuditLogPage() {
 
                     {selectedEntry.fullDetails.requestStartDateTime && (
                       <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Requested Time</p>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Start Time</p>
                         <p className="text-slate-900">{formatTimeOnly(selectedEntry.fullDetails.requestStartDateTime)}</p>
+                      </div>
+                    )}
+
+                    {selectedEntry.fullDetails.requestEndDateTime && (
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">End Time</p>
+                        <p className="text-slate-900">{formatTimeOnly(selectedEntry.fullDetails.requestEndDateTime)}</p>
                       </div>
                     )}
 
@@ -690,6 +720,20 @@ export function AuditLogPage() {
                       <div>
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Venue</p>
                         <p className="text-slate-900">{selectedEntry.fullDetails.venue}</p>
+                      </div>
+                    )}
+
+                    {typeof selectedEntry.fullDetails.requestAttendees === "number" && (
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Attendees</p>
+                        <p className="text-slate-900">{selectedEntry.fullDetails.requestAttendees}</p>
+                      </div>
+                    )}
+
+                    {selectedEntry.fullDetails.requestPurpose && (
+                      <div className="col-span-2">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Purpose</p>
+                        <p className="text-slate-900">{selectedEntry.fullDetails.requestPurpose}</p>
                       </div>
                     )}
                   </div>
@@ -727,13 +771,6 @@ export function AuditLogPage() {
                             className="px-3 py-1 text-xs bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"
                           >
                             Copy
-                          </button>
-                          <button
-                            onClick={() => navigate(`/approver?requestId=${encodeURIComponent(selectedEntry.fullDetails.requestIdRaw ?? "")}`)}
-                            className="inline-flex items-center gap-1 px-3 py-1 text-xs bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            Open Request
                           </button>
                         </div>
 

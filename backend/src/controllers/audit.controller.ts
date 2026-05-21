@@ -152,7 +152,11 @@ function mapAuditRow(row: Record<string, any>) {
 		venueRequest: row.request_id
 			? {
 				id: row.request_id,
+				eventName: row.request_event_name,
+				purpose: row.request_purpose,
 				startDateTime: row.request_start_date_time,
+				endDateTime: row.request_end_date_time,
+				attendees: row.request_attendees,
 				status: row.request_status,
 				venue: row.venue_id
 					? {
@@ -278,7 +282,11 @@ export async function getAuditLogs(req: Request, res: Response, next: NextFuncti
 				u.email AS performed_by_email,
 				u.role AS performed_by_role,
 				vr.id AS request_id,
+				vr."eventName" AS request_event_name,
+				vr.purpose AS request_purpose,
 				vr."startDateTime" AS request_start_date_time,
+				vr."endDateTime" AS request_end_date_time,
+				vr.attendees AS request_attendees,
 				vr.status AS request_status,
 				v.id AS venue_id,
 				v.name AS venue_name,

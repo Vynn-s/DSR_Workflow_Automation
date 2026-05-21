@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router";
 import { CheckCircle, XCircle, FileText, User, Calendar as CalendarIcon, Paperclip, Download, Eye, AlertCircle, CheckCircle2, Brain, TrendingUp, Shield, AlertTriangle } from "lucide-react";
 import { formatRequestId } from "../../lib/requestId";
 import { fetchVenues, type LiveVenue } from "../../lib/venues";
@@ -109,7 +108,6 @@ function isActionableQueueStatus(status: Request["queueStatus"]) {
 }
 
 export function ApproverDashboard() {
-  const location = useLocation();
   const [requests, setRequests] = useState<Request[]>([]);
   const [archivedRequests, setArchivedRequests] = useState<Request[]>([]);
   const [activeTab, setActiveTab] = useState<"queue" | "archive">("queue");
@@ -125,7 +123,6 @@ export function ApproverDashboard() {
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
-  const requestIdParam = new URLSearchParams(location.search).get("requestId");
 
   const handleDownloadAttachment = (attachment: Attachment) => {
     const link = document.createElement("a");
@@ -246,23 +243,6 @@ export function ApproverDashboard() {
       isMounted = false;
     };
   }, []);
-
-  useEffect(() => {
-    if (!requestIdParam) {
-      return;
-    }
-
-    const queueMatch = requests.find((request) => request.id === requestIdParam);
-    const archiveMatch = archivedRequests.find((request) => request.id === requestIdParam);
-    const match = queueMatch ?? archiveMatch ?? null;
-
-    if (!match) {
-      return;
-    }
-
-    setSelectedRequest(match);
-    setActiveTab(queueMatch ? "queue" : "archive");
-  }, [archivedRequests, requestIdParam, requests]);
 
   const refreshQueue = async () => {
     const response = await api.get<{ queue: ApiApprovalQueueItem[] }>("/approvals/queue");

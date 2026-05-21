@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getAuditLogs = getAuditLogs;
 exports.getAuditStats = getAuditStats;
+const pg_1 = require("pg");
 const { z } = require("zod");
 const { AppError } = require("../middleware/errorHandler");
 const auditQuerySchema = z.object({
@@ -14,6 +15,21 @@ const auditQuerySchema = z.object({
     page: z.coerce.number().int().positive().optional(),
     limit: z.coerce.number().int().positive().max(100).optional(),
 });
+let pool = null;
+function getPool() {
+    if (pool) {
+        return pool;
+    }
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+        throw new Error("Missing required environment variable: DATABASE_URL");
+    }
+    pool = new pg_1.Pool({
+        connectionString,
+        ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : true,
+    });
+    return pool;
+}
 function startOfMonth(date) {
     return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
 }
@@ -25,62 +41,253 @@ function startOfWeek(date) {
     copy.setHours(0, 0, 0, 0);
     return copy;
 }
+function parseJsonDetails(details) {
+    if (!details) {
+        return null;
+    }
+    if (typeof details === "object") {
+        return details;
+    }
+    if (typeof details === "string") {
+        try {
+            return JSON.parse(details);
+        }
+        catch {
+            return { raw: details };
+        }
+    }
+    return null;
+}
+function toNumber(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+function buildWhereClause(filters, values) {
+    const clauses = [];
+    if (filters.dateFrom) {
+        values.push(filters.dateFrom);
+        clauses.push(`al."createdAt" >= $${values.length}`);
+    }
+    if (filters.dateTo) {
+        values.push(filters.dateTo);
+        clauses.push(`al."createdAt" < $${values.length}`);
+    }
+    if (filters.action) {
+        values.push(filters.action);
+        clauses.push(`al.action = $${values.length}`);
+    }
+    if (filters.role) {
+        values.push(filters.role);
+        clauses.push(`u.role = $${values.length}`);
+    }
+    if (filters.venueId) {
+        values.push(filters.venueId);
+        clauses.push(`vr."venueId" = $${values.length}`);
+    }
+    if (filters.requestId) {
+        values.push(filters.requestId);
+        clauses.push(`al."requestId" = $${values.length}`);
+    }
+    return clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+}
+function mapAuditRow(row) {
+    const details = parseJsonDetails(row.details);
+    return {
+        id: row.id,
+        action: row.action,
+        createdAt: row.createdAt,
+        ipAddress: row.ipAddress ?? null,
+        details,
+        performedBy: {
+            id: row.performed_by_id,
+            name: row.performed_by_name,
+            email: row.performed_by_email,
+            role: row.performed_by_role,
+        },
+        venueRequest: row.request_id
+            ? {
+                id: row.request_id,
+                startDateTime: row.request_start_date_time,
+                status: row.request_status,
+                venue: row.venue_id
+                    ? {
+                        id: row.venue_id,
+                        name: row.venue_name,
+                    }
+                    : null,
+                requester: row.requester_id
+                    ? {
+                        id: row.requester_id,
+                        name: row.requester_name,
+                        email: row.requester_email,
+                    }
+                    : null,
+                ministry: row.ministry_id
+                    ? {
+                        id: row.ministry_id,
+                        name: row.ministry_name,
+                    }
+                    : null,
+            }
+            : null,
+    };
+}
+function buildWeeklyRequestVolume(logRows) {
+    const currentWeekStart = startOfWeek(new Date());
+    const buckets = Array.from({ length: 6 }, (_, index) => {
+        const start = new Date(currentWeekStart);
+        start.setDate(start.getDate() - (5 - index) * 7);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 7);
+        return {
+            weekStart: start.toISOString(),
+            weekEnd: end.toISOString(),
+            total: 0,
+        };
+    });
+    for (const row of logRows) {
+        const createdAt = new Date(row.created_at);
+        const bucket = buckets.find((entry) => createdAt >= new Date(entry.weekStart) && createdAt < new Date(entry.weekEnd));
+        if (bucket) {
+            bucket.total += 1;
+        }
+    }
+    return buckets;
+}
 async function getAuditLogs(req, res, next) {
+    const client = await getPool().connect();
     try {
-        // TEMPORARY: Return mock data while we debug Prisma issue
+        const parsed = auditQuerySchema.safeParse(req.query);
+        if (!parsed.success) {
+            throw new AppError("Invalid audit query parameters", 400);
+        }
+        const filters = parsed.data;
+        const page = filters.page ?? 1;
+        const limit = filters.limit ?? 20;
+        const offset = (page - 1) * limit;
+        const selectColumns = `
+			SELECT
+				al.id,
+				al.action,
+				al.details,
+				al."ipAddress",
+				al."createdAt",
+				u.id AS performed_by_id,
+				u.name AS performed_by_name,
+				u.email AS performed_by_email,
+				u.role AS performed_by_role,
+				vr.id AS request_id,
+				vr."startDateTime" AS request_start_date_time,
+				vr.status AS request_status,
+				v.id AS venue_id,
+				v.name AS venue_name,
+				m.id AS ministry_id,
+				m.name AS ministry_name,
+				requester.id AS requester_id,
+				requester.name AS requester_name,
+				requester.email AS requester_email
+			FROM "AuditLog" al
+			JOIN "User" u ON al."performedById" = u.id
+			LEFT JOIN "VenueRequest" vr ON al."requestId" = vr.id
+			LEFT JOIN "Venue" v ON vr."venueId" = v.id
+			LEFT JOIN "Ministry" m ON vr."ministryId" = m.id
+			LEFT JOIN "User" requester ON vr."requesterId" = requester.id
+		`;
+        const countValues = [];
+        const whereClause = buildWhereClause(filters, countValues);
+        const totalResult = await client.query(`SELECT COUNT(*)::int AS total FROM (${selectColumns} ${whereClause}) AS audit_rows`, countValues);
+        const rowsValues = [...countValues, limit, offset];
+        const rowsResult = await client.query(`${selectColumns} ${whereClause} ORDER BY al."createdAt" DESC, al.id DESC LIMIT $${rowsValues.length - 1} OFFSET $${rowsValues.length}`, rowsValues);
+        const total = totalResult.rows[0]?.total ?? 0;
         return res.json({
             success: true,
             data: {
-                items: [
-                    {
-                        id: "1",
-                        action: "REQUEST_CREATED",
-                        createdAt: new Date().toISOString(),
-                        performedBy: {
-                            id: "user1",
-                            name: "Test User",
-                            email: "test@example.com",
-                            role: "REQUESTER",
-                        },
-                        venueRequest: null,
-                    },
-                ],
-                total: 1,
-                page: 1,
-                limit: 20,
-                totalPages: 1,
+                items: rowsResult.rows.map(mapAuditRow),
+                total,
+                page,
+                limit,
+                totalPages: Math.max(1, Math.ceil(total / limit)),
             },
         });
     }
     catch (error) {
         return next(error);
     }
+    finally {
+        client.release();
+    }
 }
 async function getAuditStats(_req, res, next) {
+    const client = await getPool().connect();
     try {
-        // TEMPORARY: Return mock stats while we debug Prisma issue
+        const monthStart = startOfMonth(new Date());
+        const nextMonth = new Date(monthStart);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        const [summaryResult, ministryResult, weeklyLogsResult] = await Promise.all([
+            client.query(`WITH month_actions AS (
+					SELECT al.action, al.details, al."createdAt", al."requestId"
+					FROM "AuditLog" al
+					WHERE al."createdAt" >= $1 AND al."createdAt" < $2
+				),
+				created_requests AS (
+					SELECT "requestId", MIN("createdAt") AS created_at
+					FROM "AuditLog"
+					WHERE action = 'REQUEST_CREATED' AND "requestId" IS NOT NULL AND "createdAt" >= $1 AND "createdAt" < $2
+					GROUP BY "requestId"
+				),
+				decision_actions AS (
+					SELECT "requestId", MIN("createdAt") AS decided_at
+					FROM "AuditLog"
+					WHERE action IN ('REQUEST_APPROVED', 'REQUEST_REJECTED') AND "requestId" IS NOT NULL AND "createdAt" >= $1 AND "createdAt" < $2
+					GROUP BY "requestId"
+				)
+				SELECT
+					(SELECT COUNT(*)::int FROM month_actions WHERE action = 'REQUEST_CREATED') AS total_requests_this_month,
+					COALESCE((
+						SELECT AVG(EXTRACT(EPOCH FROM (d.decided_at - c.created_at)) / 3600.0)
+						FROM created_requests c
+						JOIN decision_actions d ON d."requestId" = c."requestId"
+					), 0) AS average_approval_time_hours,
+					(SELECT COUNT(*)::int FROM month_actions WHERE action = 'DSS_EVALUATION' AND COALESCE((details->>'hasConflict')::boolean, false)) AS total_conflicts_detected,
+					COALESCE(ROUND(
+						100.0 * (SELECT COUNT(*) FROM month_actions WHERE action = 'REQUEST_REJECTED')
+						/ NULLIF((SELECT COUNT(*) FROM month_actions WHERE action IN ('REQUEST_APPROVED', 'REQUEST_REJECTED')), 0)
+					, 2), 0) AS rejection_rate
+				`, [monthStart, nextMonth]),
+            client.query(`SELECT
+					COALESCE(m.id, 'unassigned') AS ministry_id,
+					COALESCE(m.name, 'Unassigned') AS ministry_name,
+					COUNT(*)::int AS total
+				FROM "AuditLog" al
+				JOIN "VenueRequest" vr ON al."requestId" = vr.id
+				LEFT JOIN "Ministry" m ON vr."ministryId" = m.id
+				WHERE al.action = 'REQUEST_CREATED' AND al."createdAt" >= $1 AND al."createdAt" < $2
+				GROUP BY m.id, m.name
+				ORDER BY total DESC, ministry_name ASC`, [monthStart, nextMonth]),
+            client.query(`SELECT al."createdAt" AS created_at
+				 FROM "AuditLog" al
+				 WHERE al.action = 'REQUEST_CREATED' AND al."createdAt" >= $1`, [startOfWeek(new Date(monthStart.getTime() - 5 * 7 * 24 * 60 * 60 * 1000))]),
+        ]);
+        const summaryRow = summaryResult.rows[0] ?? {};
+        const weeklyRequestVolume = buildWeeklyRequestVolume(weeklyLogsResult.rows);
         return res.json({
-            totalRequestsThisMonth: 42,
-            averageApprovalTimeHours: 4.5,
-            totalConflictsDetected: 2,
-            rejectionRate: 15,
-            requestsByMinistry: [
-                { ministryId: "m1", ministryName: "Music Ministry", total: 20 },
-                { ministryId: "m2", ministryName: "Youth Ministry", total: 15 },
-                { ministryId: "m3", ministryName: "Admin", total: 7 },
-            ],
-            weeklyRequestVolume: [
-                { weekStart: new Date(Date.now() - 42 * 24 * 60 * 60 * 1000).toISOString(), weekEnd: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(), total: 5 },
-                { weekStart: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(), weekEnd: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString(), total: 8 },
-                { weekStart: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString(), weekEnd: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString(), total: 10 },
-                { weekStart: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString(), weekEnd: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), total: 7 },
-                { weekStart: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), weekEnd: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), total: 6 },
-                { weekStart: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), weekEnd: new Date().toISOString(), total: 6 },
-            ],
+            totalRequestsThisMonth: toNumber(summaryRow.total_requests_this_month),
+            averageApprovalTimeHours: toNumber(summaryRow.average_approval_time_hours),
+            totalConflictsDetected: toNumber(summaryRow.total_conflicts_detected),
+            rejectionRate: toNumber(summaryRow.rejection_rate),
+            requestsByMinistry: ministryResult.rows.map((row) => ({
+                ministryId: row.ministry_id,
+                ministryName: row.ministry_name,
+                total: toNumber(row.total),
+            })),
+            weeklyRequestVolume,
         });
     }
     catch (error) {
         return next(error);
+    }
+    finally {
+        client.release();
     }
 }
 exports.default = {

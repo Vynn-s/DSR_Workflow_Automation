@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Filter, Activity, TrendingUp, Eye, X, User, Clock, FileText, MapPin, Monitor, RefreshCw } from "lucide-react";
+import api from "../../lib/api";
 
 interface AuditEntry {
   id: number;
+  rawAction?: string;
+  createdAt?: string;
   timestamp: string;
   user: string;
   role: string;
@@ -20,151 +23,189 @@ interface AuditEntry {
   };
 }
 
-// Mock audit log data
-const mockAuditLog: AuditEntry[] = [
-  {
-    id: 1,
-    timestamp: "2026-02-02 14:23:15",
-    user: "Bishop Antonio",
-    role: "Approver",
-    action: "Approved Request",
-    details: "Approved REQ-001 - Wedding Ceremony at Main Chapel",
+type AuditRole = "REQUESTER" | "PARISH_SECRETARY" | "PARISH_PRIEST" | "ADMIN";
+
+type AuditLogItem = {
+  id: string;
+  action: string;
+  createdAt: string;
+  details?: Record<string, unknown> | null;
+  ipAddress?: string | null;
+  performedBy?: {
+    id: string;
+    name: string;
+    email: string;
+    role: AuditRole;
+  } | null;
+  venueRequest?: {
+    id: string;
+    startDateTime?: string;
+    status?: string;
+    venue?: { id: string; name: string } | null;
+    requester?: { id: string; name: string; email: string } | null;
+    ministry?: { id: string; name: string } | null;
+  } | null;
+};
+
+type AuditLogsResponse = {
+  success: boolean;
+  data: {
+    items: AuditLogItem[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+};
+
+type AuditStats = {
+  totalRequestsThisMonth: number;
+  averageApprovalTimeHours: number;
+  totalConflictsDetected: number;
+  rejectionRate: number;
+  requestsByMinistry: Array<{
+    ministryId: string;
+    ministryName: string;
+    total: number;
+  }>;
+  weeklyRequestVolume: Array<{
+    weekStart: string;
+    weekEnd: string;
+    total: number;
+  }>;
+};
+
+function formatRole(role?: AuditRole): string {
+  switch (role) {
+    case "REQUESTER":
+      return "Requester";
+    case "ADMIN":
+      return "Administrator";
+    case "PARISH_SECRETARY":
+    case "PARISH_PRIEST":
+      return "Approver";
+    default:
+      return "System";
+  }
+}
+
+function formatAction(action: string): string {
+  switch (action) {
+    case "REQUEST_CREATED":
+      return "Submitted Request";
+    case "REQUEST_APPROVED":
+      return "Approved Request";
+    case "REQUEST_REJECTED":
+      return "Rejected Request";
+    case "REQUEST_REVISION_REQUESTED":
+      return "Requested Revision";
+    case "DSS_EVALUATION":
+      return "DSS Evaluation";
+    default:
+      return action.replaceAll("_", " ");
+  }
+}
+
+function getString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function mapAuditEntry(item: AuditLogItem): AuditEntry {
+  const details = item.details ?? {};
+  const requestId = item.venueRequest?.id ?? getString(details.requestId);
+  const venue = item.venueRequest?.venue?.name ?? getString(details.venue) ?? getString(details.venueName);
+  const previousValue = getString(details.previousStatus) ?? getString(details.previousValue);
+  const newValue = getString(details.nextStatus) ?? getString(details.newValue) ?? getString(details.decision);
+  const systemNotes = getString(details.remarks) ?? getString(details.systemNotes) ?? getString(details.decision);
+  const affectedUsers = Array.isArray(details.affectedUsers)
+    ? details.affectedUsers.filter((value): value is string => typeof value === "string")
+    : undefined;
+
+  return {
+    id: Number.parseInt(item.id, 10) || 0,
+    rawAction: item.action,
+    createdAt: item.createdAt,
+    timestamp: item.createdAt,
+    user: item.performedBy?.name ?? "System",
+    role: formatRole(item.performedBy?.role),
+    action: formatAction(item.action),
+    details: venue
+      ? `${formatAction(item.action)}${requestId ? ` ${requestId}` : ""} at ${venue}`
+      : requestId
+      ? `${formatAction(item.action)} ${requestId}`
+      : formatAction(item.action),
     fullDetails: {
-      ipAddress: "192.168.1.45",
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-      requestId: "REQ-001",
-      venue: "Main Chapel",
-      previousValue: "Pending",
-      newValue: "Approved",
-      systemNotes: "Automated email notification sent to requester"
-    }
-  },
-  {
-    id: 2,
-    timestamp: "2026-02-02 10:15:42",
-    user: "Maria Cruz",
-    role: "Requester",
-    action: "Submitted Request",
-    details: "Submitted REQ-004 - Baptism Reception at Chapel Garden",
-    fullDetails: {
-      ipAddress: "192.168.1.67",
-      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-      requestId: "REQ-004",
-      venue: "Chapel Garden",
-      affectedUsers: ["Bishop Antonio", "Sr. Teresa"],
-      systemNotes: "Request assigned to approval queue. Notification sent to approvers."
-    }
-  },
-  {
-    id: 3,
-    timestamp: "2026-02-01 16:45:30",
-    user: "Sr. Teresa",
-    role: "Approver",
-    action: "Rejected Request",
-    details: "Rejected REQ-003 - Bible Study Group at Multipurpose Room (Conflict with another booking)",
-    fullDetails: {
-      ipAddress: "192.168.1.89",
-      userAgent: "Mozilla/5.0 (iPad; CPU OS 15_0 like Mac OS X)",
-      requestId: "REQ-003",
-      venue: "Multipurpose Room",
-      previousValue: "Pending",
-      newValue: "Rejected",
-      systemNotes: "Rejection reason: Scheduling conflict with existing booking. Requester notified via email."
-    }
-  },
-  {
-    id: 4,
-    timestamp: "2026-02-01 11:20:18",
-    user: "Fr. Michael Santos",
-    role: "Requester",
-    action: "Submitted Request",
-    details: "Submitted REQ-002 - Youth Ministry Meeting at Parish Hall",
-    fullDetails: {
-      ipAddress: "192.168.1.23",
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-      requestId: "REQ-002",
-      venue: "Parish Hall",
-      affectedUsers: ["Bishop Antonio", "Sr. Teresa"],
-      systemNotes: "Request submitted with 2 attachments. Approval workflow initiated."
-    }
-  },
-  {
-    id: 5,
-    timestamp: "2026-01-31 09:33:55",
-    user: "Admin User",
-    role: "Administrator",
-    action: "Updated Venue",
-    details: "Updated Conference Room capacity to 30",
-    fullDetails: {
-      ipAddress: "192.168.1.10",
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-      venue: "Conference Room",
-      previousValue: "25",
-      newValue: "30",
-      systemNotes: "Venue capacity updated in database. All future bookings will reflect new capacity."
-    }
-  },
-  {
-    id: 6,
-    timestamp: "2026-01-30 13:12:40",
-    user: "Bishop Antonio",
-    role: "Approver",
-    action: "Approved Request",
-    details: "Approved REQ-005 - Ministry Coordinators Meeting at Conference Room",
-    fullDetails: {
-      ipAddress: "192.168.1.45",
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-      requestId: "REQ-005",
-      venue: "Conference Room",
-      previousValue: "Pending",
-      newValue: "Approved",
-      systemNotes: "Fast-tracked approval. Calendar updated automatically."
-    }
-  },
-  {
-    id: 7,
-    timestamp: "2026-01-28 15:50:22",
-    user: "Maria Cruz",
-    role: "Requester",
-    action: "Submitted Request",
-    details: "Submitted REQ-001 - Wedding Ceremony at Main Chapel",
-    fullDetails: {
-      ipAddress: "192.168.1.67",
-      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-      requestId: "REQ-001",
-      venue: "Main Chapel",
-      affectedUsers: ["Bishop Antonio"],
-      systemNotes: "High-priority request. Assigned to senior approver."
-    }
-  },
-  {
-    id: 8,
-    timestamp: "2026-01-27 10:05:10",
-    user: "Admin User",
-    role: "Administrator",
-    action: "Added User",
-    details: "Added new requester: John Reyes",
-    fullDetails: {
-      ipAddress: "192.168.1.10",
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-      previousValue: "N/A",
-      newValue: "john.reyes@spcathedral.org",
-      affectedUsers: ["John Reyes"],
-      systemNotes: "New user account created. Welcome email sent with login credentials."
-    }
-  },
-];
+      ipAddress: item.ipAddress ?? undefined,
+      userAgent: getString(details.userAgent),
+      requestId,
+      venue,
+      previousValue,
+      newValue,
+      affectedUsers,
+      systemNotes,
+    },
+  };
+}
 
 export function AuditLogPage() {
   const [filterRole, setFilterRole] = useState<string>("All");
   const [filterDate, setFilterDate] = useState<string>("");
   const [selectedEntry, setSelectedEntry] = useState<AuditEntry | null>(null);
+  const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([]);
+  const [auditStats, setAuditStats] = useState<AuditStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredLogs = mockAuditLog.filter((entry) => {
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadAuditData() {
+      setLoading(true);
+      setError(null);
+
+      const [logsResult, statsResult] = await Promise.allSettled([
+        api.get<AuditLogsResponse>("/audit"),
+        api.get<AuditStats>("/audit/stats"),
+      ]);
+
+      if (!mounted) {
+        return;
+      }
+
+      if (logsResult.status === "fulfilled") {
+        setAuditLogs((logsResult.value.data.items ?? []).map(mapAuditEntry));
+      } else {
+        console.error("Failed to load audit logs:", logsResult.reason);
+        setAuditLogs([]);
+        setError("Unable to load audit logs right now.");
+      }
+
+      if (statsResult.status === "fulfilled") {
+        setAuditStats(statsResult.value);
+      } else {
+        console.error("Failed to load audit stats:", statsResult.reason);
+        setAuditStats(null);
+      }
+
+      setLoading(false);
+    }
+
+    void loadAuditData();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const filteredLogs = useMemo(() => auditLogs.filter((entry) => {
     const roleMatch = filterRole === "All" || entry.role === filterRole;
     const dateMatch = !filterDate || entry.timestamp.startsWith(filterDate);
     return roleMatch && dateMatch;
-  });
+  }), [auditLogs, filterDate, filterRole]);
+
+  const requestsSubmitted = auditLogs.filter((entry) => entry.rawAction === "REQUEST_CREATED").length;
+  const approvalsMade = auditLogs.filter((entry) => entry.rawAction === "REQUEST_APPROVED").length;
+  const averageTurnaround = auditStats ? `${auditStats.averageApprovalTimeHours.toFixed(1)} hours` : "N/A";
 
   return (
     <div>
@@ -233,6 +274,12 @@ export function AuditLogPage() {
         </div>
       </div>
 
+      {error && (
+        <div className="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {error}
+        </div>
+      )}
+
       {/* Audit Log Table */}
       <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 overflow-hidden mb-8">
         <div className="px-6 py-5 border-b border-slate-200/60 flex items-center gap-2">
@@ -270,10 +317,10 @@ export function AuditLogPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredLogs.map((entry) => (
+              {!loading && filteredLogs.map((entry) => (
                 <tr key={entry.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-4 text-sm text-slate-900 whitespace-nowrap font-mono">
-                    {entry.timestamp}
+                    {new Date(entry.timestamp).toLocaleString()}
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-slate-900">
                     {entry.user}
@@ -312,6 +359,15 @@ export function AuditLogPage() {
           </table>
         </div>
 
+        {loading && (
+          <div className="p-12 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4 animate-pulse">
+              <Activity className="w-8 h-8 text-slate-400" />
+            </div>
+            <p className="text-slate-600 font-medium">Loading audit entries...</p>
+          </div>
+        )}
+
         {filteredLogs.length === 0 && (
           <div className="p-12 text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
@@ -339,22 +395,68 @@ export function AuditLogPage() {
           <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-6 hover:shadow-xl transition-shadow">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Total Actions Logged</p>
             <p className="text-3xl font-semibold text-slate-900">
-              {mockAuditLog.length}
+              {auditLogs.length}
             </p>
           </div>
           <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-6 hover:shadow-xl transition-shadow">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Requests Submitted</p>
-            <p className="text-3xl font-semibold text-slate-900">4</p>
+            <p className="text-3xl font-semibold text-slate-900">{auditStats?.totalRequestsThisMonth ?? requestsSubmitted}</p>
           </div>
           <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-6 hover:shadow-xl transition-shadow">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Approvals Made</p>
-            <p className="text-3xl font-semibold text-slate-900">2</p>
+            <p className="text-3xl font-semibold text-slate-900">{approvalsMade}</p>
           </div>
           <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-6 hover:shadow-xl transition-shadow">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Average Turnaround</p>
-            <p className="text-3xl font-semibold text-slate-900">2.3 days</p>
+            <p className="text-3xl font-semibold text-slate-900">{averageTurnaround}</p>
           </div>
         </div>
+
+        {auditStats && (
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-6">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Requests by Ministry</p>
+              <div className="space-y-4">
+                {auditStats.requestsByMinistry.length > 0 ? auditStats.requestsByMinistry.map((ministry) => (
+                  <div key={ministry.ministryId}>
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <span className="font-medium text-slate-800">{ministry.ministryName}</span>
+                      <span className="text-slate-500">{ministry.total}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-blue-500"
+                        style={{ width: `${Math.max(8, (ministry.total / Math.max(1, auditStats.totalRequestsThisMonth)) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )) : (
+                  <p className="text-sm text-slate-500">No ministry activity yet.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-6">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Weekly Request Volume</p>
+              <div className="space-y-4">
+                {auditStats.weeklyRequestVolume.map((week) => (
+                  <div key={week.weekStart}>
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <span className="font-medium text-slate-800">{new Date(week.weekStart).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                      <span className="text-slate-500">{week.total}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-emerald-500"
+                        style={{ width: `${Math.max(8, Math.min(100, week.total * 12))}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Detail Preview Modal */}

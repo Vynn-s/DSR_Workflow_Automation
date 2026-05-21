@@ -154,6 +154,34 @@ function buildWeeklyRequestVolume(logRows) {
     }
     return buckets;
 }
+function buildAuditFilterClauses(filters, values, options = {}) {
+    const clauses = [];
+    if (filters.dateFrom) {
+        values.push(filters.dateFrom);
+        clauses.push(`al."createdAt" >= $${values.length}`);
+    }
+    if (filters.dateTo) {
+        values.push(filters.dateTo);
+        clauses.push(`al."createdAt" < $${values.length}`);
+    }
+    if (options.includeAction && filters.action) {
+        values.push(filters.action);
+        clauses.push(`al.action = $${values.length}`);
+    }
+    if (filters.role) {
+        values.push(filters.role);
+        clauses.push(`u.role = $${values.length}`);
+    }
+    if (filters.venueId) {
+        values.push(filters.venueId);
+        clauses.push(`vr."venueId" = $${values.length}`);
+    }
+    if (filters.requestId) {
+        values.push(filters.requestId);
+        clauses.push(`al."requestId" = $${values.length}`);
+    }
+    return clauses.length > 0 ? ` AND ${clauses.join(" AND ")}` : "";
+}
 async function getAuditLogs(req, res, next) {
     const client = await getPool().connect();
     try {
@@ -217,56 +245,78 @@ async function getAuditLogs(req, res, next) {
         client.release();
     }
 }
-async function getAuditStats(_req, res, next) {
+async function getAuditStats(req, res, next) {
     const client = await getPool().connect();
     try {
-        const monthStart = startOfMonth(new Date());
-        const nextMonth = new Date(monthStart);
-        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        const parsed = auditQuerySchema.safeParse(req.query);
+        if (!parsed.success) {
+            throw new AppError("Invalid audit query parameters", 400);
+        }
+        const filters = parsed.data;
+        const monthStart = filters.dateFrom ? new Date(filters.dateFrom) : startOfMonth(new Date());
+        const monthEnd = filters.dateTo ? new Date(filters.dateTo) : new Date(monthStart);
+        if (!filters.dateTo) {
+            monthEnd.setMonth(monthEnd.getMonth() + 1);
+        }
+        const statsValues = [monthStart, monthEnd];
+        const filterClause = buildAuditFilterClauses(filters, statsValues, { includeAction: true });
+        const filteredBaseCte = `
+			WITH filtered_rows AS (
+				SELECT
+					al.action,
+					al.details,
+					al."createdAt",
+					al."requestId",
+					u.role,
+					vr."venueId",
+					vr."ministryId"
+				FROM "AuditLog" al
+				JOIN "User" u ON al."performedById" = u.id
+				LEFT JOIN "VenueRequest" vr ON al."requestId" = vr.id
+				WHERE al."createdAt" >= $1 AND al."createdAt" < $2${filterClause}
+			)`;
         const [summaryResult, ministryResult, weeklyLogsResult] = await Promise.all([
-            client.query(`WITH month_actions AS (
-					SELECT al.action, al.details, al."createdAt", al."requestId"
-					FROM "AuditLog" al
-					WHERE al."createdAt" >= $1 AND al."createdAt" < $2
-				),
+            client.query(`${filteredBaseCte},
 				created_requests AS (
 					SELECT "requestId", MIN("createdAt") AS created_at
-					FROM "AuditLog"
-					WHERE action = 'REQUEST_CREATED' AND "requestId" IS NOT NULL AND "createdAt" >= $1 AND "createdAt" < $2
+					FROM filtered_rows
+					WHERE action = 'REQUEST_CREATED' AND "requestId" IS NOT NULL
 					GROUP BY "requestId"
 				),
 				decision_actions AS (
 					SELECT "requestId", MIN("createdAt") AS decided_at
-					FROM "AuditLog"
-					WHERE action IN ('REQUEST_APPROVED', 'REQUEST_REJECTED') AND "requestId" IS NOT NULL AND "createdAt" >= $1 AND "createdAt" < $2
+					FROM filtered_rows
+					WHERE action IN ('REQUEST_APPROVED', 'REQUEST_REJECTED') AND "requestId" IS NOT NULL
 					GROUP BY "requestId"
 				)
 				SELECT
-					(SELECT COUNT(*)::int FROM month_actions WHERE action = 'REQUEST_CREATED') AS total_requests_this_month,
+					(SELECT COUNT(*)::int FROM filtered_rows WHERE action = 'REQUEST_CREATED') AS total_requests_this_month,
 					COALESCE((
 						SELECT AVG(EXTRACT(EPOCH FROM (d.decided_at - c.created_at)) / 3600.0)
 						FROM created_requests c
 						JOIN decision_actions d ON d."requestId" = c."requestId"
 					), 0) AS average_approval_time_hours,
-					(SELECT COUNT(*)::int FROM month_actions WHERE action = 'DSS_EVALUATION' AND COALESCE((details->>'hasConflict')::boolean, false)) AS total_conflicts_detected,
+					(SELECT COUNT(*)::int FROM filtered_rows WHERE action = 'DSS_EVALUATION' AND COALESCE((details->>'hasConflict')::boolean, false)) AS total_conflicts_detected,
 					COALESCE(ROUND(
-						100.0 * (SELECT COUNT(*) FROM month_actions WHERE action = 'REQUEST_REJECTED')
-						/ NULLIF((SELECT COUNT(*) FROM month_actions WHERE action IN ('REQUEST_APPROVED', 'REQUEST_REJECTED')), 0)
+						100.0 * (SELECT COUNT(*) FROM filtered_rows WHERE action = 'REQUEST_REJECTED')
+						/ NULLIF((SELECT COUNT(*) FROM filtered_rows WHERE action IN ('REQUEST_APPROVED', 'REQUEST_REJECTED')), 0)
 					, 2), 0) AS rejection_rate
-				`, [monthStart, nextMonth]),
-            client.query(`SELECT
+				`, statsValues),
+            client.query(`${filteredBaseCte}
+				SELECT
 					COALESCE(m.id, 'unassigned') AS ministry_id,
 					COALESCE(m.name, 'Unassigned') AS ministry_name,
 					COUNT(*)::int AS total
-				FROM "AuditLog" al
-				JOIN "VenueRequest" vr ON al."requestId" = vr.id
-				LEFT JOIN "Ministry" m ON vr."ministryId" = m.id
-				WHERE al.action = 'REQUEST_CREATED' AND al."createdAt" >= $1 AND al."createdAt" < $2
+				FROM filtered_rows fr
+				LEFT JOIN "Ministry" m ON fr."ministryId" = m.id
+				WHERE fr.action = 'REQUEST_CREATED'
 				GROUP BY m.id, m.name
-				ORDER BY total DESC, ministry_name ASC`, [monthStart, nextMonth]),
-            client.query(`SELECT al."createdAt" AS created_at
-				 FROM "AuditLog" al
-				 WHERE al.action = 'REQUEST_CREATED' AND al."createdAt" >= $1`, [startOfWeek(new Date(monthStart.getTime() - 5 * 7 * 24 * 60 * 60 * 1000))]),
+				ORDER BY total DESC, ministry_name ASC`, statsValues),
+            client.query(`${filteredBaseCte}
+				SELECT fr."createdAt" AS created_at
+				FROM filtered_rows fr
+				WHERE fr.action = 'REQUEST_CREATED'
+				ORDER BY fr."createdAt" ASC`, statsValues),
         ]);
         const summaryRow = summaryResult.rows[0] ?? {};
         const weeklyRequestVolume = buildWeeklyRequestVolume(weeklyLogsResult.rows);

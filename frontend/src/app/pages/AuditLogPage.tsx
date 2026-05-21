@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Filter, Activity, TrendingUp, Eye, X, User, Clock, FileText, MapPin, Monitor, RefreshCw } from "lucide-react";
 import api from "../../lib/api";
 
 interface AuditEntry {
-  id: number;
+  id: string;
   rawAction?: string;
   createdAt?: string;
   timestamp: string;
@@ -14,7 +14,10 @@ interface AuditEntry {
   fullDetails?: {
     ipAddress?: string;
     userAgent?: string;
-    requestId?: string;
+    requestId?: string; // human-friendly/short display
+    requestIdRaw?: string; // raw UUID or canonical id
+    requestIdAltRaw?: string; // alternate id present in details if different
+    requestIdAlt?: string; // short display for alternate id
     venue?: string;
     previousValue?: string;
     newValue?: string;
@@ -112,7 +115,33 @@ function getString(value: unknown): string | undefined {
 
 function mapAuditEntry(item: AuditLogItem): AuditEntry {
   const details = item.details ?? {};
-  const requestId = item.venueRequest?.id ?? getString(details.requestId);
+  const rawPrimary = item.venueRequest?.id ?? undefined;
+  const rawDetailsId = getString((details as any).requestId);
+  let requestIdDisplay: string | undefined = undefined;
+  let requestIdAltRaw: string | undefined = undefined;
+  let requestIdAltDisplay: string | undefined = undefined;
+
+  function shortId(id?: string) {
+    if (!id) return undefined;
+    // If UUID-like, use first segment as an easy lookup token
+    const parts = id.split("-");
+    if (parts.length > 1) return `REQ-${parts[0].toUpperCase()}`;
+    return id;
+  }
+
+  if (rawPrimary && rawDetailsId) {
+    if (rawPrimary === rawDetailsId) {
+      requestIdDisplay = shortId(rawPrimary);
+    } else {
+      requestIdDisplay = shortId(rawPrimary);
+      requestIdAltRaw = rawDetailsId;
+      requestIdAltDisplay = shortId(rawDetailsId);
+    }
+  } else if (rawPrimary) {
+    requestIdDisplay = shortId(rawPrimary);
+  } else if (rawDetailsId) {
+    requestIdDisplay = shortId(rawDetailsId);
+  }
   const venue = item.venueRequest?.venue?.name ?? getString(details.venue) ?? getString(details.venueName);
   const previousValue = getString(details.previousStatus) ?? getString(details.previousValue);
   const newValue = getString(details.nextStatus) ?? getString(details.newValue) ?? getString(details.decision);
@@ -122,7 +151,7 @@ function mapAuditEntry(item: AuditLogItem): AuditEntry {
     : undefined;
 
   return {
-    id: Number.parseInt(item.id, 10) || 0,
+    id: item.id,
     rawAction: item.action,
     createdAt: item.createdAt,
     timestamp: item.createdAt,
@@ -137,7 +166,10 @@ function mapAuditEntry(item: AuditLogItem): AuditEntry {
     fullDetails: {
       ipAddress: item.ipAddress ?? undefined,
       userAgent: getString(details.userAgent),
-      requestId,
+      requestId: requestIdDisplay,
+      requestIdRaw: rawPrimary ?? rawDetailsId,
+      requestIdAltRaw,
+      requestIdAlt: requestIdAltDisplay,
       venue,
       previousValue,
       newValue,
@@ -149,10 +181,12 @@ function mapAuditEntry(item: AuditLogItem): AuditEntry {
 
 export function AuditLogPage() {
   const [filterRole, setFilterRole] = useState<string>("All");
+  const [filterAction, setFilterAction] = useState<string>("All");
   const [filterDate, setFilterDate] = useState<string>("");
   const [selectedEntry, setSelectedEntry] = useState<AuditEntry | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([]);
   const [auditStats, setAuditStats] = useState<AuditStats | null>(null);
+  const [auditTotal, setAuditTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -163,9 +197,29 @@ export function AuditLogPage() {
       setLoading(true);
       setError(null);
 
+      const params: Record<string, string> = {};
+
+      if (filterRole !== "All") {
+        params.role = filterRole;
+      }
+
+      if (filterAction !== "All") {
+        params.action = filterAction;
+      }
+
+      if (filterDate) {
+        const start = new Date(filterDate);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 1);
+        params.dateFrom = start.toISOString();
+        params.dateTo = end.toISOString();
+      }
+
+      params.limit = "100";
+
       const [logsResult, statsResult] = await Promise.allSettled([
-        api.get<AuditLogsResponse>("/audit"),
-        api.get<AuditStats>("/audit/stats"),
+        api.get<AuditLogsResponse>("/audit", { params }),
+        api.get<AuditStats>("/audit/stats", { params }),
       ]);
 
       if (!mounted) {
@@ -173,9 +227,11 @@ export function AuditLogPage() {
       }
 
       if (logsResult.status === "fulfilled") {
+        setAuditTotal(logsResult.value.data.total ?? 0);
         setAuditLogs((logsResult.value.data.items ?? []).map(mapAuditEntry));
       } else {
         console.error("Failed to load audit logs:", logsResult.reason);
+        setAuditTotal(0);
         setAuditLogs([]);
         setError("Unable to load audit logs right now.");
       }
@@ -195,13 +251,7 @@ export function AuditLogPage() {
     return () => {
       mounted = false;
     };
-  }, []);
-
-  const filteredLogs = useMemo(() => auditLogs.filter((entry) => {
-    const roleMatch = filterRole === "All" || entry.role === filterRole;
-    const dateMatch = !filterDate || entry.timestamp.startsWith(filterDate);
-    return roleMatch && dateMatch;
-  }), [auditLogs, filterDate, filterRole]);
+  }, [filterAction, filterDate, filterRole]);
 
   const requestsSubmitted = auditLogs.filter((entry) => entry.rawAction === "REQUEST_CREATED").length;
   const approvalsMade = auditLogs.filter((entry) => entry.rawAction === "REQUEST_APPROVED").length;
@@ -240,9 +290,32 @@ export function AuditLogPage() {
               className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
             >
               <option value="All">All Roles</option>
-              <option value="Requester">Requester</option>
-              <option value="Approver">Approver</option>
-              <option value="Administrator">Administrator</option>
+              <option value="REQUESTER">Requester</option>
+              <option value="PARISH_SECRETARY">Parish Secretary</option>
+              <option value="PARISH_PRIEST">Parish Priest</option>
+              <option value="ADMIN">Administrator</option>
+            </select>
+          </div>
+
+          <div className="flex-1">
+            <label
+              htmlFor="action-filter"
+              className="block text-sm font-semibold text-slate-700 mb-2"
+            >
+              Filter by Action
+            </label>
+            <select
+              id="action-filter"
+              value={filterAction}
+              onChange={(e) => setFilterAction(e.target.value)}
+              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+            >
+              <option value="All">All Actions</option>
+              <option value="REQUEST_CREATED">Submitted Request</option>
+              <option value="REQUEST_APPROVED">Approved Request</option>
+              <option value="REQUEST_REJECTED">Rejected Request</option>
+              <option value="REQUEST_REVISION_REQUESTED">Requested Revision</option>
+              <option value="DSS_EVALUATION">DSS Evaluation</option>
             </select>
           </div>
 
@@ -265,6 +338,7 @@ export function AuditLogPage() {
           <button
             onClick={() => {
               setFilterRole("All");
+              setFilterAction("All");
               setFilterDate("");
             }}
             className="px-6 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-all"
@@ -288,7 +362,7 @@ export function AuditLogPage() {
             Activity Log
           </h2>
           <span className="ml-auto px-3 py-1 bg-slate-100 text-slate-700 text-sm font-medium rounded-full">
-            {filteredLogs.length} entries
+            {auditTotal} entries
           </span>
         </div>
 
@@ -317,7 +391,7 @@ export function AuditLogPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {!loading && filteredLogs.map((entry) => (
+              {!loading && auditLogs.map((entry) => (
                 <tr key={entry.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-4 text-sm text-slate-900 whitespace-nowrap font-mono">
                     {new Date(entry.timestamp).toLocaleString()}
@@ -368,7 +442,7 @@ export function AuditLogPage() {
           </div>
         )}
 
-        {filteredLogs.length === 0 && (
+        {auditLogs.length === 0 && !loading && (
           <div className="p-12 text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
               <Activity className="w-8 h-8 text-slate-400" />
@@ -395,7 +469,7 @@ export function AuditLogPage() {
           <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-6 hover:shadow-xl transition-shadow">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Total Actions Logged</p>
             <p className="text-3xl font-semibold text-slate-900">
-              {auditLogs.length}
+              {auditTotal}
             </p>
           </div>
           <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-6 hover:shadow-xl transition-shadow">
@@ -556,10 +630,45 @@ export function AuditLogPage() {
                       </div>
                     )}
 
-                    {selectedEntry.fullDetails.requestId && (
+                    {selectedEntry.fullDetails.requestIdRaw && (
                       <div>
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Request ID</p>
-                        <p className="text-sm font-mono text-slate-900">{selectedEntry.fullDetails.requestId}</p>
+                        <div className="flex items-center gap-3">
+                          <p className="text-sm font-mono text-slate-900">{selectedEntry.fullDetails.requestId ?? selectedEntry.fullDetails.requestIdRaw}</p>
+                          <button
+                            onClick={() => {
+                              try {
+                                void navigator.clipboard.writeText(selectedEntry.fullDetails.requestIdRaw || "");
+                              } catch (err) {
+                                console.error("Clipboard write failed", err);
+                              }
+                            }}
+                            className="px-3 py-1 text-xs bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"
+                          >
+                            Copy
+                          </button>
+                        </div>
+
+                        {selectedEntry.fullDetails.requestIdAltRaw && (
+                          <div className="mt-2">
+                            <p className="text-xs text-slate-500 mb-1">Alternate ID</p>
+                            <div className="flex items-center gap-3">
+                              <p className="text-xs font-mono text-slate-700">{selectedEntry.fullDetails.requestIdAlt ?? selectedEntry.fullDetails.requestIdAltRaw}</p>
+                              <button
+                                onClick={() => {
+                                  try {
+                                    void navigator.clipboard.writeText(selectedEntry.fullDetails.requestIdAltRaw || "");
+                                  } catch (err) {
+                                    console.error("Clipboard write failed", err);
+                                  }
+                                }}
+                                className="px-2 py-0.5 text-xs bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"
+                              >
+                                Copy
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 

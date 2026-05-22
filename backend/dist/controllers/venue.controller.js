@@ -25,7 +25,7 @@ function getPool() {
         connectionString,
         ssl: process.env.NODE_ENV === "production"
             ? { rejectUnauthorized: true }
-            : true,
+            : { rejectUnauthorized: false },
     });
     return pool;
 }

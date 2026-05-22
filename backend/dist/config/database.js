@@ -12,7 +12,7 @@ const pool = new pg_1.Pool({
     connectionString,
     ssl: process.env.NODE_ENV === "production"
         ? { rejectUnauthorized: true }
-        : true, // Use ssl: true with NODE_TLS_REJECT_UNAUTHORIZED=0 for dev
+        : { rejectUnauthorized: false },
 });
 const adapter = new adapter_pg_1.PrismaPg(pool);
 const prisma = global.prisma ?? new client_1.PrismaClient({ adapter });

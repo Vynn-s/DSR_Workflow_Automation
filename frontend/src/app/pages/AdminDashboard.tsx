@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Users, Building2, Brain, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock, Edit2, Plus, X, KeyRound, Save, Trash2 } from "lucide-react";
 import api from "../../lib/api";
 import { fetchVenues, type LiveVenue } from "../../lib/venues";
+import { useAuth } from "../../context/AuthContext";
 
 type ReportView = "weekly" | "monthly" | "yearly";
 
@@ -326,6 +327,7 @@ function buildInsights(stats: AuditStats | null, logs: AuditLogItem[]): DSSInsig
 }
 
 export function AdminDashboard() {
+  const { isLoading: isAuthLoading } = useAuth();
   const [reportView, setReportView] = useState<ReportView>("weekly");
   const [usersTab, setUsersTab] = useState<"activity" | "manage">("activity");
   const [venues, setVenues] = useState<LiveVenue[]>([]);
@@ -382,6 +384,10 @@ export function AdminDashboard() {
   const [userDeleteMessageType, setUserDeleteMessageType] = useState<"success" | "error" | null>(null);
 
   useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
     let isMounted = true;
 
     async function loadDashboard() {
@@ -459,7 +465,7 @@ export function AdminDashboard() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isAuthLoading]);
 
   const activityUsers = useMemo(() => adminUsers, [adminUsers]);
   const reportData = useMemo(() => buildReportRows(auditLogs, reportView), [auditLogs, reportView]);
@@ -787,7 +793,15 @@ export function AdminDashboard() {
       closeDeleteUserModal();
     } catch (error) {
       console.error("Failed to delete user:", error);
-      setUserDeleteMessage("Unable to delete user right now.");
+      const apiMessage =
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message === "string"
+          ? (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message
+          : null;
+
+      setUserDeleteMessage(apiMessage ?? "Unable to delete user right now.");
       setUserDeleteMessageType("error");
     } finally {
       setDeletingUserId(null);

@@ -35,39 +35,22 @@ api.interceptors.response.use(
     console.error("API interceptor caught error:", error);
 
     if (error.response?.status === 401) {
-      try {
-        // Check current session to determine whether user is still authenticated
-        const session = await fetchAuthSession();
-        const token = session.tokens?.idToken?.toString();
+      console.error("API error (full):", error);
+      console.error("API error response status:", error.response?.status);
+      console.error("API error response data:", error.response?.data);
+      console.error("API request url:", (error.config as any)?.url);
 
-        console.error("API error (full):", error);
-        console.error("API error response status:", error.response?.status);
-        console.error("API error response data:", error.response?.data);
-        console.error("API request url:", (error.config as any)?.url);
+      const responseData = error.response?.data as { error?: { message?: string } } | undefined;
+      const message = responseData?.error?.message?.toLowerCase() ?? "";
+      const isTokenFailure = message.includes("invalid token") || message.includes("no token provided");
 
-        // If there's no token, the user is unauthenticated: sign out and redirect
-        if (!token) {
-          try {
-            await signOut();
-          } catch (e) {
-            console.error("signOut failed:", e);
-          }
-
-          if (typeof window !== "undefined") {
-            window.location.assign("/");
-          }
-        } else {
-          // Authenticated but received 401 - do not redirect automatically.
-          // This may indicate insufficient permissions or an expired/invalid token.
-        }
-      } catch (sessionErr) {
-        // Could not retrieve session: treat as unauthenticated
-        console.error("Failed to fetch session during 401 handling:", sessionErr);
+      if (isTokenFailure) {
         try {
           await signOut();
         } catch (e) {
           console.error("signOut failed:", e);
         }
+
         if (typeof window !== "undefined") {
           window.location.assign("/");
         }

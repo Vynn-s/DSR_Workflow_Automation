@@ -63,7 +63,7 @@ async function authenticate(req, res, next) {
         const { Pool } = require("pg");
         const dbPool = new Pool({
             connectionString: process.env.DATABASE_URL,
-            ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : true,
+            ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : { rejectUnauthorized: false },
         });
         const client = await dbPool.connect();
         try {

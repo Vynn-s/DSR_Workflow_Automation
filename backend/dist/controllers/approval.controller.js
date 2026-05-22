@@ -19,7 +19,7 @@ function getPool() {
     }
     pool = new pg_1.Pool({
         connectionString,
-        ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : true,
+        ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : { rejectUnauthorized: false },
     });
     return pool;
 }

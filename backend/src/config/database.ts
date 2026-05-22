@@ -15,9 +15,9 @@ if (!connectionString) {
 
 const pool = new Pool({
   connectionString,
-  ssl: process.env.NODE_ENV === "production" 
+  ssl: process.env.NODE_ENV === "production"
     ? { rejectUnauthorized: true }
-    : true, // Use ssl: true with NODE_TLS_REJECT_UNAUTHORIZED=0 for dev
+    : { rejectUnauthorized: false },
 });
 
 const adapter = new PrismaPg(pool);

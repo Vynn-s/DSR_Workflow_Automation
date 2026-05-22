@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { Pool } from "pg";
+const { z } = require("zod") as typeof import("zod");
 
 let pool: Pool | null = null;
 
@@ -21,12 +22,18 @@ function getPool(): Pool {
 }
 
 const { AppError } = require("../middleware/errorHandler") as typeof import("../middleware/errorHandler");
-const { z } = require("zod") as typeof import("zod");
 
 const updateVenueSchema = z.object({
 	name: z.string().min(1).optional(),
 	description: z.string().nullable().optional(),
 	capacity: z.coerce.number().int().positive().optional(),
+	status: z.enum(["ACTIVE", "INACTIVE", "MAINTENANCE"]).optional(),
+});
+
+const createVenueSchema = z.object({
+	name: z.string().min(1),
+	description: z.string().nullable().optional(),
+	capacity: z.coerce.number().int().positive(),
 	status: z.enum(["ACTIVE", "INACTIVE", "MAINTENANCE"]).optional(),
 });
 
@@ -268,8 +275,105 @@ export async function updateVenue(req: Request, res: Response, next: NextFunctio
 	}
 }
 
+export async function createVenue(req: Request, res: Response, next: NextFunction) {
+	const client = await getPool().connect();
+	try {
+		if (!req.user) {
+			throw new AppError("Unauthorized", 401);
+		}
+
+		if (req.user.role !== "ADMIN") {
+			throw new AppError("Insufficient permissions", 403);
+		}
+
+		const parsed = createVenueSchema.safeParse(req.body);
+		if (!parsed.success) {
+			throw new AppError(
+				`Invalid venue payload: ${parsed.error.issues.map((issue: any) => `${issue.path.join(".")}: ${issue.message}`).join(", ")}`,
+				400,
+			);
+		}
+
+		const venueResult = await client.query(
+			`INSERT INTO "Venue" (id, name, description, capacity, status, "createdAt", "updatedAt")
+			 VALUES (gen_random_uuid()::text, $1, $2, $3, COALESCE($4::"VenueStatus", 'ACTIVE'::"VenueStatus"), NOW(), NOW())
+			 RETURNING id, name, description, capacity, status, "createdAt", "updatedAt"`,
+			[
+				parsed.data.name,
+				parsed.data.description ?? null,
+				parsed.data.capacity,
+				parsed.data.status ?? null,
+			],
+		);
+
+		return res.status(201).json({
+			venue: {
+				...venueResult.rows[0],
+				authorizedMinistries: [],
+			},
+		});
+	} catch (error) {
+		return next(error);
+	} finally {
+		client.release();
+	}
+}
+
+export async function deleteVenue(req: Request, res: Response, next: NextFunction) {
+	const client = await getPool().connect();
+	try {
+		if (!req.user) {
+			throw new AppError("Unauthorized", 401);
+		}
+
+		if (req.user.role !== "ADMIN") {
+			throw new AppError("Insufficient permissions", 403);
+		}
+
+		const { id } = req.params;
+		const venueId = Array.isArray(id) ? id[0] : id;
+
+		const existingVenue = await client.query(
+			`SELECT id, name FROM "Venue" WHERE id = $1`,
+			[venueId],
+		);
+
+		if (existingVenue.rows.length === 0) {
+			throw new AppError("Venue not found", 404);
+		}
+
+		const requestCountResult = await client.query(
+			`SELECT COUNT(*)::int AS request_count FROM "VenueRequest" WHERE "venueId" = $1`,
+			[venueId],
+		);
+
+		const requestCount = requestCountResult.rows[0]?.request_count ?? 0;
+		if (requestCount > 0) {
+			throw new AppError("This venue has booking history and cannot be deleted", 409);
+		}
+
+		await client.query("BEGIN");
+		try {
+			await client.query(`DELETE FROM "VenueMinistry" WHERE "venueId" = $1`, [venueId]);
+			await client.query(`DELETE FROM "Venue" WHERE id = $1`, [venueId]);
+			await client.query("COMMIT");
+		} catch (error) {
+			await client.query("ROLLBACK");
+			throw error;
+		}
+
+		return res.json({ venueId });
+	} catch (error) {
+		return next(error);
+	} finally {
+		client.release();
+	}
+}
+
 export default {
 	getVenues,
 	getVenueById,
 	updateVenue,
+	createVenue,
+	deleteVenue,
 };

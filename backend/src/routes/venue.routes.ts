@@ -5,6 +5,8 @@ const {
 	getVenues,
 	getVenueById,
 	updateVenue,
+	createVenue,
+	deleteVenue,
 } = require("../controllers/venue.controller") as typeof import("../controllers/venue.controller");
 
 const venueRoutes = Router();
@@ -12,8 +14,10 @@ const venueRoutes = Router();
 venueRoutes.use(authenticate);
 
 venueRoutes.get("/", getVenues);
+venueRoutes.post("/", createVenue);
 venueRoutes.get("/:id", getVenueById);
 venueRoutes.put("/:id", updateVenue);
+venueRoutes.delete("/:id", deleteVenue);
 
 export { venueRoutes };
 export default venueRoutes;

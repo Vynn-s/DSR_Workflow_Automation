@@ -378,7 +378,6 @@ export function AdminDashboard() {
   const [savingUserRoleId, setSavingUserRoleId] = useState<string | null>(null);
   const [userRoleDrafts, setUserRoleDrafts] = useState<Record<string, UserRoleOption>>({});
   const [deleteTargetUser, setDeleteTargetUser] = useState<AdminUserRow | null>(null);
-  const [deleteUserPassword, setDeleteUserPassword] = useState("");
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [userDeleteMessage, setUserDeleteMessage] = useState<string | null>(null);
   const [userDeleteMessageType, setUserDeleteMessageType] = useState<"success" | "error" | null>(null);
@@ -759,17 +758,10 @@ export function AdminDashboard() {
 
   const closeDeleteUserModal = () => {
     setDeleteTargetUser(null);
-    setDeleteUserPassword("");
   };
 
   const confirmDeleteUser = async () => {
     if (!deleteTargetUser) {
-      return;
-    }
-
-    if (!deleteUserPassword.trim()) {
-      setUserDeleteMessage("Password is required before deleting a user.");
-      setUserDeleteMessageType("error");
       return;
     }
 
@@ -779,7 +771,7 @@ export function AdminDashboard() {
 
     try {
       await api.delete<DeleteAdminUserResponse>(`/admin/users/${encodeURIComponent(deleteTargetUser.id)}`, {
-        data: { password: deleteUserPassword },
+        data: {},
       });
 
       setAdminUsers((current) => current.filter((user) => user.id !== deleteTargetUser.id));
@@ -1397,7 +1389,7 @@ export function AdminDashboard() {
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
               <div>
                 <h2 className="text-xl font-semibold text-slate-900">Delete User</h2>
-                <p className="mt-0.5 text-sm text-slate-600">Enter the signed-in admin password to confirm this deletion.</p>
+                <p className="mt-0.5 text-sm text-slate-600">This action is protected by admin login and role checks.</p>
               </div>
               <button
                 type="button"
@@ -1412,17 +1404,6 @@ export function AdminDashboard() {
               <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                 This will permanently remove <span className="font-semibold">{deleteTargetUser.name}</span> ({deleteTargetUser.email}).
                 Users with request or audit history cannot be deleted.
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">Admin Password</label>
-                <input
-                  type="password"
-                  value={deleteUserPassword}
-                  onChange={(e) => setDeleteUserPassword(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
-                  placeholder="Re-enter your signed-in password"
-                />
               </div>
 
               {userDeleteMessage && (

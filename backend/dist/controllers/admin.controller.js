@@ -48,7 +48,7 @@ const updateRoleSchema = zod_1.z.object({
     role: adminUserRoleSchema,
 });
 const deleteUserSchema = zod_1.z.object({
-    password: zod_1.z.string().min(1).max(256),
+    password: zod_1.z.string().trim().max(256).optional(),
 });
 const cognitoGroupRoles = ["REQUESTER", "PARISH_SECRETARY", "PARISH_PRIEST"];
 function mapRow(row) {
@@ -458,7 +458,6 @@ async function deleteAdminUser(req, res, next) {
         if (userToDelete.email === req.user.email) {
             throw new AppError("You cannot delete your own account", 400);
         }
-        await verifyAdminPassword(req.user.email, parsedBody.data.password);
         const usageCounts = await getDeleteUsageCounts(client, userToDelete.id);
         const totalUsage = Object.values(usageCounts).reduce((sum, count) => sum + Number(count ?? 0), 0);
         if (totalUsage > 0) {

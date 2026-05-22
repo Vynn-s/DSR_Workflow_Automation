@@ -31,25 +31,42 @@ function getPool(): Pool {
 const { AppError } = require("../middleware/errorHandler") as typeof import("../middleware/errorHandler");
 
 const updateVenueSchema = z.object({
-	name: z.string().min(1).optional(),
-	description: z.string().nullable().optional(),
+	name: z.string().trim().min(1).optional(),
+	description: z.string().trim().nullable().optional(),
 	capacity: z.coerce.number().int().positive().optional(),
 	status: z.enum(["ACTIVE", "INACTIVE", "MAINTENANCE"]).optional(),
 });
 
 const createVenueSchema = z.object({
-	name: z.string().min(1),
-	description: z.string().nullable().optional(),
+	name: z.string().trim().min(1),
+	description: z.string().trim().nullable().optional(),
 	capacity: z.coerce.number().int().positive(),
 	status: z.enum(["ACTIVE", "INACTIVE", "MAINTENANCE"]).optional(),
 });
 
 const deleteVenueSchema = z.object({
-	password: z.string().min(1).max(256),
+	password: z.string().trim().min(1).max(256),
+});
+
+const listQuerySchema = z.object({
+	page: z.coerce.number().int().positive().optional(),
+	limit: z.coerce.number().int().positive().max(100).optional(),
 });
 
 function canManageVenues(role?: string): boolean {
 	return role === "ADMIN" || role === "PARISH_PRIEST";
+}
+
+function parseListPagination(query: Request["query"]) {
+	const parsed = listQuerySchema.safeParse(query);
+	if (!parsed.success) {
+		throw new AppError("Invalid pagination parameters", 400);
+	}
+
+	return {
+		page: parsed.data.page ?? 1,
+		limit: parsed.data.limit ?? 100,
+	};
 }
 
 function getCognitoClient(): CognitoIdentityProviderClient {

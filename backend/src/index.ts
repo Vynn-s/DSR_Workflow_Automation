@@ -11,11 +11,23 @@ const { errorHandler } = require("./middleware/errorHandler") as typeof import("
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
+const frontendUrl = process.env.FRONTEND_URL?.trim();
 
 app.use(helmet());
 app.use(
 	cors({
-		origin: process.env.FRONTEND_URL,
+		// Only allow the configured frontend origin in production; keep development flexible.
+		origin: (origin, callback) => {
+			if (process.env.NODE_ENV !== "production") {
+				return callback(null, true);
+			}
+
+			if (!origin || origin === frontendUrl) {
+				return callback(null, true);
+			}
+
+			return callback(new Error("CORS blocked"));
+		},
 		credentials: true,
 		methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 		allowedHeaders: ['Content-Type', 'Authorization', 'Ngrok-Skip-Browser-Warning'],

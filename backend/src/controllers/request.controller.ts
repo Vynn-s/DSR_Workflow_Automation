@@ -26,29 +26,34 @@ function getPool(): Pool {
 }
 
 const createRequestSchema = z.object({
-	venueId: z.string().min(1),
-	ministryId: z.string().min(1).optional(),
-	eventName: z.string().min(1),
-	purpose: z.string().min(1),
+	venueId: z.string().trim().min(1),
+	ministryId: z.string().trim().min(1).optional(),
+	eventName: z.string().trim().min(1),
+	purpose: z.string().trim().min(1),
 	startDateTime: z.coerce.date(),
 	endDateTime: z.coerce.date(),
 	attendees: z.coerce.number().int().positive(),
-	specialRequirements: z.string().optional(),
+	specialRequirements: z.string().trim().optional(),
 	attachments: z.array(z.object({
-		id: z.string(),
-		name: z.string(),
-		type: z.string(),
-		size: z.string(),
-		uploadedDate: z.string(),
-		dataUrl: z.string(),
+		id: z.string().trim(),
+		name: z.string().trim(),
+		type: z.string().trim(),
+		size: z.string().trim(),
+		uploadedDate: z.string().trim(),
+		dataUrl: z.string().trim(),
 	})).optional(),
 	signatures: z.array(z.object({
-		role: z.string(),
-		signatory: z.string(),
+		role: z.string().trim(),
+		signatory: z.string().trim(),
 		required: z.boolean(),
 		status: z.enum(["pending", "signed"]),
-		signedDate: z.string().optional(),
+		signedDate: z.string().trim().optional(),
 	})).optional(),
+});
+
+const listQuerySchema = z.object({
+	page: z.coerce.number().int().positive().optional(),
+	limit: z.coerce.number().int().positive().max(100).optional(),
 });
 
 const requestIdParamsSchema = z.object({
@@ -59,6 +64,45 @@ function toTimeString(date: Date): string {
 	const hours = String(date.getHours()).padStart(2, "0");
 	const minutes = String(date.getMinutes()).padStart(2, "0");
 	return `${hours}:${minutes}`;
+}
+
+function sanitizeCreateRequestInput(input: z.infer<typeof createRequestSchema>) {
+	// Trim user-provided strings before persistence so the database never stores accidental whitespace.
+	return {
+		...input,
+		venueId: input.venueId.trim(),
+		ministryId: input.ministryId?.trim(),
+		eventName: input.eventName.trim(),
+		purpose: input.purpose.trim(),
+		specialRequirements: input.specialRequirements?.trim(),
+		attachments: input.attachments?.map((attachment) => ({
+			...attachment,
+			id: attachment.id.trim(),
+			name: attachment.name.trim(),
+			type: attachment.type.trim(),
+			size: attachment.size.trim(),
+			uploadedDate: attachment.uploadedDate.trim(),
+			dataUrl: attachment.dataUrl.trim(),
+		})) ?? [],
+		signatures: input.signatures?.map((signature) => ({
+			...signature,
+			role: signature.role.trim(),
+			signatory: signature.signatory.trim(),
+			signedDate: signature.signedDate?.trim(),
+		})) ?? [],
+	};
+}
+
+function parseListPagination(query: Request["query"]) {
+	const parsed = listQuerySchema.safeParse(query);
+	if (!parsed.success) {
+		throw new AppError("Invalid pagination parameters", 400);
+	}
+
+	return {
+		page: parsed.data.page ?? 1,
+		limit: parsed.data.limit ?? 100,
+	};
 }
 
 export async function createRequest(req: Request, res: Response, next: NextFunction) {
@@ -78,7 +122,7 @@ export async function createRequest(req: Request, res: Response, next: NextFunct
 			);
 		}
 
-		const input = parsed.data;
+		const input = sanitizeCreateRequestInput(parsed.data);
 		const attachments = input.attachments ?? [];
 		const signatures = input.signatures ?? [];
 
@@ -222,6 +266,14 @@ export async function getRequests(req: Request, res: Response, next: NextFunctio
 			throw new AppError("Unauthorized", 401);
 		}
 
+		const { page, limit } = parseListPagination(req.query);
+		const offset = (page - 1) * limit;
+
+		const totalResult = await client.query(
+			`SELECT COUNT(*)::int AS total FROM "VenueRequest" WHERE "requesterId" = $1`,
+			[req.user.id],
+		);
+
 		const requestsResult = await client.query(
 			`SELECT
 				vr.id,
@@ -246,8 +298,9 @@ export async function getRequests(req: Request, res: Response, next: NextFunctio
 			 INNER JOIN "Venue" v ON v.id = vr."venueId"
 			 INNER JOIN "Ministry" m ON m.id = vr."ministryId"
 			 WHERE vr."requesterId" = $1
-			 ORDER BY vr."createdAt" DESC`,
-			[req.user.id],
+			 ORDER BY vr."createdAt" DESC
+			 LIMIT $2 OFFSET $3`,
+			[req.user.id, limit, offset],
 		);
 
 		const requests = requestsResult.rows.map((request) => ({
@@ -265,7 +318,13 @@ export async function getRequests(req: Request, res: Response, next: NextFunctio
 				signatures: request.signatures ?? [],
 		}));
 
-		return res.json({ requests });
+		return res.json({
+			requests,
+			page,
+			limit,
+			total: totalResult.rows[0]?.total ?? 0,
+			totalPages: Math.max(1, Math.ceil((totalResult.rows[0]?.total ?? 0) / limit)),
+		});
 	} catch (error) {
 		return next(error);
 	} finally {

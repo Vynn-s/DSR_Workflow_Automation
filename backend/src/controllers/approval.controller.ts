@@ -27,11 +27,16 @@ const requestIdParamsSchema = z.object({
 });
 
 const remarksSchema = z.object({
-	remarks: z.string().min(1),
+	remarks: z.string().trim().min(1),
 });
 
 const optionalRemarksSchema = z.object({
-	remarks: z.string().optional(),
+	remarks: z.string().trim().optional(),
+});
+
+const listQuerySchema = z.object({
+	page: z.coerce.number().int().positive().optional(),
+	limit: z.coerce.number().int().positive().max(100).optional(),
 });
 
 function getQueueStatusForRole(role: string): "PENDING" | null {
@@ -40,6 +45,18 @@ function getQueueStatusForRole(role: string): "PENDING" | null {
 	}
 
 	return null;
+}
+
+function parseListPagination(query: Request["query"]) {
+	const parsed = listQuerySchema.safeParse(query);
+	if (!parsed.success) {
+		throw new AppError("Invalid pagination parameters", 400);
+	}
+
+	return {
+		page: parsed.data.page ?? 1,
+		limit: parsed.data.limit ?? 100,
+	};
 }
 
 async function getRequestOrThrow(client: import("pg").PoolClient, requestId: string) {
@@ -102,6 +119,14 @@ export async function getApprovalQueue(req: Request, res: Response, next: NextFu
 			throw new AppError("Insufficient permissions", 403);
 		}
 
+		const { page, limit } = parseListPagination(req.query);
+		const offset = (page - 1) * limit;
+
+		const totalResult = await client.query(
+			`SELECT COUNT(*)::int AS total FROM "VenueRequest" WHERE status = $1`,
+			[queueStatus],
+		);
+
 		const queueResult = await client.query(
 			`SELECT
 				vr.id,
@@ -126,8 +151,9 @@ export async function getApprovalQueue(req: Request, res: Response, next: NextFu
 			 INNER JOIN "Venue" v ON v.id = vr."venueId"
 			 INNER JOIN "Ministry" m ON m.id = vr."ministryId"
 			 WHERE vr.status = $1
-			 ORDER BY vr."createdAt" ASC`,
-			[queueStatus],
+			 ORDER BY vr."createdAt" ASC
+			 LIMIT $2 OFFSET $3`,
+			[queueStatus, limit, offset],
 		);
 
 		const approvalActionsResult = await client.query(
@@ -189,7 +215,13 @@ export async function getApprovalQueue(req: Request, res: Response, next: NextFu
 			approvalActions: approvalActionsByRequestId.get(request.id) ?? [],
 		}));
 
-		return res.json({ queue });
+		return res.json({
+			queue,
+			page,
+			limit,
+			total: totalResult.rows[0]?.total ?? 0,
+			totalPages: Math.max(1, Math.ceil((totalResult.rows[0]?.total ?? 0) / limit)),
+		});
 	} catch (error) {
 		return next(error);
 	} finally {
@@ -216,6 +248,11 @@ export async function approveRequest(req: Request, res: Response, next: NextFunc
 
 		const requestRecord = await getRequestOrThrow(client, parsedParams.data.requestId);
 		const actorUserId = await getUserIdForEmail(client, req.user.email, req.user.role);
+
+		// Block requesters from approving their own submissions even if they somehow reach this endpoint.
+		if (requestRecord.requesterId === actorUserId) {
+			throw new AppError("Requesters cannot approve their own requests", 403);
+		}
 
 		let nextStatus: "APPROVED";
 		let nextApproverId: string | null = null;
@@ -300,6 +337,11 @@ export async function rejectRequest(req: Request, res: Response, next: NextFunct
 		const requestRecord = await getRequestOrThrow(client, parsedParams.data.requestId);
 		const actorUserId = await getUserIdForEmail(client, req.user.email, req.user.role);
 
+		// Block requesters from rejecting their own submissions even if they somehow reach this endpoint.
+		if (requestRecord.requesterId === actorUserId) {
+			throw new AppError("Requesters cannot reject their own requests", 403);
+		}
+
 		if (requestRecord.status !== "PENDING") {
 			throw new AppError("Request is not in PENDING status", 400);
 		}
@@ -376,6 +418,11 @@ export async function requestRevision(req: Request, res: Response, next: NextFun
 		const requestRecord = await getRequestOrThrow(client, parsedParams.data.requestId);
 		const actorUserId = await getUserIdForEmail(client, req.user.email, req.user.role);
 
+		// Block requesters from sending revision requests to themselves.
+		if (requestRecord.requesterId === actorUserId) {
+			throw new AppError("Requesters cannot request revisions on their own requests", 403);
+		}
+
 		if (requestRecord.status !== "PENDING") {
 			throw new AppError("Request is not in PENDING status", 400);
 		}
@@ -431,6 +478,13 @@ export async function getArchive(req: Request, res: Response, next: NextFunction
 			throw new AppError("Insufficient permissions", 403);
 		}
 
+		const { page, limit } = parseListPagination(req.query);
+		const offset = (page - 1) * limit;
+
+		const totalResult = await client.query(
+			`SELECT COUNT(*)::int AS total FROM "VenueRequest" WHERE status IN ('APPROVED', 'REJECTED', 'REVISION_REQUESTED')`,
+		);
+
 		const archiveResult = await client.query(
 			`SELECT
 				vr.id,
@@ -452,7 +506,9 @@ export async function getArchive(req: Request, res: Response, next: NextFunction
 			 INNER JOIN "Venue" v ON v.id = vr."venueId"
 			 INNER JOIN "Ministry" m ON m.id = vr."ministryId"
 			 WHERE vr.status IN ('APPROVED', 'REJECTED', 'REVISION_REQUESTED')
-			 ORDER BY vr."updatedAt" DESC`,
+			 ORDER BY vr."updatedAt" DESC
+			 LIMIT $1 OFFSET $2`,
+			[limit, offset],
 		);
 
 		const approvalActionsResult = await client.query(
@@ -511,7 +567,13 @@ export async function getArchive(req: Request, res: Response, next: NextFunction
 			approvalActions: approvalActionsByRequestId.get(request.id) ?? [],
 		}));
 
-		return res.json({ archive });
+		return res.json({
+			archive,
+			page,
+			limit,
+			total: totalResult.rows[0]?.total ?? 0,
+			totalPages: Math.max(1, Math.ceil((totalResult.rows[0]?.total ?? 0) / limit)),
+		});
 	} catch (error) {
 		return next(error);
 	} finally {

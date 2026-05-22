@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Users, Building2, Brain, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock, Edit2, X, UserPlus, KeyRound, Save, Mail } from "lucide-react";
+import { Users, Building2, Brain, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock, Edit2, X, KeyRound, Save, Trash2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import api from "../../lib/api";
 import { fetchVenues, type LiveVenue } from "../../lib/venues";
@@ -80,6 +80,10 @@ type AdminUsersResponse = {
 type CreateAdminUserResponse = {
   user: AdminUserRow;
   temporaryPassword: string;
+};
+
+type DeleteAdminUserResponse = {
+  userId: string;
 };
 
 type ChartRow = {
@@ -335,6 +339,7 @@ function buildInsights(stats: AuditStats | null, logs: AuditLogItem[]): DSSInsig
 
 export function AdminDashboard() {
   const [reportView, setReportView] = useState<ReportView>("weekly");
+  const [usersTab, setUsersTab] = useState<"activity" | "manage">("activity");
   const [venues, setVenues] = useState<LiveVenue[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
@@ -367,6 +372,11 @@ export function AdminDashboard() {
   const [userCreateMessageType, setUserCreateMessageType] = useState<"success" | "error" | null>(null);
   const [savingUserRoleId, setSavingUserRoleId] = useState<string | null>(null);
   const [userRoleDrafts, setUserRoleDrafts] = useState<Record<string, LiveUserRow["role"]>>({});
+  const [deleteTargetUser, setDeleteTargetUser] = useState<AdminUserRow | null>(null);
+  const [deleteUserPassword, setDeleteUserPassword] = useState("");
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [userDeleteMessage, setUserDeleteMessage] = useState<string | null>(null);
+  const [userDeleteMessageType, setUserDeleteMessageType] = useState<"success" | "error" | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -589,6 +599,56 @@ export function AdminDashboard() {
     }
   };
 
+  const startDeleteUser = (user: AdminUserRow) => {
+    setDeleteTargetUser(user);
+    setDeleteUserPassword("");
+    setUserDeleteMessage(null);
+    setUserDeleteMessageType(null);
+  };
+
+  const closeDeleteUserModal = () => {
+    setDeleteTargetUser(null);
+    setDeleteUserPassword("");
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!deleteTargetUser) {
+      return;
+    }
+
+    if (!deleteUserPassword.trim()) {
+      setUserDeleteMessage("Password is required before deleting a user.");
+      setUserDeleteMessageType("error");
+      return;
+    }
+
+    setDeletingUserId(deleteTargetUser.id);
+    setUserDeleteMessage(null);
+    setUserDeleteMessageType(null);
+
+    try {
+      await api.delete<DeleteAdminUserResponse>(`/admin/users/${encodeURIComponent(deleteTargetUser.id)}`, {
+        data: { password: deleteUserPassword },
+      });
+
+      setAdminUsers((current) => current.filter((user) => user.id !== deleteTargetUser.id));
+      setUserRoleDrafts((current) => {
+        const next = { ...current };
+        delete next[deleteTargetUser.id];
+        return next;
+      });
+      setUserDeleteMessage(`Deleted ${deleteTargetUser.email} successfully.`);
+      setUserDeleteMessageType("success");
+      closeDeleteUserModal();
+    } catch (error) {
+      console.error("Failed to delete user:", error);
+      setUserDeleteMessage("Unable to delete user right now.");
+      setUserDeleteMessageType("error");
+    } finally {
+      setDeletingUserId(null);
+    }
+  };
+
   const statusStyles: Record<LiveVenue["status"], string> = {
     ACTIVE: "bg-emerald-50 text-emerald-700 border-emerald-200",
     INACTIVE: "bg-rose-50 text-rose-700 border-rose-200",
@@ -784,62 +844,334 @@ export function AdminDashboard() {
 
       <div className="mb-10">
         <div className="bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10 overflow-hidden">
-          <div className="px-8 py-6 bg-gradient-to-r from-slate-50 to-purple-50/30 border-b border-slate-200 flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Users className="w-6 h-6 text-purple-600" />
+          <div className="px-8 py-6 bg-gradient-to-r from-slate-50 to-purple-50/30 border-b border-slate-200 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Users className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <h2 className="font-semibold text-slate-900 text-xl">Users</h2>
+                <p className="text-sm text-slate-600 mt-0.5">View live audit activity and manage Cognito users in one place</p>
+              </div>
             </div>
-            <div>
-              <h2 className="font-semibold text-slate-900 text-xl">User Management</h2>
-              <p className="text-sm text-slate-600 mt-0.5">Live actors from recent audit activity</p>
+
+            <div className="flex gap-2 rounded-xl bg-slate-100 p-1.5">
+              <button
+                type="button"
+                onClick={() => setUsersTab("activity")}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+                  usersTab === "activity"
+                    ? "bg-white text-purple-700 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Activity
+              </button>
+              <button
+                type="button"
+                onClick={() => setUsersTab("manage")}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+                  usersTab === "manage"
+                    ? "bg-white text-purple-700 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Manage Users
+              </button>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-slate-100 to-slate-50 border-b-2 border-slate-200">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">ID</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Role</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {liveUsers.length > 0 ? (
-                  liveUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-5 text-sm font-semibold text-slate-900">{user.id}</td>
-                      <td className="px-6 py-5 text-sm font-semibold text-slate-900">{user.name}</td>
-                      <td className="px-6 py-5 text-sm text-slate-700">{user.email}</td>
-                      <td className="px-6 py-5">
-                        <span
-                          className={`inline-flex items-center px-4 py-1.5 text-xs font-bold rounded-full border ${
-                            user.role === "ADMIN"
-                              ? "bg-purple-50 text-purple-700 border-purple-200"
-                              : user.role === "PARISH_PRIEST"
-                              ? "bg-blue-50 text-blue-700 border-blue-200"
-                              : user.role === "PARISH_SECRETARY"
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : "bg-slate-100 text-slate-700 border-slate-200"
-                          }`}
-                        >
-                          {formatRole(user.role)}
-                        </span>
+          {usersTab === "activity" ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gradient-to-r from-slate-100 to-slate-50 border-b-2 border-slate-200">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">ID</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Email</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Role</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {liveUsers.length > 0 ? (
+                    liveUsers.map((user) => (
+                      <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-5 text-sm font-semibold text-slate-900">{user.id}</td>
+                        <td className="px-6 py-5 text-sm font-semibold text-slate-900">{user.name}</td>
+                        <td className="px-6 py-5 text-sm text-slate-700">{user.email}</td>
+                        <td className="px-6 py-5">
+                          <span
+                            className={`inline-flex items-center px-4 py-1.5 text-xs font-bold rounded-full border ${
+                              user.role === "ADMIN"
+                                ? "bg-purple-50 text-purple-700 border-purple-200"
+                                : user.role === "PARISH_PRIEST"
+                                ? "bg-blue-50 text-blue-700 border-blue-200"
+                                : user.role === "PARISH_SECRETARY"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : "bg-slate-100 text-slate-700 border-slate-200"
+                            }`}
+                          >
+                            {formatRole(user.role)}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td className="px-6 py-8 text-sm text-slate-500" colSpan={4}>
+                        {analyticsLoading ? "Loading live users..." : "No recent audit activity available."}
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td className="px-6 py-8 text-sm text-slate-500" colSpan={4}>
-                      {analyticsLoading ? "Loading live users..." : "No recent audit activity available."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-8 space-y-8">
+              <div className="grid grid-cols-4 gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <div className="col-span-2">
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">Email</label>
+                  <input
+                    value={newUserDraft.email}
+                    onChange={(e) => setNewUserDraft((current) => ({ ...current, email: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                    placeholder="user@example.com"
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">Full Name</label>
+                  <input
+                    value={newUserDraft.name}
+                    onChange={(e) => setNewUserDraft((current) => ({ ...current, name: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                    placeholder="Jane Doe"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">Role</label>
+                  <select
+                    value={newUserDraft.role}
+                    onChange={(e) => setNewUserDraft((current) => ({ ...current, role: e.target.value as LiveUserRow["role"] }))}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                  >
+                    <option value="REQUESTER">Requester</option>
+                    <option value="PARISH_SECRETARY">Parish Secretary</option>
+                    <option value="PARISH_PRIEST">Parish Priest</option>
+                    <option value="ADMIN">Administrator</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">Temporary Password</label>
+                  <input
+                    value={newUserDraft.temporaryPassword}
+                    onChange={(e) => setNewUserDraft((current) => ({ ...current, temporaryPassword: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                    placeholder="Leave blank to auto-generate"
+                  />
+                </div>
+
+                <div className="col-span-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={createAdminUser}
+                    disabled={creatingUser}
+                    className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-900/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <KeyRound className="w-4 h-4" />
+                    {creatingUser ? "Creating..." : "Create User in Cognito"}
+                  </button>
+                </div>
+              </div>
+
+              {userCreateMessage && (
+                <div
+                  className={`rounded-lg border px-4 py-3 text-sm ${
+                    userCreateMessageType === "success"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-rose-200 bg-rose-50 text-rose-700"
+                  }`}
+                  role="status"
+                >
+                  {userCreateMessage}
+                </div>
+              )}
+
+              {adminUsersError && (
+                <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  {adminUsersError}
+                </div>
+              )}
+
+              {userDeleteMessage && (
+                <div
+                  className={`rounded-lg border px-4 py-3 text-sm ${
+                    userDeleteMessageType === "success"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-rose-200 bg-rose-50 text-rose-700"
+                  }`}
+                  role="status"
+                >
+                  {userDeleteMessage}
+                </div>
+              )}
+
+              <div>
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-slate-900">Current Users</h3>
+                  <span className="text-sm text-slate-500">
+                    {adminUsersLoading ? "Loading..." : `${adminUsers.length} users`}
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                  <table className="w-full">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Name</th>
+                        <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Email</th>
+                        <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Role</th>
+                        <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Updated Role</th>
+                        <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {adminUsers.length > 0 ? adminUsers.map((user) => (
+                        <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-5 py-4 text-sm font-semibold text-slate-900">{user.name}</td>
+                          <td className="px-5 py-4 text-sm text-slate-700">{user.email}</td>
+                          <td className="px-5 py-4">
+                            <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${roleStyles[user.role]}`}>
+                              {formatRole(user.role)}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <select
+                              value={userRoleDrafts[user.id] ?? user.role}
+                              onChange={(e) => setUserRoleDrafts((current) => ({ ...current, [user.id]: e.target.value as LiveUserRow["role"] }))}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                            >
+                              <option value="REQUESTER">Requester</option>
+                              <option value="PARISH_SECRETARY">Parish Secretary</option>
+                              <option value="PARISH_PRIEST">Parish Priest</option>
+                              <option value="ADMIN">Administrator</option>
+                            </select>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => saveUserRole(user.id)}
+                                disabled={savingUserRoleId === user.id}
+                                className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                <Save className="w-3.5 h-3.5" />
+                                {savingUserRoleId === user.id ? "Saving..." : "Save Role"}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => startDeleteUser(user)}
+                                disabled={deletingUserId === user.id}
+                                className="inline-flex items-center gap-2 rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td className="px-5 py-6 text-sm text-slate-500" colSpan={5}>
+                            {adminUsersLoading ? "Loading admin users..." : "No users found."}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <p className="mt-4 text-xs text-slate-500">
+                  New users are created in Cognito and synced to the database. Role updates also update Cognito groups.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {deleteTargetUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-900">Delete User</h2>
+                <p className="mt-0.5 text-sm text-slate-600">Enter your password to confirm this deletion.</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeDeleteUserModal}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 px-6 py-5">
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                This will permanently remove <span className="font-semibold">{deleteTargetUser.name}</span> ({deleteTargetUser.email}).
+                Users with request or audit history cannot be deleted.
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Your Password</label>
+                <input
+                  type="password"
+                  value={deleteUserPassword}
+                  onChange={(e) => setDeleteUserPassword(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                  placeholder="Re-enter your password"
+                />
+              </div>
+
+              {userDeleteMessage && (
+                <div
+                  className={`rounded-lg border px-4 py-3 text-sm ${
+                    userDeleteMessageType === "success"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-rose-200 bg-rose-50 text-rose-700"
+                  }`}
+                  role="status"
+                >
+                  {userDeleteMessage}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+              <button
+                type="button"
+                onClick={closeDeleteUserModal}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteUser}
+                disabled={deletingUserId === deleteTargetUser.id}
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-rose-600 to-red-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-rose-900/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Trash2 className="w-4 h-4" />
+                {deletingUserId === deleteTargetUser.id ? "Deleting..." : "Delete User"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div>
         <div className="bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10 overflow-hidden">
@@ -1009,167 +1341,6 @@ export function AdminDashboard() {
         </div>
       )}
 
-      <div className="mt-10">
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10 overflow-hidden">
-          <div className="px-8 py-6 bg-gradient-to-r from-slate-50 to-purple-50/30 border-b border-slate-200 flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <UserPlus className="w-6 h-6 text-purple-600" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-slate-900 text-xl">User Management</h2>
-              <p className="text-sm text-slate-600 mt-0.5">Create Cognito users and keep roles synced with the database</p>
-            </div>
-          </div>
-
-          <div className="p-8 space-y-8">
-            <div className="grid grid-cols-4 gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-              <div className="col-span-2">
-                <label className="mb-2 block text-sm font-semibold text-slate-700">Email</label>
-                <input
-                  value={newUserDraft.email}
-                  onChange={(e) => setNewUserDraft((current) => ({ ...current, email: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
-                  placeholder="user@example.com"
-                />
-              </div>
-
-              <div className="col-span-2">
-                <label className="mb-2 block text-sm font-semibold text-slate-700">Full Name</label>
-                <input
-                  value={newUserDraft.name}
-                  onChange={(e) => setNewUserDraft((current) => ({ ...current, name: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
-                  placeholder="Jane Doe"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">Role</label>
-                <select
-                  value={newUserDraft.role}
-                  onChange={(e) => setNewUserDraft((current) => ({ ...current, role: e.target.value as LiveUserRow["role"] }))}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
-                >
-                  <option value="REQUESTER">Requester</option>
-                  <option value="PARISH_SECRETARY">Parish Secretary</option>
-                  <option value="PARISH_PRIEST">Parish Priest</option>
-                  <option value="ADMIN">Administrator</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">Temporary Password</label>
-                <input
-                  value={newUserDraft.temporaryPassword}
-                  onChange={(e) => setNewUserDraft((current) => ({ ...current, temporaryPassword: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
-                  placeholder="Leave blank to auto-generate"
-                />
-              </div>
-
-              <div className="col-span-4 flex justify-end">
-                <button
-                  type="button"
-                  onClick={createAdminUser}
-                  disabled={creatingUser}
-                  className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-900/20 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <KeyRound className="w-4 h-4" />
-                  {creatingUser ? "Creating..." : "Create User in Cognito"}
-                </button>
-              </div>
-            </div>
-
-            {userCreateMessage && (
-              <div
-                className={`rounded-lg border px-4 py-3 text-sm ${
-                  userCreateMessageType === "success"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-rose-200 bg-rose-50 text-rose-700"
-                }`}
-                role="status"
-              >
-                {userCreateMessage}
-              </div>
-            )}
-
-            {adminUsersError && (
-              <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                {adminUsersError}
-              </div>
-            )}
-
-            <div>
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-slate-900">Current Users</h3>
-                <span className="text-sm text-slate-500">
-                  {adminUsersLoading ? "Loading..." : `${adminUsers.length} users`}
-                </span>
-              </div>
-
-              <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                <table className="w-full">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Name</th>
-                      <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Email</th>
-                      <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Role</th>
-                      <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Updated Role</th>
-                      <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white">
-                    {adminUsers.length > 0 ? adminUsers.map((user) => (
-                      <tr key={user.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-5 py-4 text-sm font-semibold text-slate-900">{user.name}</td>
-                        <td className="px-5 py-4 text-sm text-slate-700">{user.email}</td>
-                        <td className="px-5 py-4">
-                          <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${roleStyles[user.role]}`}>
-                            {formatRole(user.role)}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <select
-                            value={userRoleDrafts[user.id] ?? user.role}
-                            onChange={(e) => setUserRoleDrafts((current) => ({ ...current, [user.id]: e.target.value as LiveUserRow["role"] }))}
-                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
-                          >
-                            <option value="REQUESTER">Requester</option>
-                            <option value="PARISH_SECRETARY">Parish Secretary</option>
-                            <option value="PARISH_PRIEST">Parish Priest</option>
-                            <option value="ADMIN">Administrator</option>
-                          </select>
-                        </td>
-                        <td className="px-5 py-4">
-                          <button
-                            type="button"
-                            onClick={() => saveUserRole(user.id)}
-                            disabled={savingUserRoleId === user.id}
-                            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            <Save className="w-3.5 h-3.5" />
-                            {savingUserRoleId === user.id ? "Saving..." : "Save Role"}
-                          </button>
-                        </td>
-                      </tr>
-                    )) : (
-                      <tr>
-                        <td className="px-5 py-6 text-sm text-slate-500" colSpan={5}>
-                          {adminUsersLoading ? "Loading admin users..." : "No users found."}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <p className="mt-4 text-xs text-slate-500">
-                New users are created in Cognito and synced to the database. Role updates also update Cognito groups.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

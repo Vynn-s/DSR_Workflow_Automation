@@ -5,6 +5,7 @@ import { z } from "zod";
 import {
 	AdminAddUserToGroupCommand,
 	AdminCreateUserCommand,
+	AdminInitiateAuthCommand,
 	AdminDeleteUserCommand,
 	AdminListGroupsForUserCommand,
 	AdminRemoveUserFromGroupCommand,
@@ -82,6 +83,10 @@ const updateRoleSchema = z.object({
 	role: adminUserRoleSchema,
 });
 
+const deleteUserSchema = z.object({
+	password: z.string().min(1).max(256),
+});
+
 const knownRoles: AdminUserRole[] = ["REQUESTER", "PARISH_SECRETARY", "PARISH_PRIEST", "ADMIN"];
 
 function mapRow(row: Record<string, any>): AdminUserRecord {
@@ -156,6 +161,47 @@ async function deleteCognitoUser(email: string) {
 	} catch (error) {
 		console.error(`Failed to roll back Cognito user for ${email}:`, error);
 	}
+}
+
+async function verifyAdminPassword(email: string, password: string) {
+	try {
+		await getCognitoClient().send(
+			new AdminInitiateAuthCommand({
+				UserPoolId: config.cognitoUserPoolId,
+				ClientId: config.cognitoClientId,
+				AuthFlow: "ADMIN_USER_PASSWORD_AUTH",
+				AuthParameters: {
+					USERNAME: email,
+					PASSWORD: password,
+				},
+			}),
+		);
+	} catch (error: any) {
+		if (error?.name === "NotAuthorizedException" || error?.name === "UserNotFoundException") {
+			throw new AppError("Invalid password", 401);
+		}
+
+		throw error;
+	}
+}
+
+async function getDeleteUsageCounts(client: any, userId: string) {
+	const result = await client.query(
+		`SELECT
+			(SELECT COUNT(*)::int FROM "VenueRequest" WHERE "requesterId" = $1) AS requester_count,
+			(SELECT COUNT(*)::int FROM "VenueRequest" WHERE "currentApproverId" = $1) AS current_approver_count,
+			(SELECT COUNT(*)::int FROM "ApprovalAction" WHERE "approverId" = $1) AS approval_action_count,
+			(SELECT COUNT(*)::int FROM "AuditLog" WHERE "performedById" = $1) AS audit_log_count
+		 FROM (SELECT 1) AS counts`,
+		[userId],
+	);
+
+	return result.rows[0] as {
+		requester_count: number;
+		current_approver_count: number;
+		approval_action_count: number;
+		audit_log_count: number;
+	};
 }
 
 export async function listAdminUsers(req: Request, res: Response, next: NextFunction) {
@@ -347,8 +393,96 @@ export async function updateAdminUserRole(req: Request, res: Response, next: Nex
 	}
 }
 
+export async function deleteAdminUser(req: Request, res: Response, next: NextFunction) {
+	const client = await getPool().connect();
+	try {
+		if (!req.user) {
+			throw new AppError("Unauthorized", 401);
+		}
+
+		const parsedParams = z.object({ id: z.string().min(1) }).safeParse(req.params);
+		if (!parsedParams.success) {
+			throw new AppError("Invalid user id", 400);
+		}
+
+		const parsedBody = deleteUserSchema.safeParse(req.body);
+		if (!parsedBody.success) {
+			throw new AppError(
+				`Invalid user payload: ${parsedBody.error.issues.map((issue: any) => `${issue.path.join(".")}: ${issue.message}`).join(", ")}`,
+				400,
+			);
+		}
+
+		const userResult = await client.query(
+			`SELECT id, email, name, role, "ministryId", "createdAt", "updatedAt" FROM "User" WHERE id = $1`,
+			[parsedParams.data.id],
+		);
+
+		if (userResult.rows.length === 0) {
+			throw new AppError("User not found", 404);
+		}
+
+		const userToDelete = userResult.rows[0] as {
+			id: string;
+			email: string;
+			name: string;
+			role: AdminUserRole;
+			ministryId: string | null;
+			createdAt: string;
+			updatedAt: string;
+		};
+
+		if (userToDelete.email === req.user.email) {
+			throw new AppError("You cannot delete your own account", 400);
+		}
+
+		await verifyAdminPassword(req.user.email, parsedBody.data.password);
+
+		const usageCounts = await getDeleteUsageCounts(client, userToDelete.id);
+		const totalUsage = Object.values(usageCounts).reduce((sum, count) => sum + Number(count ?? 0), 0);
+		if (totalUsage > 0) {
+			throw new AppError("This user has activity history and cannot be deleted yet", 409);
+		}
+
+		await client.query("BEGIN");
+		try {
+			await client.query(`DELETE FROM "User" WHERE id = $1`, [userToDelete.id]);
+			await client.query("COMMIT");
+		} catch (error) {
+			await client.query("ROLLBACK");
+			throw error;
+		}
+
+		try {
+			await deleteCognitoUser(userToDelete.email);
+		} catch (error) {
+			await client.query(
+				`INSERT INTO "User" (id, email, name, role, "ministryId", "createdAt", "updatedAt")
+				 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+				[
+					userToDelete.id,
+					userToDelete.email,
+					userToDelete.name,
+					userToDelete.role,
+					userToDelete.ministryId,
+					userToDelete.createdAt,
+					userToDelete.updatedAt,
+				],
+			);
+			throw error;
+		}
+
+		return res.json({ userId: userToDelete.id });
+	} catch (error) {
+		return next(error);
+	} finally {
+		client.release();
+	}
+}
+
 export default {
 	listAdminUsers,
 	createAdminUser,
 	updateAdminUserRole,
+	deleteAdminUser,
 };

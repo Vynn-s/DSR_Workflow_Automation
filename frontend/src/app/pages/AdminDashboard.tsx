@@ -479,6 +479,7 @@ export function AdminDashboard() {
   }, []);
 
   const liveUsers = useMemo(() => buildLiveUsers(auditLogs), [auditLogs]);
+  const reportData = useMemo(() => buildReportRows(auditLogs, reportView), [auditLogs, reportView]);
   const insights = useMemo(() => buildInsights(auditStats, auditLogs), [auditStats, auditLogs]);
   const requestsThisMonth = auditStats?.totalRequestsThisMonth ?? 0;
   const venueStatusCounts = useMemo(() => {
@@ -1028,49 +1029,100 @@ export function AdminDashboard() {
               </div>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-2">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                <h3 className="text-base font-semibold text-slate-900">Recent venues</h3>
-                <p className="mt-1 text-sm text-slate-600">Pulled from the live venue API.</p>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900">Requests by {reportView === "weekly" ? "Week" : reportView === "monthly" ? "Month" : "Year"}</h3>
+                  <p className="mt-1 text-sm text-slate-600">Live approved and rejected request activity from the audit log.</p>
+                </div>
 
-                <div className="mt-4 space-y-3">
-                  {venues.slice(0, 5).map((venue) => (
-                    <div key={venue.id} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="font-semibold text-slate-900">{venue.name}</p>
-                          <p className="text-xs text-slate-500">Capacity {venue.capacity} • {venue.id}</p>
-                        </div>
-                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${statusStyles[venue.status]}`}>
-                          {venue.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                  {venues.length === 0 && <p className="text-sm text-slate-500">No venues loaded yet.</p>}
+                <div className="flex gap-2 rounded-xl bg-slate-100 p-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setReportView("weekly")}
+                    className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+                      reportView === "weekly"
+                        ? "bg-white text-indigo-700 shadow-sm"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Week
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReportView("monthly")}
+                    className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+                      reportView === "monthly"
+                        ? "bg-white text-indigo-700 shadow-sm"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Month
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReportView("yearly")}
+                    className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+                      reportView === "yearly"
+                        ? "bg-white text-indigo-700 shadow-sm"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Year
+                  </button>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                <h3 className="text-base font-semibold text-slate-900">Recent users</h3>
-                <p className="mt-1 text-sm text-slate-600">Pulled from the live admin users API.</p>
+              <div className="mt-5 grid grid-cols-3 gap-4">
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4">
+                  <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Requested</p>
+                  <p className="mt-2 text-3xl font-semibold text-slate-900">
+                    {reportData.reduce((sum, row) => sum + row.requests, 0)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-5 py-4">
+                  <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Approved</p>
+                  <p className="mt-2 text-3xl font-semibold text-slate-900">
+                    {reportData.reduce((sum, row) => sum + row.approved, 0)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-4">
+                  <p className="text-xs font-bold uppercase tracking-wider text-rose-700">Rejected</p>
+                  <p className="mt-2 text-3xl font-semibold text-slate-900">
+                    {reportData.reduce((sum, row) => sum + row.rejected, 0)}
+                  </p>
+                </div>
+              </div>
 
-                <div className="mt-4 space-y-3">
-                  {adminUsers.slice(0, 5).map((user) => (
-                    <div key={user.id} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="mt-5 space-y-3">
+                {reportData.map((row) => {
+                  const total = row.requests + row.approved + row.rejected;
+
+                  return (
+                    <div key={row.label} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="font-semibold text-slate-900">{user.name}</p>
-                          <p className="text-xs text-slate-500">{user.email}</p>
+                          <p className="font-semibold text-slate-900">{row.label}</p>
+                          <p className="text-xs text-slate-500">{total} total request events</p>
                         </div>
-                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${roleStyles[user.role]}`}>
-                          {formatRole(user.role)}
+                        <span className="text-sm font-semibold text-slate-700">
+                          {row.approved} approved • {row.rejected} rejected
                         </span>
                       </div>
+                      <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-200">
+                        <div className="flex h-full w-full">
+                          <div className="bg-blue-500" style={{ width: `${total > 0 ? (row.requests / total) * 100 : 0}%` }} />
+                          <div className="bg-emerald-500" style={{ width: `${total > 0 ? (row.approved / total) * 100 : 0}%` }} />
+                          <div className="bg-rose-500" style={{ width: `${total > 0 ? (row.rejected / total) * 100 : 0}%` }} />
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                  {adminUsers.length === 0 && <p className="text-sm text-slate-500">No users loaded yet.</p>}
-                </div>
+                  );
+                })}
+
+                {reportData.length === 0 && (
+                  <p className="text-sm text-slate-500">No request activity found for this period.</p>
+                )}
               </div>
             </div>
           </div>

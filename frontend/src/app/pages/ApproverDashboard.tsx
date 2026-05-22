@@ -27,8 +27,24 @@ interface DSSRecommendation {
   risks: string[];
 }
 
+type DssApiDecision = {
+  allPassed: boolean;
+  results: Array<{
+    ruleName: string;
+    passed: boolean;
+    message: string;
+  }>;
+  recommendation: string;
+  canProceed: boolean;
+};
+
 interface Request {
   id: string;
+  venueId: string;
+  ministryId: string;
+  attendees: number;
+  startDateTime: string;
+  endDateTime: string;
   venue: string;
   date: string;
   time: string;
@@ -44,6 +60,9 @@ interface Request {
 
 type ApiApprovalQueueItem = {
   id: string;
+  venueId: string;
+  ministryId: string;
+  attendees: number;
   eventName: string;
   purpose: string;
   startDateTime: string;
@@ -88,6 +107,31 @@ function formatTimeRange(startDateTime: string, endDateTime: string) {
   return `${start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} - ${end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
 }
 
+function formatDateForDss(value: string) {
+  return value.slice(0, 10);
+}
+
+function formatTimeForDss(value: string) {
+  const date = new Date(value);
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+function mapDssDecision(decision: DssApiDecision): DSSRecommendation {
+  const passedRules = decision.results.filter((result) => result.passed).map((result) => result.message);
+  const failedRules = decision.results.filter((result) => !result.passed).map((result) => result.message);
+  const passedCount = decision.results.filter((result) => result.passed).length;
+  const confidence = decision.results.length > 0 ? Math.round((passedCount / decision.results.length) * 100) : 0;
+
+  return {
+    decision: decision.canProceed ? "approve" : "reject",
+    confidence,
+    reasons: passedRules.length > 0 ? passedRules : [decision.recommendation],
+    risks: failedRules,
+  };
+}
+
 function mapApprovalStatus(status: string): Request["status"] {
   switch (status) {
     case "APPROVED":
@@ -123,6 +167,8 @@ export function ApproverDashboard() {
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
+  const [dssLoading, setDssLoading] = useState(false);
+  const [dssError, setDssError] = useState<string | null>(null);
 
   const handleDownloadAttachment = (attachment: Attachment) => {
     const link = document.createElement("a");
@@ -144,6 +190,11 @@ export function ApproverDashboard() {
         const response = await api.get<{ queue: ApiApprovalQueueItem[] }>("/approvals/queue");
         const liveRequests = (response.queue ?? []).map((request) => ({
           id: request.id,
+          venueId: request.venueId,
+          ministryId: request.ministryId,
+          attendees: request.attendees,
+          startDateTime: request.startDateTime,
+          endDateTime: request.endDateTime,
           venue: request.venue.name,
           date: formatDateTime(request.startDateTime).split(",")[0],
           time: formatTimeRange(request.startDateTime, request.endDateTime),
@@ -207,6 +258,11 @@ export function ApproverDashboard() {
         const response = await api.get<{ archive: ApiApprovalQueueItem[] }>("/approvals/archive");
         const liveArchive = (response.archive ?? []).map((request) => ({
           id: request.id,
+          venueId: request.venueId,
+          ministryId: request.ministryId,
+          attendees: request.attendees,
+          startDateTime: request.startDateTime,
+          endDateTime: request.endDateTime,
           venue: request.venue.name,
           date: formatDateTime(request.startDateTime).split(",")[0],
           time: formatTimeRange(request.startDateTime, request.endDateTime),
@@ -244,10 +300,67 @@ export function ApproverDashboard() {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function evaluateSelectedRequest() {
+      if (!selectedRequest || activeTab !== "queue") {
+        setDssError(null);
+        return;
+      }
+
+      if (!selectedRequest.venueId || !selectedRequest.ministryId) {
+        setSelectedRequest((current) => (current?.id === selectedRequest.id ? { ...current, dssRecommendation: undefined } : current));
+        setDssError("DSS details are unavailable for this request.");
+        return;
+      }
+
+      setDssLoading(true);
+      setDssError(null);
+
+      try {
+        const decision = await api.post<DssApiDecision>("/dss/evaluate", {
+          venueId: selectedRequest.venueId,
+          ministryId: selectedRequest.ministryId,
+          requestDate: formatDateForDss(selectedRequest.startDateTime),
+          startTime: formatTimeForDss(selectedRequest.startDateTime),
+          endTime: formatTimeForDss(selectedRequest.endDateTime),
+          attendees: selectedRequest.attendees,
+        });
+
+        if (isMounted) {
+          const dssRecommendation = mapDssDecision(decision);
+          setSelectedRequest((current) => (current?.id === selectedRequest.id ? { ...current, dssRecommendation } : current));
+        }
+      } catch (error) {
+        console.error("Failed to evaluate DSS for selected request:", error);
+        if (isMounted) {
+          setSelectedRequest((current) => (current?.id === selectedRequest.id ? { ...current, dssRecommendation: undefined } : current));
+          setDssError("Unable to load DSS guidance right now.");
+        }
+      } finally {
+        if (isMounted) {
+          setDssLoading(false);
+        }
+      }
+    }
+
+    void evaluateSelectedRequest();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeTab, selectedRequest?.id, selectedRequest?.venueId, selectedRequest?.ministryId, selectedRequest?.date, selectedRequest?.time, selectedRequest?.attendees]);
+
   const refreshQueue = async () => {
     const response = await api.get<{ queue: ApiApprovalQueueItem[] }>("/approvals/queue");
     const liveRequests = (response.queue ?? []).map((request) => ({
       id: request.id,
+      venueId: request.venueId,
+      ministryId: request.ministryId,
+      attendees: request.attendees,
+      startDateTime: request.startDateTime,
+      endDateTime: request.endDateTime,
       venue: request.venue.name,
       date: formatDateTime(request.startDateTime).split(",")[0],
       time: formatTimeRange(request.startDateTime, request.endDateTime),
@@ -444,28 +557,30 @@ export function ApproverDashboard() {
           )}
 
           {/* DSS Insights Panel */}
-          {selectedRequest && selectedRequest.dssRecommendation && (
-            <div className={`bg-gradient-to-br ${
-              selectedRequest.dssRecommendation.decision === "approve"
-                ? "from-emerald-50 via-emerald-100/40 to-emerald-50"
-                : selectedRequest.dssRecommendation.decision === "reject"
-                ? "from-rose-50 via-rose-100/40 to-rose-50"
-                : "from-amber-50 via-amber-100/40 to-amber-50"
-            } border-2 ${
-              selectedRequest.dssRecommendation.decision === "approve"
-                ? "border-emerald-300"
-                : selectedRequest.dssRecommendation.decision === "reject"
-                ? "border-rose-300"
-                : "border-amber-300"
-            } rounded-2xl shadow-xl shadow-slate-900/10 p-8`}>
+          {activeTab === "queue" && selectedRequest && (
+            <div
+              className={`rounded-2xl border-2 shadow-xl shadow-slate-900/10 p-8 ${
+                dssLoading
+                  ? "border-slate-300 bg-slate-50"
+                  : dssError
+                  ? "border-amber-300 bg-amber-50"
+                  : selectedRequest.dssRecommendation?.decision === "approve"
+                  ? "border-emerald-300 bg-gradient-to-br from-emerald-50 via-emerald-100/40 to-emerald-50"
+                  : "border-rose-300 bg-gradient-to-br from-rose-50 via-rose-100/40 to-rose-50"
+              }`}
+            >
               <div className="flex items-start gap-5">
-                <div className={`p-4 rounded-xl shadow-lg ${
-                  selectedRequest.dssRecommendation.decision === "approve"
-                    ? "bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/40"
-                    : selectedRequest.dssRecommendation.decision === "reject"
-                    ? "bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/40"
-                    : "bg-gradient-to-br from-amber-500 to-amber-600 shadow-amber-500/40"
-                }`}>
+                <div
+                  className={`p-4 rounded-xl shadow-lg ${
+                    dssLoading
+                      ? "bg-gradient-to-br from-slate-500 to-slate-600 shadow-slate-500/30"
+                      : dssError
+                      ? "bg-gradient-to-br from-amber-500 to-amber-600 shadow-amber-500/30"
+                      : selectedRequest.dssRecommendation?.decision === "approve"
+                      ? "bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/40"
+                      : "bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/40"
+                  }`}
+                >
                   <Brain className="w-8 h-8 text-white" />
                 </div>
                 <div className="flex-1">
@@ -473,55 +588,74 @@ export function ApproverDashboard() {
                     <h3 className="font-semibold text-slate-900 text-xl">
                       Decision Support System Analysis
                     </h3>
-                    <span className={`px-4 py-2 text-sm font-bold rounded-full shadow-sm ${
-                      selectedRequest.dssRecommendation.decision === "approve"
-                        ? "bg-emerald-600 text-white shadow-emerald-600/30"
-                        : selectedRequest.dssRecommendation.decision === "reject"
-                        ? "bg-rose-600 text-white shadow-rose-600/30"
-                        : "bg-amber-600 text-white shadow-amber-600/30"
-                    }`}>
-                      {selectedRequest.dssRecommendation.confidence}% Confidence
-                    </span>
+                    {dssLoading ? (
+                      <span className="px-4 py-2 text-sm font-bold rounded-full bg-slate-700 text-white shadow-sm">
+                        Evaluating...
+                      </span>
+                    ) : dssError ? (
+                      <span className="px-4 py-2 text-sm font-bold rounded-full bg-amber-600 text-white shadow-sm">
+                        Guidance unavailable
+                      </span>
+                    ) : selectedRequest.dssRecommendation ? (
+                      <span className={`px-4 py-2 text-sm font-bold rounded-full shadow-sm ${
+                        selectedRequest.dssRecommendation.decision === "approve"
+                          ? "bg-emerald-600 text-white shadow-emerald-600/30"
+                          : "bg-rose-600 text-white shadow-rose-600/30"
+                      }`}>
+                        {selectedRequest.dssRecommendation.confidence}% Confidence
+                      </span>
+                    ) : null}
                   </div>
-                  <p className="text-base text-slate-700 mb-6">
-                    Recommendation: <span className="font-bold uppercase text-slate-900">
-                      {selectedRequest.dssRecommendation.decision}
-                    </span>
-                  </p>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        Supporting Factors
-                      </h4>
-                      <ul className="space-y-1.5">
-                        {selectedRequest.dssRecommendation.reasons.map((reason, index) => (
-                          <li key={index} className="text-xs text-slate-700 flex items-start gap-2">
-                            <span className="text-emerald-600 mt-0.5">•</span>
-                            <span>{reason}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    
-                    {selectedRequest.dssRecommendation.risks.length > 0 && (
-                      <div>
-                        <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-1">
-                          <AlertTriangle className="w-3.5 h-3.5" />
-                          Risk Factors
-                        </h4>
-                        <ul className="space-y-1.5">
-                          {selectedRequest.dssRecommendation.risks.map((risk, index) => (
-                            <li key={index} className="text-xs text-slate-700 flex items-start gap-2">
-                              <span className="text-rose-600 mt-0.5">•</span>
-                              <span>{risk}</span>
-                            </li>
-                          ))}
-                        </ul>
+
+                  {dssLoading ? (
+                    <p className="text-base text-slate-700">Running DSS checks against the live request data.</p>
+                  ) : dssError ? (
+                    <p className="text-base text-slate-700">{dssError}</p>
+                  ) : selectedRequest.dssRecommendation ? (
+                    <>
+                      <p className="text-base text-slate-700 mb-6">
+                        Recommendation: <span className="font-bold uppercase text-slate-900">
+                          {selectedRequest.dssRecommendation.decision}
+                        </span>
+                      </p>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Supporting Factors
+                          </h4>
+                          <ul className="space-y-1.5">
+                            {selectedRequest.dssRecommendation.reasons.map((reason, index) => (
+                              <li key={index} className="text-xs text-slate-700 flex items-start gap-2">
+                                <span className="text-emerald-600 mt-0.5">•</span>
+                                <span>{reason}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        {selectedRequest.dssRecommendation.risks.length > 0 && (
+                          <div>
+                            <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-1">
+                              <AlertTriangle className="w-3.5 h-3.5" />
+                              Risk Factors
+                            </h4>
+                            <ul className="space-y-1.5">
+                              {selectedRequest.dssRecommendation.risks.map((risk, index) => (
+                                <li key={index} className="text-xs text-slate-700 flex items-start gap-2">
+                                  <span className="text-rose-600 mt-0.5">•</span>
+                                  <span>{risk}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    </>
+                  ) : (
+                    <p className="text-base text-slate-700">No DSS result is available for this request.</p>
+                  )}
                 </div>
               </div>
             </div>

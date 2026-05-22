@@ -73,6 +73,9 @@ async function getApprovalQueue(req, res, next) {
         }
         const queueResult = await client.query(`SELECT
 				vr.id,
+				vr."venueId",
+				vr."ministryId",
+				vr.attendees,
 				vr."eventName",
 				vr.purpose,
 				vr."startDateTime",
@@ -121,6 +124,9 @@ async function getApprovalQueue(req, res, next) {
         }
         const queue = queueResult.rows.map((request) => ({
             id: request.id,
+            venueId: request.venueId,
+            ministryId: request.ministryId,
+            attendees: request.attendees,
             eventName: request.eventName,
             purpose: request.purpose,
             startDateTime: request.startDateTime,

@@ -105,6 +105,9 @@ export async function getApprovalQueue(req: Request, res: Response, next: NextFu
 		const queueResult = await client.query(
 			`SELECT
 				vr.id,
+				vr."venueId",
+				vr."ministryId",
+				vr.attendees,
 				vr."eventName",
 				vr.purpose,
 				vr."startDateTime",
@@ -161,6 +164,9 @@ export async function getApprovalQueue(req: Request, res: Response, next: NextFu
 
 		const queue = queueResult.rows.map((request) => ({
 			id: request.id,
+			venueId: request.venueId,
+			ministryId: request.ministryId,
+			attendees: request.attendees,
 			eventName: request.eventName,
 			purpose: request.purpose,
 			startDateTime: request.startDateTime,

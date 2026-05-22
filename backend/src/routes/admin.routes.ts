@@ -10,7 +10,7 @@ const {
 const adminRoutes = Router();
 
 adminRoutes.use(authenticate);
-adminRoutes.use(requireRole([Role.ADMIN]));
+adminRoutes.use(requireRole([Role.ADMIN, Role.PARISH_PRIEST]));
 
 adminRoutes.get("/users", listAdminUsers);
 adminRoutes.post("/users", createAdminUser);

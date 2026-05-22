@@ -7,7 +7,7 @@ const { listAdminUsers, createAdminUser, updateAdminUserRole, } = require("../co
 const adminRoutes = Router();
 exports.adminRoutes = adminRoutes;
 adminRoutes.use(authenticate);
-adminRoutes.use(requireRole([Role.ADMIN]));
+adminRoutes.use(requireRole([Role.ADMIN, Role.PARISH_PRIEST]));
 adminRoutes.get("/users", listAdminUsers);
 adminRoutes.post("/users", createAdminUser);
 adminRoutes.patch("/users/:id/role", updateAdminUserRole);

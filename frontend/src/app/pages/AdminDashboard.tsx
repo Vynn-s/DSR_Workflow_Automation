@@ -13,6 +13,8 @@ type LiveUserRow = {
   lastSeen: string;
 };
 
+type UserRoleOption = "REQUESTER" | "PARISH_SECRETARY" | "ADMIN";
+
 type AdminUserRow = {
   id: string;
   email: string;
@@ -122,12 +124,15 @@ function formatRole(role: LiveUserRow["role"]): string {
     case "PARISH_SECRETARY":
       return "Parish Secretary";
     case "PARISH_PRIEST":
-      return "Parish Priest";
     case "ADMIN":
       return "Administrator";
     default:
       return role;
   }
+}
+
+function normalizeRoleOption(role: LiveUserRow["role"]): UserRoleOption {
+  return role === "PARISH_PRIEST" ? "ADMIN" : role;
 }
 
 function getDayKey(date: Date): string {
@@ -362,14 +367,14 @@ export function AdminDashboard() {
   const [newUserDraft, setNewUserDraft] = useState({
     email: "",
     name: "",
-    role: "REQUESTER" as LiveUserRow["role"],
+    role: "REQUESTER" as UserRoleOption,
     temporaryPassword: "",
   });
   const [creatingUser, setCreatingUser] = useState(false);
   const [userCreateMessage, setUserCreateMessage] = useState<string | null>(null);
   const [userCreateMessageType, setUserCreateMessageType] = useState<"success" | "error" | null>(null);
   const [savingUserRoleId, setSavingUserRoleId] = useState<string | null>(null);
-  const [userRoleDrafts, setUserRoleDrafts] = useState<Record<string, LiveUserRow["role"]>>({});
+  const [userRoleDrafts, setUserRoleDrafts] = useState<Record<string, UserRoleOption>>({});
   const [deleteTargetUser, setDeleteTargetUser] = useState<AdminUserRow | null>(null);
   const [deleteUserPassword, setDeleteUserPassword] = useState("");
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
@@ -416,7 +421,9 @@ export function AdminDashboard() {
       if (adminUsersResult.status === "fulfilled") {
         setAdminUsers(adminUsersResult.value.users ?? []);
         setUserRoleDrafts(
-          Object.fromEntries((adminUsersResult.value.users ?? []).map((user) => [user.id, user.role]))
+          Object.fromEntries(
+            (adminUsersResult.value.users ?? []).map((user) => [user.id, normalizeRoleOption(user.role)])
+          )
         );
       } else {
         console.error("Failed to load admin users:", adminUsersResult.reason);
@@ -470,10 +477,10 @@ export function AdminDashboard() {
   const userRoleCounts = useMemo(() => {
     return adminUsers.reduce(
       (counts, user) => {
-        counts[user.role] += 1;
+        counts[normalizeRoleOption(user.role)] += 1;
         return counts;
       },
-      { REQUESTER: 0, PARISH_SECRETARY: 0, PARISH_PRIEST: 0, ADMIN: 0 } as Record<LiveUserRow["role"], number>,
+      { REQUESTER: 0, PARISH_SECRETARY: 0, ADMIN: 0 } as Record<UserRoleOption, number>,
     );
   }, [adminUsers]);
   const selectedVenue = venues.find((venue) => venue.id === selectedVenueId) ?? null;
@@ -673,7 +680,7 @@ export function AdminDashboard() {
       });
 
       setAdminUsers((current) => [response.user, ...current]);
-      setUserRoleDrafts((current) => ({ ...current, [response.user.id]: response.user.role }));
+      setUserRoleDrafts((current) => ({ ...current, [response.user.id]: normalizeRoleOption(response.user.role) }));
       setNewUserDraft({
         email: "",
         name: "",
@@ -709,7 +716,7 @@ export function AdminDashboard() {
       return;
     }
 
-    if (currentUser.role === nextRole) {
+    if (normalizeRoleOption(currentUser.role) === nextRole) {
       setUserCreateMessage("Selected role is already up to date.");
       setUserCreateMessageType("success");
       return;
@@ -725,7 +732,7 @@ export function AdminDashboard() {
       });
 
       setAdminUsers((current) => current.map((user) => (user.id === userId ? response.user : user)));
-      setUserRoleDrafts((current) => ({ ...current, [userId]: response.user.role }));
+      setUserRoleDrafts((current) => ({ ...current, [userId]: normalizeRoleOption(response.user.role) }));
       setUserCreateMessage(`Role updated successfully for ${response.user.email}.`);
       setUserCreateMessageType("success");
     } catch (error) {
@@ -982,7 +989,7 @@ export function AdminDashboard() {
                 <p className="mt-1 text-sm text-slate-600">Live Cognito/database users currently loaded.</p>
 
                 <div className="mt-4 space-y-3">
-                  {(["REQUESTER", "PARISH_SECRETARY", "PARISH_PRIEST", "ADMIN"] as LiveUserRow["role"][]).map((role) => {
+                  {(["REQUESTER", "PARISH_SECRETARY", "ADMIN"] as UserRoleOption[]).map((role) => {
                     const count = userRoleCounts[role];
                     const percent = adminUsers.length > 0 ? (count / adminUsers.length) * 100 : 0;
 
@@ -999,8 +1006,6 @@ export function AdminDashboard() {
                                 ? "bg-slate-500"
                                 : role === "PARISH_SECRETARY"
                                 ? "bg-emerald-500"
-                                : role === "PARISH_PRIEST"
-                                ? "bg-blue-500"
                                 : "bg-purple-500"
                             }`}
                             style={{ width: `${percent}%` }}
@@ -1224,12 +1229,11 @@ export function AdminDashboard() {
                   <label className="mb-2 block text-sm font-semibold text-slate-700">Role</label>
                   <select
                     value={newUserDraft.role}
-                    onChange={(e) => setNewUserDraft((current) => ({ ...current, role: e.target.value as LiveUserRow["role"] }))}
+                    onChange={(e) => setNewUserDraft((current) => ({ ...current, role: e.target.value as UserRoleOption }))}
                     className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
                   >
                     <option value="REQUESTER">Requester</option>
                     <option value="PARISH_SECRETARY">Parish Secretary</option>
-                    <option value="PARISH_PRIEST">Parish Priest</option>
                     <option value="ADMIN">Administrator</option>
                   </select>
                 </div>
@@ -1321,12 +1325,11 @@ export function AdminDashboard() {
                           <td className="px-5 py-4">
                             <select
                               value={userRoleDrafts[user.id] ?? user.role}
-                              onChange={(e) => setUserRoleDrafts((current) => ({ ...current, [user.id]: e.target.value as LiveUserRow["role"] }))}
+                              onChange={(e) => setUserRoleDrafts((current) => ({ ...current, [user.id]: e.target.value as UserRoleOption }))}
                               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
                             >
                               <option value="REQUESTER">Requester</option>
                               <option value="PARISH_SECRETARY">Parish Secretary</option>
-                              <option value="PARISH_PRIEST">Parish Priest</option>
                               <option value="ADMIN">Administrator</option>
                             </select>
                           </td>

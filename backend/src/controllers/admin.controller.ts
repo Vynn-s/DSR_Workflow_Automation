@@ -47,6 +47,8 @@ type CognitoUserRecord = {
 	role: AdminUserRole;
 };
 
+type CognitoGroupRole = Exclude<AdminUserRole, "ADMIN">;
+
 let pool: Pool | null = null;
 let cognitoClient: CognitoIdentityProviderClient | null = null;
 
@@ -95,7 +97,7 @@ const deleteUserSchema = z.object({
 	password: z.string().min(1).max(256),
 });
 
-const knownRoles: AdminUserRole[] = ["REQUESTER", "PARISH_SECRETARY", "PARISH_PRIEST", "ADMIN"];
+const cognitoGroupRoles: CognitoGroupRole[] = ["REQUESTER", "PARISH_SECRETARY", "PARISH_PRIEST"];
 
 function mapRow(row: Record<string, any>): AdminUserRecord {
 	return {
@@ -133,11 +135,25 @@ function getUserAttributeValue(attributes: Array<{ Name?: string; Value?: string
 
 function mapCognitoGroupToRole(groupName?: string): AdminUserRole {
 	switch (groupName) {
-		case "ADMIN":
 		case "PARISH_PRIEST":
+			return groupName;
 		case "PARISH_SECRETARY":
 		case "REQUESTER":
 			return groupName;
+		default:
+			return "REQUESTER";
+	}
+}
+
+function mapRoleToCognitoGroup(role: AdminUserRole): CognitoGroupRole {
+	switch (role) {
+		case "ADMIN":
+			return "PARISH_PRIEST";
+		case "PARISH_PRIEST":
+			return "PARISH_PRIEST";
+		case "PARISH_SECRETARY":
+			return "PARISH_SECRETARY";
+		case "REQUESTER":
 		default:
 			return "REQUESTER";
 	}
@@ -190,7 +206,7 @@ async function listAllCognitoUsers(): Promise<CognitoUserRecord[]> {
 					}),
 				);
 
-				const groupName = groupsResult.Groups?.find((group) => group.GroupName && knownRoles.includes(group.GroupName as AdminUserRole))?.GroupName;
+				const groupName = groupsResult.Groups?.find((group) => group.GroupName && cognitoGroupRoles.includes(group.GroupName as CognitoGroupRole))?.GroupName;
 				role = mapCognitoGroupToRole(groupName);
 			} catch (groupError) {
 				console.warn(`Unable to read Cognito group for ${email}:`, groupError);
@@ -220,32 +236,56 @@ async function upsertUserFromCognito(client: import("pg").PoolClient, user: Cogn
 async function syncCognitoRole(email: string, nextRole: AdminUserRole) {
 	const client = getCognitoClient();
 
-	const groupsResult = await client.send(
-		new AdminListGroupsForUserCommand({
-			UserPoolId: config.cognitoUserPoolId,
-			Username: email,
-		}),
-	);
+	let groupsResult;
+	try {
+		groupsResult = await client.send(
+			new AdminListGroupsForUserCommand({
+				UserPoolId: config.cognitoUserPoolId,
+				Username: email,
+			}),
+		);
+	} catch (error: any) {
+		if (error?.name === "ResourceNotFoundException" || error?.name === "UserNotFoundException") {
+			console.warn(`Skipping Cognito role sync for ${email}: user or group is missing.`);
+			return;
+		}
+
+		throw error;
+	}
 
 	for (const group of groupsResult.Groups ?? []) {
-		if (group.GroupName && knownRoles.includes(group.GroupName as AdminUserRole) && group.GroupName !== nextRole) {
-			await client.send(
-				new AdminRemoveUserFromGroupCommand({
-					UserPoolId: config.cognitoUserPoolId,
-					Username: email,
-					GroupName: group.GroupName,
-				}),
-			);
+		if (group.GroupName && cognitoGroupRoles.includes(group.GroupName as CognitoGroupRole) && group.GroupName !== mapRoleToCognitoGroup(nextRole)) {
+			try {
+				await client.send(
+					new AdminRemoveUserFromGroupCommand({
+						UserPoolId: config.cognitoUserPoolId,
+						Username: email,
+						GroupName: group.GroupName,
+					}),
+				);
+			} catch (error: any) {
+				if (error?.name !== "ResourceNotFoundException") {
+					throw error;
+				}
+			}
 		}
 	}
 
-	await client.send(
-		new AdminAddUserToGroupCommand({
-			UserPoolId: config.cognitoUserPoolId,
-			Username: email,
-			GroupName: nextRole,
-		}),
-	);
+	try {
+		await client.send(
+			new AdminAddUserToGroupCommand({
+				UserPoolId: config.cognitoUserPoolId,
+				Username: email,
+				GroupName: mapRoleToCognitoGroup(nextRole),
+			}),
+		);
+	} catch (error: any) {
+		if (error?.name !== "ResourceNotFoundException" && error?.name !== "UserNotFoundException") {
+			throw error;
+		}
+
+		console.warn(`Skipping Cognito add-to-group for ${email}: user or group is missing.`);
+	}
 }
 
 async function deleteCognitoUser(email: string) {

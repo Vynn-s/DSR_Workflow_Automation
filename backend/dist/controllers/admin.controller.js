@@ -50,7 +50,7 @@ const updateRoleSchema = zod_1.z.object({
 const deleteUserSchema = zod_1.z.object({
     password: zod_1.z.string().min(1).max(256),
 });
-const knownRoles = ["REQUESTER", "PARISH_SECRETARY", "PARISH_PRIEST", "ADMIN"];
+const cognitoGroupRoles = ["REQUESTER", "PARISH_SECRETARY", "PARISH_PRIEST"];
 function mapRow(row) {
     return {
         id: row.id,
@@ -81,11 +81,24 @@ function getUserAttributeValue(attributes, attributeName) {
 }
 function mapCognitoGroupToRole(groupName) {
     switch (groupName) {
-        case "ADMIN":
         case "PARISH_PRIEST":
+            return groupName;
         case "PARISH_SECRETARY":
         case "REQUESTER":
             return groupName;
+        default:
+            return "REQUESTER";
+    }
+}
+function mapRoleToCognitoGroup(role) {
+    switch (role) {
+        case "ADMIN":
+            return "PARISH_PRIEST";
+        case "PARISH_PRIEST":
+            return "PARISH_PRIEST";
+        case "PARISH_SECRETARY":
+            return "PARISH_SECRETARY";
+        case "REQUESTER":
         default:
             return "REQUESTER";
     }
@@ -124,7 +137,7 @@ async function listAllCognitoUsers() {
                     UserPoolId: env_1.default.cognitoUserPoolId,
                     Username: email,
                 }));
-                const groupName = groupsResult.Groups?.find((group) => group.GroupName && knownRoles.includes(group.GroupName))?.GroupName;
+                const groupName = groupsResult.Groups?.find((group) => group.GroupName && cognitoGroupRoles.includes(group.GroupName))?.GroupName;
                 role = mapCognitoGroupToRole(groupName);
             }
             catch (groupError) {
@@ -146,24 +159,49 @@ async function upsertUserFromCognito(client, user) {
 }
 async function syncCognitoRole(email, nextRole) {
     const client = getCognitoClient();
-    const groupsResult = await client.send(new client_cognito_identity_provider_1.AdminListGroupsForUserCommand({
-        UserPoolId: env_1.default.cognitoUserPoolId,
-        Username: email,
-    }));
+    let groupsResult;
+    try {
+        groupsResult = await client.send(new client_cognito_identity_provider_1.AdminListGroupsForUserCommand({
+            UserPoolId: env_1.default.cognitoUserPoolId,
+            Username: email,
+        }));
+    }
+    catch (error) {
+        if (error?.name === "ResourceNotFoundException" || error?.name === "UserNotFoundException") {
+            console.warn(`Skipping Cognito role sync for ${email}: user or group is missing.`);
+            return;
+        }
+        throw error;
+    }
     for (const group of groupsResult.Groups ?? []) {
-        if (group.GroupName && knownRoles.includes(group.GroupName) && group.GroupName !== nextRole) {
-            await client.send(new client_cognito_identity_provider_1.AdminRemoveUserFromGroupCommand({
-                UserPoolId: env_1.default.cognitoUserPoolId,
-                Username: email,
-                GroupName: group.GroupName,
-            }));
+        if (group.GroupName && cognitoGroupRoles.includes(group.GroupName) && group.GroupName !== mapRoleToCognitoGroup(nextRole)) {
+            try {
+                await client.send(new client_cognito_identity_provider_1.AdminRemoveUserFromGroupCommand({
+                    UserPoolId: env_1.default.cognitoUserPoolId,
+                    Username: email,
+                    GroupName: group.GroupName,
+                }));
+            }
+            catch (error) {
+                if (error?.name !== "ResourceNotFoundException") {
+                    throw error;
+                }
+            }
         }
     }
-    await client.send(new client_cognito_identity_provider_1.AdminAddUserToGroupCommand({
-        UserPoolId: env_1.default.cognitoUserPoolId,
-        Username: email,
-        GroupName: nextRole,
-    }));
+    try {
+        await client.send(new client_cognito_identity_provider_1.AdminAddUserToGroupCommand({
+            UserPoolId: env_1.default.cognitoUserPoolId,
+            Username: email,
+            GroupName: mapRoleToCognitoGroup(nextRole),
+        }));
+    }
+    catch (error) {
+        if (error?.name !== "ResourceNotFoundException" && error?.name !== "UserNotFoundException") {
+            throw error;
+        }
+        console.warn(`Skipping Cognito add-to-group for ${email}: user or group is missing.`);
+    }
 }
 async function deleteCognitoUser(email) {
     try {

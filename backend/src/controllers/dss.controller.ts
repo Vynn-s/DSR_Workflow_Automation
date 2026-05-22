@@ -69,13 +69,19 @@ export async function evaluateRequest(
 		}
 
 		let { venueId, ministryId, requestDate, startTime, endTime, attendees } = parsed.data;
+		const userResult = await client.query(
+			`SELECT id, "ministryId" FROM "User" WHERE email = $1 LIMIT 1`,
+			[req.user.email],
+		);
+
+		if (userResult.rows.length === 0) {
+			throw new AppError("User not found", 404);
+		}
+
+		const actorUserId = userResult.rows[0].id as string;
 
 		if (!ministryId) {
-			const ministryResult = await client.query(
-				`SELECT "ministryId" FROM "User" WHERE id = $1`,
-				[req.user.id],
-			);
-			ministryId = ministryResult.rows[0]?.ministryId;
+			ministryId = userResult.rows[0]?.ministryId;
 		}
 
 		if (!ministryId) {
@@ -134,7 +140,7 @@ export async function evaluateRequest(
 			[
 				randomUUID(),
 				null,
-				req.user.id,
+				actorUserId,
 				"DSS_EVALUATION",
 				JSON.stringify({
 					venueId,

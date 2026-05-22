@@ -53,9 +53,13 @@ async function evaluateRequest(req, res, next) {
             throw new AppError("Unauthorized", 401);
         }
         let { venueId, ministryId, requestDate, startTime, endTime, attendees } = parsed.data;
+        const userResult = await client.query(`SELECT id, "ministryId" FROM "User" WHERE email = $1 LIMIT 1`, [req.user.email]);
+        if (userResult.rows.length === 0) {
+            throw new AppError("User not found", 404);
+        }
+        const actorUserId = userResult.rows[0].id;
         if (!ministryId) {
-            const ministryResult = await client.query(`SELECT "ministryId" FROM "User" WHERE id = $1`, [req.user.id]);
-            ministryId = ministryResult.rows[0]?.ministryId;
+            ministryId = userResult.rows[0]?.ministryId;
         }
         if (!ministryId) {
             throw new AppError("User ministry not found", 400);
@@ -88,7 +92,7 @@ async function evaluateRequest(req, res, next) {
 			 VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())`, [
             (0, crypto_1.randomUUID)(),
             null,
-            req.user.id,
+            actorUserId,
             "DSS_EVALUATION",
             JSON.stringify({
                 venueId,

@@ -1397,7 +1397,7 @@ export function AdminDashboard() {
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
               <div>
                 <h2 className="text-xl font-semibold text-slate-900">Delete User</h2>
-                <p className="mt-0.5 text-sm text-slate-600">Enter your password to confirm this deletion.</p>
+                <p className="mt-0.5 text-sm text-slate-600">Enter the signed-in admin password to confirm this deletion.</p>
               </div>
               <button
                 type="button"
@@ -1415,13 +1415,13 @@ export function AdminDashboard() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">Your Password</label>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Admin Password</label>
                 <input
                   type="password"
                   value={deleteUserPassword}
                   onChange={(e) => setDeleteUserPassword(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
-                  placeholder="Re-enter your password"
+                  placeholder="Re-enter your signed-in password"
                 />
               </div>
 

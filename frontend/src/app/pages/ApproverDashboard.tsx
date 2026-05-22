@@ -17,11 +17,12 @@ interface Signature {
   role: string;
   signatory: string;
   status: "signed" | "pending";
+  required?: boolean;
   signedDate?: string;
 }
 
 interface DSSRecommendation {
-  decision: "approve" | "reject" | "review";
+  decision: "approve" | "review" | "reject";
   confidence: number;
   reasons: string[];
   risks: string[];
@@ -123,13 +124,45 @@ function mapDssDecision(decision: DssApiDecision): DSSRecommendation {
   const failedRules = decision.results.filter((result) => !result.passed).map((result) => result.message);
   const passedCount = decision.results.filter((result) => result.passed).length;
   const confidence = decision.results.length > 0 ? Math.round((passedCount / decision.results.length) * 100) : 0;
+  const recommendation: DSSRecommendation["decision"] = decision.canProceed && confidence >= 85
+    ? "approve"
+    : confidence >= 70
+      ? "review"
+      : "reject";
 
   return {
-    decision: decision.canProceed ? "approve" : "reject",
+    decision: recommendation,
     confidence,
     reasons: passedRules.length > 0 ? passedRules : [decision.recommendation],
     risks: failedRules,
   };
+}
+
+function getDssTone(decision?: DSSRecommendation["decision"]) {
+  switch (decision) {
+    case "approve":
+      return {
+        panel: "border-emerald-300 bg-gradient-to-br from-emerald-50 via-emerald-100/40 to-emerald-50",
+        icon: "bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/40",
+        badge: "bg-emerald-600 text-white shadow-emerald-600/30",
+        accent: "text-emerald-700",
+      };
+    case "review":
+      return {
+        panel: "border-amber-300 bg-gradient-to-br from-amber-50 via-amber-100/40 to-amber-50",
+        icon: "bg-gradient-to-br from-amber-500 to-amber-600 shadow-amber-500/40",
+        badge: "bg-amber-600 text-white shadow-amber-600/30",
+        accent: "text-amber-700",
+      };
+    case "reject":
+    default:
+      return {
+        panel: "border-rose-300 bg-gradient-to-br from-rose-50 via-rose-100/40 to-rose-50",
+        icon: "bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/40",
+        badge: "bg-rose-600 text-white shadow-rose-600/30",
+        accent: "text-rose-700",
+      };
+  }
 }
 
 function mapApprovalStatus(status: string): Request["status"] {
@@ -321,11 +354,14 @@ export function ApproverDashboard() {
       try {
         const decision = await api.post<DssApiDecision>("/dss/evaluate", {
           venueId: selectedRequest.venueId,
+          requestId: selectedRequest.id,
           ministryId: selectedRequest.ministryId,
           requestDate: formatDateForDss(selectedRequest.startDateTime),
           startTime: formatTimeForDss(selectedRequest.startDateTime),
           endTime: formatTimeForDss(selectedRequest.endDateTime),
           attendees: selectedRequest.attendees,
+          attachmentCount: selectedRequest.attachments?.length ?? 0,
+          signatures: selectedRequest.signatures ?? [],
         });
 
         if (isMounted) {
@@ -558,15 +594,17 @@ export function ApproverDashboard() {
 
           {/* DSS Insights Panel */}
           {activeTab === "queue" && selectedRequest && (
+            (() => {
+              const dssTone = getDssTone(selectedRequest.dssRecommendation?.decision);
+
+              return (
             <div
               className={`rounded-2xl border-2 shadow-xl shadow-slate-900/10 p-8 ${
                 dssLoading
                   ? "border-slate-300 bg-slate-50"
                   : dssError
                   ? "border-amber-300 bg-amber-50"
-                  : selectedRequest.dssRecommendation?.decision === "approve"
-                  ? "border-emerald-300 bg-gradient-to-br from-emerald-50 via-emerald-100/40 to-emerald-50"
-                  : "border-rose-300 bg-gradient-to-br from-rose-50 via-rose-100/40 to-rose-50"
+                  : dssTone.panel
               }`}
             >
               <div className="flex items-start gap-5">
@@ -576,9 +614,7 @@ export function ApproverDashboard() {
                       ? "bg-gradient-to-br from-slate-500 to-slate-600 shadow-slate-500/30"
                       : dssError
                       ? "bg-gradient-to-br from-amber-500 to-amber-600 shadow-amber-500/30"
-                      : selectedRequest.dssRecommendation?.decision === "approve"
-                      ? "bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/40"
-                      : "bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/40"
+                      : dssTone.icon
                   }`}
                 >
                   <Brain className="w-8 h-8 text-white" />
@@ -597,11 +633,7 @@ export function ApproverDashboard() {
                         Guidance unavailable
                       </span>
                     ) : selectedRequest.dssRecommendation ? (
-                      <span className={`px-4 py-2 text-sm font-bold rounded-full shadow-sm ${
-                        selectedRequest.dssRecommendation.decision === "approve"
-                          ? "bg-emerald-600 text-white shadow-emerald-600/30"
-                          : "bg-rose-600 text-white shadow-rose-600/30"
-                      }`}>
+                      <span className={`px-4 py-2 text-sm font-bold rounded-full shadow-sm ${dssTone.badge}`}>
                         {selectedRequest.dssRecommendation.confidence}% Confidence
                       </span>
                     ) : null}
@@ -614,7 +646,7 @@ export function ApproverDashboard() {
                   ) : selectedRequest.dssRecommendation ? (
                     <>
                       <p className="text-base text-slate-700 mb-6">
-                        Recommendation: <span className="font-bold uppercase text-slate-900">
+                        Recommendation: <span className={`font-bold uppercase ${dssTone.accent}`}>
                           {selectedRequest.dssRecommendation.decision}
                         </span>
                       </p>
@@ -659,6 +691,8 @@ export function ApproverDashboard() {
                 </div>
               </div>
             </div>
+              );
+            })()
           )}
 
           <div className="bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10 overflow-hidden">

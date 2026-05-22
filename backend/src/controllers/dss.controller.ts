@@ -14,10 +14,16 @@ const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const evaluateRequestSchema = z.object({
 	venueId: z.string().min(1),
 	ministryId: z.string().min(1).optional(),
+	requestId: z.string().min(1).optional(),
 	requestDate: z.coerce.date(),
 	startTime: z.string().regex(timePattern),
 	endTime: z.string().regex(timePattern),
 	attendees: z.coerce.number().int().positive(),
+	attachmentCount: z.coerce.number().int().nonnegative().optional(),
+	signatures: z.array(z.object({
+		required: z.boolean().optional(),
+		status: z.enum(["pending", "signed"]),
+	})).optional(),
 });
 
 const conflictQuerySchema = z.object({
@@ -68,7 +74,9 @@ export async function evaluateRequest(
 			throw new AppError("Unauthorized", 401);
 		}
 
-		let { venueId, ministryId, requestDate, startTime, endTime, attendees } = parsed.data;
+		let { venueId, ministryId, requestId, requestDate, startTime, endTime, attendees } = parsed.data;
+		const attachmentCount = parsed.data.attachmentCount ?? 0;
+		const signatures = parsed.data.signatures ?? [];
 		const userResult = await client.query(
 			`SELECT id, "ministryId" FROM "User" WHERE email = $1 LIMIT 1`,
 			[req.user.email],
@@ -111,23 +119,31 @@ export async function evaluateRequest(
 			[venueId],
 		);
 
-		const conflictsResult = await client.query(
-			`SELECT id FROM "VenueRequest"
+		const conflictParams: Array<string | Date> = [venueId, requestedEndDateTime, requestedStartDateTime];
+		let conflictQuery = `SELECT id FROM "VenueRequest"
 			 WHERE "venueId" = $1
 			 AND status <> 'REJECTED'
 			 AND "startDateTime" < $2
-			 AND "endDateTime" > $3`,
-			[venueId, requestedEndDateTime, requestedStartDateTime],
-		);
+			 AND "endDateTime" > $3`;
+
+		if (requestId) {
+			conflictQuery += ` AND id <> $4`;
+			conflictParams.push(requestId);
+		}
+
+		const conflictsResult = await client.query(conflictQuery, conflictParams);
 
 		const decision = runDssEvaluation(
 			{
 				venueId,
 				ministryId,
+				requestId,
 				requestDate,
 				startTime,
 				endTime,
 				attendees,
+				signatures,
+				attachmentCount,
 			},
 			venue.capacity,
 			authorizedMinistriesResult.rows.map((entry: { ministryId: string }) => entry.ministryId),
@@ -145,7 +161,10 @@ export async function evaluateRequest(
 				JSON.stringify({
 					venueId,
 					ministryId,
+					requestId,
 					hasConflict: conflictsResult.rows.length > 0,
+					attachmentCount,
+					signatureCount: signatures.length,
 					decision,
 				}),
 				req.ip,

@@ -9,8 +9,10 @@ function evaluateRequest(input, venueCapacity, authorizedMinistryIds, hasConflic
         (0, rules_1.checkMinistryAuthorization)(input.ministryId, authorizedMinistryIds),
         (0, rules_1.checkNoConflict)(hasConflict),
         (0, rules_1.checkBusinessHours)(input.startTime, input.endTime),
+        (0, rules_1.checkRequiredSignatures)(input.signatures ?? []),
+        (0, rules_1.checkAttachmentSupport)(input.attachmentCount ?? 0),
     ];
-    const allPassed = results.every((result) => result.passed);
+    const allPassed = results.filter((result) => result.required !== false).every((result) => result.passed);
     const failedRules = results.filter((result) => !result.passed).map((result) => result.ruleName);
     const recommendation = allPassed
         ? "All DSS checks passed. Request can proceed."

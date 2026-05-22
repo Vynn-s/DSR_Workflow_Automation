@@ -1,19 +1,25 @@
 import type { RuleResult } from "./rules";
 import {
+	checkAttachmentSupport,
 	checkAdvanceNotice,
 	checkBusinessHours,
 	checkCapacity,
 	checkMinistryAuthorization,
 	checkNoConflict,
+	checkRequiredSignatures,
+	SignatureState,
 } from "./rules";
 
 export interface RequestInput {
 	venueId: string;
 	ministryId: string;
+	requestId?: string;
 	requestDate: Date;
 	startTime: string;
 	endTime: string;
 	attendees: number;
+	signatures?: SignatureState[];
+	attachmentCount?: number;
 }
 
 export interface DSSDecision {
@@ -35,9 +41,11 @@ export function evaluateRequest(
 		checkMinistryAuthorization(input.ministryId, authorizedMinistryIds),
 		checkNoConflict(hasConflict),
 		checkBusinessHours(input.startTime, input.endTime),
+		checkRequiredSignatures(input.signatures ?? []),
+		checkAttachmentSupport(input.attachmentCount ?? 0),
 	];
 
-	const allPassed = results.every((result) => result.passed);
+	const allPassed = results.filter((result) => result.required !== false).every((result) => result.passed);
 	const failedRules = results.filter((result) => !result.passed).map((result) => result.ruleName);
 
 	const recommendation = allPassed

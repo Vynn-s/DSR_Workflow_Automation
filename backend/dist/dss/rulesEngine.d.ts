@@ -1,11 +1,15 @@
 import type { RuleResult } from "./rules";
+import { SignatureState } from "./rules";
 export interface RequestInput {
     venueId: string;
     ministryId: string;
+    requestId?: string;
     requestDate: Date;
     startTime: string;
     endTime: string;
     attendees: number;
+    signatures?: SignatureState[];
+    attachmentCount?: number;
 }
 export interface DSSDecision {
     allPassed: boolean;

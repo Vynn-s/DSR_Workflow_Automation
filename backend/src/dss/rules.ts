@@ -2,13 +2,15 @@ export interface RuleResult {
 	ruleName: string;
 	passed: boolean;
 	message: string;
+	required?: boolean;
 }
 
-function buildResult(ruleName: string, passed: boolean, message: string): RuleResult {
+function buildResult(ruleName: string, passed: boolean, message: string, required = true): RuleResult {
 	return {
 		ruleName,
 		passed,
 		message,
+		required,
 	};
 }
 
@@ -106,5 +108,38 @@ export function checkBusinessHours(startTime: string, endTime: string): RuleResu
 		passed
 			? `Business hours check passed for ${startTime} to ${endTime}.`
 			: "Business hours check failed: events must run between 06:00 and 22:00 with a valid start and end time.",
+	);
+}
+
+export interface SignatureState {
+	required?: boolean;
+	status: "pending" | "signed";
+}
+
+export function checkRequiredSignatures(signatures: SignatureState[]): RuleResult {
+	const requiredSignatures = signatures.filter((signature) => signature.required !== false);
+	const passed = requiredSignatures.length === 0 || requiredSignatures.every((signature) => signature.status === "signed");
+
+	return buildResult(
+		"checkRequiredSignatures",
+		passed,
+		passed
+			? requiredSignatures.length > 0
+				? `Required signatures are complete: ${requiredSignatures.length} signer(s) signed.`
+				: "No required signatures are configured for this request."
+			: `${requiredSignatures.filter((signature) => signature.status !== "signed").length} required signature(s) are still pending.`,
+	);
+}
+
+export function checkAttachmentSupport(attachmentCount: number): RuleResult {
+	const passed = attachmentCount > 0;
+
+	return buildResult(
+		"checkAttachmentSupport",
+		passed,
+		passed
+			? `Supporting attachment provided (${attachmentCount}).`
+			: "No attachment provided. Supporting documentation would improve review confidence.",
+		false,
 	);
 }

@@ -5,11 +5,14 @@ exports.checkCapacity = checkCapacity;
 exports.checkMinistryAuthorization = checkMinistryAuthorization;
 exports.checkNoConflict = checkNoConflict;
 exports.checkBusinessHours = checkBusinessHours;
-function buildResult(ruleName, passed, message) {
+exports.checkRequiredSignatures = checkRequiredSignatures;
+exports.checkAttachmentSupport = checkAttachmentSupport;
+function buildResult(ruleName, passed, message, required = true) {
     return {
         ruleName,
         passed,
         message,
+        required,
     };
 }
 function getDayDifference(fromDate, toDate) {
@@ -67,5 +70,20 @@ function checkBusinessHours(startTime, endTime) {
     return buildResult("checkBusinessHours", passed, passed
         ? `Business hours check passed for ${startTime} to ${endTime}.`
         : "Business hours check failed: events must run between 06:00 and 22:00 with a valid start and end time.");
+}
+function checkRequiredSignatures(signatures) {
+    const requiredSignatures = signatures.filter((signature) => signature.required !== false);
+    const passed = requiredSignatures.length === 0 || requiredSignatures.every((signature) => signature.status === "signed");
+    return buildResult("checkRequiredSignatures", passed, passed
+        ? requiredSignatures.length > 0
+            ? `Required signatures are complete: ${requiredSignatures.length} signer(s) signed.`
+            : "No required signatures are configured for this request."
+        : `${requiredSignatures.filter((signature) => signature.status !== "signed").length} required signature(s) are still pending.`);
+}
+function checkAttachmentSupport(attachmentCount) {
+    const passed = attachmentCount > 0;
+    return buildResult("checkAttachmentSupport", passed, passed
+        ? `Supporting attachment provided (${attachmentCount}).`
+        : "No attachment provided. Supporting documentation would improve review confidence.", false);
 }
 //# sourceMappingURL=rules.js.map

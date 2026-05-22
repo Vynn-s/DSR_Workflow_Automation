@@ -230,6 +230,8 @@ export function BookingRequestForm() {
           startTime,
           endTime,
           attendees: Number(attendees),
+          attachmentCount: attachment ? 1 : 0,
+          signatures,
         });
 
         if (isMounted) {
@@ -253,7 +255,7 @@ export function BookingRequestForm() {
     return () => {
       isMounted = false;
     };
-  }, [formData.venue, formData.date, formData.startTime, formData.endTime, formData.attendees, user?.ministryId, venues]);
+  }, [formData.venue, formData.date, formData.startTime, formData.endTime, formData.attendees, attachment, signatures, user?.ministryId, venues]);
 
   // Calendar helper functions
   const getDaysInMonth = (date: Date) => {

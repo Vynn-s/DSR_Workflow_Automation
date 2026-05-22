@@ -1,8 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { randomUUID } from "crypto";
 import { Pool } from "pg";
-
-const { z } = require("zod") as typeof import("zod");
+import { z } from "zod";
 const {
 	evaluateRequest: runDssEvaluation,
 } = require("../dss/rulesEngine") as typeof import("../dss/rulesEngine");

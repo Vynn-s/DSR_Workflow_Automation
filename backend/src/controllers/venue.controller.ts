@@ -48,25 +48,8 @@ const deleteVenueSchema = z.object({
 	password: z.string().trim().min(1).max(256),
 });
 
-const listQuerySchema = z.object({
-	page: z.coerce.number().int().positive().optional(),
-	limit: z.coerce.number().int().positive().max(100).optional(),
-});
-
 function canManageVenues(role?: string): boolean {
 	return role === "ADMIN" || role === "PARISH_PRIEST";
-}
-
-function parseListPagination(query: Request["query"]) {
-	const parsed = listQuerySchema.safeParse(query);
-	if (!parsed.success) {
-		throw new AppError("Invalid pagination parameters", 400);
-	}
-
-	return {
-		page: parsed.data.page ?? 1,
-		limit: parsed.data.limit ?? 100,
-	};
 }
 
 function getCognitoClient(): CognitoIdentityProviderClient {
@@ -103,10 +86,7 @@ async function verifyCurrentAdminPassword(email: string, password: string) {
 export async function getVenues(req: Request, res: Response, next: NextFunction) {
 	const client = await getPool().connect();
 	try {
-		console.log("getVenues: Starting request");
-		
 		if (!req.user) {
-			console.log("getVenues: User not authenticated");
 			throw new AppError("Unauthorized", 401);
 		}
 
@@ -144,18 +124,15 @@ export async function getVenues(req: Request, res: Response, next: NextFunction)
 				})
 			);
 
-			console.log("getVenues: Found venues:", venues.length);
 			return res.json({ venues });
 		}
 
 		const ministryId = ministryResult.rows[0]?.ministryId as string | undefined;
 
 		if (!ministryId) {
-			console.log("getVenues: No ministry found for user", req.user.email);
 			return res.json({ venues: [] });
 		}
 
-		console.log("getVenues: Fetching venues for ministry", ministryId);
 		const venueResult = await client.query(
 			`SELECT DISTINCT v.*
 			 FROM "Venue" v
@@ -187,8 +164,6 @@ export async function getVenues(req: Request, res: Response, next: NextFunction)
 				};
 			})
 		);
-		
-		console.log("getVenues: Found venues:", venues.length);
 		return res.json({ venues });
 	} catch (error) {
 		console.error("getVenues error:", error);

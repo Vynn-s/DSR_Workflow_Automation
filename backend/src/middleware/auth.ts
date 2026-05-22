@@ -1,18 +1,8 @@
 import { CognitoJwtVerifier } from "aws-jwt-verify";
 import type { NextFunction, Request, Response } from "express";
+import { UserRole, type AuthUser } from "../types";
 
-export enum Role {
-	REQUESTER = "REQUESTER",
-	PARISH_SECRETARY = "PARISH_SECRETARY",
-	PARISH_PRIEST = "PARISH_PRIEST",
-	ADMIN = "ADMIN",
-}
-
-export interface AuthUser {
-	id: string;
-	email: string;
-	role: Role;
-}
+export const Role = UserRole;
 
 declare global {
 	namespace Express {
@@ -45,17 +35,17 @@ function getVerifier() {
 	return verifier;
 }
 
-function mapGroupToRole(group?: string): Role {
+function mapGroupToRole(group?: string): UserRole {
 	switch (group) {
-		case Role.ADMIN:
-			return Role.ADMIN;
-		case Role.PARISH_PRIEST:
-			return Role.PARISH_PRIEST;
-		case Role.PARISH_SECRETARY:
-			return Role.PARISH_SECRETARY;
-		case Role.REQUESTER:
+		case UserRole.ADMIN:
+			return UserRole.ADMIN;
+		case UserRole.PARISH_PRIEST:
+			return UserRole.PARISH_PRIEST;
+		case UserRole.PARISH_SECRETARY:
+			return UserRole.PARISH_SECRETARY;
+		case UserRole.REQUESTER:
 		default:
-			return Role.REQUESTER;
+			return UserRole.REQUESTER;
 	}
 }
 
@@ -95,7 +85,6 @@ export async function authenticate(
 		}
 
 		let role = mapGroupToRole(group);
-		console.log(`[AUTH] Email: ${email}, Cognito groups: ${JSON.stringify(groups)}, Mapped role: ${role}`);
 
 		const { Pool } = require("pg");
 		const dbPool = new Pool({
@@ -107,10 +96,7 @@ export async function authenticate(
 			const userResult = await client.query(`SELECT role FROM "User" WHERE email = $1`, [email]);
 			if (userResult.rows.length > 0) {
 				const dbRole = userResult.rows[0].role;
-				console.log(`[AUTH] Found database role ${dbRole} for ${email}`);
 				role = mapGroupToRole(dbRole);
-			} else if (!group) {
-				console.log(`[AUTH] No database role found for ${email} and no Cognito group available`);
 			}
 		} finally {
 			client.release();
@@ -130,7 +116,7 @@ export async function authenticate(
 	}
 }
 
-export function requireRole(allowedRoles: Role[]) {
+export function requireRole(allowedRoles: UserRole[]) {
 	return (req: Request, res: Response, next: NextFunction) => {
 		if (!req.user || !allowedRoles.includes(req.user.role)) {
 			console.warn(`[ROLE_GUARD] User ${req.user?.email} has role ${req.user?.role}, allowed: ${allowedRoles.join(", ")}`);

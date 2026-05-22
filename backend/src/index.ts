@@ -46,8 +46,6 @@ app.get("/api/health", (_req, res) => {
 app.use("/api", routes);
 app.use(errorHandler);
 
-app.listen(port, () => {
-	console.log(`CathedralFlow backend running on port ${port}`);
-});
+app.listen(port);
 
 export default app;

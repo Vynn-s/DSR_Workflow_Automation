@@ -7,7 +7,7 @@ exports.cancelRequest = cancelRequest;
 exports.getAvailability = getAvailability;
 const crypto_1 = require("crypto");
 const pg_1 = require("pg");
-const { z } = require("zod");
+const zod_1 = require("zod");
 const { evaluateRequest: runDssEvaluation, } = require("../dss/rulesEngine");
 const { AppError } = require("../middleware/errorHandler");
 let pool = null;
@@ -24,38 +24,78 @@ function getPool() {
     });
     return pool;
 }
-const createRequestSchema = z.object({
-    venueId: z.string().min(1),
-    ministryId: z.string().min(1).optional(),
-    eventName: z.string().min(1),
-    purpose: z.string().min(1),
-    startDateTime: z.coerce.date(),
-    endDateTime: z.coerce.date(),
-    attendees: z.coerce.number().int().positive(),
-    specialRequirements: z.string().optional(),
-    attachments: z.array(z.object({
-        id: z.string(),
-        name: z.string(),
-        type: z.string(),
-        size: z.string(),
-        uploadedDate: z.string(),
-        dataUrl: z.string(),
+const createRequestSchema = zod_1.z.object({
+    venueId: zod_1.z.string().trim().min(1),
+    ministryId: zod_1.z.string().trim().min(1).optional(),
+    eventName: zod_1.z.string().trim().min(1),
+    purpose: zod_1.z.string().trim().min(1),
+    startDateTime: zod_1.z.coerce.date(),
+    endDateTime: zod_1.z.coerce.date(),
+    attendees: zod_1.z.coerce.number().int().positive(),
+    specialRequirements: zod_1.z.string().trim().optional(),
+    attachments: zod_1.z.array(zod_1.z.object({
+        id: zod_1.z.string().trim(),
+        name: zod_1.z.string().trim(),
+        type: zod_1.z.string().trim(),
+        size: zod_1.z.string().trim(),
+        uploadedDate: zod_1.z.string().trim(),
+        dataUrl: zod_1.z.string().trim(),
     })).optional(),
-    signatures: z.array(z.object({
-        role: z.string(),
-        signatory: z.string(),
-        required: z.boolean(),
-        status: z.enum(["pending", "signed"]),
-        signedDate: z.string().optional(),
+    signatures: zod_1.z.array(zod_1.z.object({
+        role: zod_1.z.string().trim(),
+        signatory: zod_1.z.string().trim(),
+        required: zod_1.z.boolean(),
+        status: zod_1.z.enum(["pending", "signed"]),
+        signedDate: zod_1.z.string().trim().optional(),
     })).optional(),
 });
-const requestIdParamsSchema = z.object({
-    id: z.string().min(1),
+const listQuerySchema = zod_1.z.object({
+    page: zod_1.z.coerce.number().int().positive().optional(),
+    limit: zod_1.z.coerce.number().int().positive().max(100).optional(),
+});
+const requestIdParamsSchema = zod_1.z.object({
+    id: zod_1.z.string().min(1),
 });
 function toTimeString(date) {
     const hours = String(date.getHours()).padStart(2, "0");
     const minutes = String(date.getMinutes()).padStart(2, "0");
     return `${hours}:${minutes}`;
+}
+function sanitizeCreateRequestInput(input) {
+    // Trim user-provided strings before persistence so the database never stores accidental whitespace.
+    return {
+        ...input,
+        venueId: input.venueId.trim(),
+        ministryId: input.ministryId?.trim(),
+        eventName: input.eventName.trim(),
+        purpose: input.purpose.trim(),
+        specialRequirements: input.specialRequirements?.trim(),
+        attachments: input.attachments?.map((attachment) => ({
+            ...attachment,
+            id: attachment.id.trim(),
+            name: attachment.name.trim(),
+            type: attachment.type.trim(),
+            size: attachment.size.trim(),
+            uploadedDate: attachment.uploadedDate.trim(),
+            dataUrl: attachment.dataUrl.trim(),
+        })) ?? [],
+        signatures: input.signatures?.map((signature) => ({
+            ...signature,
+            role: signature.role.trim(),
+            signatory: signature.signatory.trim(),
+            signedDate: signature.signedDate?.trim(),
+        })) ?? [],
+    };
+}
+function parseListPagination(query) {
+    const parsed = listQuerySchema.safeParse(query);
+    if (!parsed.success) {
+        throw new AppError("Invalid pagination parameters", 400);
+    }
+    return {
+        page: parsed.data.page ?? 1,
+        limit: parsed.data.limit ?? 100,
+    };
 }
 async function createRequest(req, res, next) {
     const client = await getPool().connect();
@@ -68,7 +108,7 @@ async function createRequest(req, res, next) {
             console.error("Validation errors:", parsed.error.issues);
             throw new AppError(`Invalid request payload: ${parsed.error.issues.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ")}`, 400);
         }
-        const input = parsed.data;
+        const input = sanitizeCreateRequestInput(parsed.data);
         const attachments = input.attachments ?? [];
         const signatures = input.signatures ?? [];
         if (input.endDateTime <= input.startDateTime) {
@@ -172,6 +212,9 @@ async function getRequests(req, res, next) {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);
         }
+        const { page, limit } = parseListPagination(req.query);
+        const offset = (page - 1) * limit;
+        const totalResult = await client.query(`SELECT COUNT(*)::int AS total FROM "VenueRequest" WHERE "requesterId" = $1`, [req.user.id]);
         const requestsResult = await client.query(`SELECT
 				vr.id,
 				vr."requesterId",
@@ -195,7 +238,8 @@ async function getRequests(req, res, next) {
 			 INNER JOIN "Venue" v ON v.id = vr."venueId"
 			 INNER JOIN "Ministry" m ON m.id = vr."ministryId"
 			 WHERE vr."requesterId" = $1
-			 ORDER BY vr."createdAt" DESC`, [req.user.id]);
+			 ORDER BY vr."createdAt" DESC
+			 LIMIT $2 OFFSET $3`, [req.user.id, limit, offset]);
         const requests = requestsResult.rows.map((request) => ({
             ...request,
             venue: {
@@ -210,7 +254,13 @@ async function getRequests(req, res, next) {
             attachments: request.attachments ?? [],
             signatures: request.signatures ?? [],
         }));
-        return res.json({ requests });
+        return res.json({
+            requests,
+            page,
+            limit,
+            total: totalResult.rows[0]?.total ?? 0,
+            totalPages: Math.max(1, Math.ceil((totalResult.rows[0]?.total ?? 0) / limit)),
+        });
     }
     catch (error) {
         return next(error);

@@ -27,16 +27,30 @@ const requestIdParamsSchema = z.object({
     requestId: z.string().min(1),
 });
 const remarksSchema = z.object({
-    remarks: z.string().min(1),
+    remarks: z.string().trim().min(1),
 });
 const optionalRemarksSchema = z.object({
-    remarks: z.string().optional(),
+    remarks: z.string().trim().optional(),
+});
+const listQuerySchema = z.object({
+    page: z.coerce.number().int().positive().optional(),
+    limit: z.coerce.number().int().positive().max(100).optional(),
 });
 function getQueueStatusForRole(role) {
     if (role === "PARISH_SECRETARY" || role === "PARISH_PRIEST") {
         return "PENDING";
     }
     return null;
+}
+function parseListPagination(query) {
+    const parsed = listQuerySchema.safeParse(query);
+    if (!parsed.success) {
+        throw new AppError("Invalid pagination parameters", 400);
+    }
+    return {
+        page: parsed.data.page ?? 1,
+        limit: parsed.data.limit ?? 100,
+    };
 }
 async function getRequestOrThrow(client, requestId) {
     const requestResult = await client.query(`SELECT id, status, "requesterId", "venueId", "ministryId", "currentApproverId", "createdAt", "updatedAt"
@@ -71,6 +85,9 @@ async function getApprovalQueue(req, res, next) {
         if (!queueStatus) {
             throw new AppError("Insufficient permissions", 403);
         }
+        const { page, limit } = parseListPagination(req.query);
+        const offset = (page - 1) * limit;
+        const totalResult = await client.query(`SELECT COUNT(*)::int AS total FROM "VenueRequest" WHERE status = $1`, [queueStatus]);
         const queueResult = await client.query(`SELECT
 				vr.id,
 				vr."venueId",
@@ -94,7 +111,8 @@ async function getApprovalQueue(req, res, next) {
 			 INNER JOIN "Venue" v ON v.id = vr."venueId"
 			 INNER JOIN "Ministry" m ON m.id = vr."ministryId"
 			 WHERE vr.status = $1
-			 ORDER BY vr."createdAt" ASC`, [queueStatus]);
+			 ORDER BY vr."createdAt" ASC
+			 LIMIT $2 OFFSET $3`, [queueStatus, limit, offset]);
         const approvalActionsResult = await client.query(`SELECT
 				aa."requestId",
 				aa."approverId",
@@ -148,7 +166,13 @@ async function getApprovalQueue(req, res, next) {
             },
             approvalActions: approvalActionsByRequestId.get(request.id) ?? [],
         }));
-        return res.json({ queue });
+        return res.json({
+            queue,
+            page,
+            limit,
+            total: totalResult.rows[0]?.total ?? 0,
+            totalPages: Math.max(1, Math.ceil((totalResult.rows[0]?.total ?? 0) / limit)),
+        });
     }
     catch (error) {
         return next(error);
@@ -173,6 +197,10 @@ async function approveRequest(req, res, next) {
         }
         const requestRecord = await getRequestOrThrow(client, parsedParams.data.requestId);
         const actorUserId = await getUserIdForEmail(client, req.user.email, req.user.role);
+        // Block requesters from approving their own submissions even if they somehow reach this endpoint.
+        if (requestRecord.requesterId === actorUserId) {
+            throw new AppError("Requesters cannot approve their own requests", 403);
+        }
         let nextStatus;
         let nextApproverId = null;
         if (requestRecord.status !== "PENDING") {
@@ -237,6 +265,10 @@ async function rejectRequest(req, res, next) {
         }
         const requestRecord = await getRequestOrThrow(client, parsedParams.data.requestId);
         const actorUserId = await getUserIdForEmail(client, req.user.email, req.user.role);
+        // Block requesters from rejecting their own submissions even if they somehow reach this endpoint.
+        if (requestRecord.requesterId === actorUserId) {
+            throw new AppError("Requesters cannot reject their own requests", 403);
+        }
         if (requestRecord.status !== "PENDING") {
             throw new AppError("Request is not in PENDING status", 400);
         }
@@ -296,6 +328,10 @@ async function requestRevision(req, res, next) {
         }
         const requestRecord = await getRequestOrThrow(client, parsedParams.data.requestId);
         const actorUserId = await getUserIdForEmail(client, req.user.email, req.user.role);
+        // Block requesters from sending revision requests to themselves.
+        if (requestRecord.requesterId === actorUserId) {
+            throw new AppError("Requesters cannot request revisions on their own requests", 403);
+        }
         if (requestRecord.status !== "PENDING") {
             throw new AppError("Request is not in PENDING status", 400);
         }
@@ -340,6 +376,9 @@ async function getArchive(req, res, next) {
         if (!["PARISH_SECRETARY", "PARISH_PRIEST"].includes(req.user.role)) {
             throw new AppError("Insufficient permissions", 403);
         }
+        const { page, limit } = parseListPagination(req.query);
+        const offset = (page - 1) * limit;
+        const totalResult = await client.query(`SELECT COUNT(*)::int AS total FROM "VenueRequest" WHERE status IN ('APPROVED', 'REJECTED', 'REVISION_REQUESTED')`);
         const archiveResult = await client.query(`SELECT
 				vr.id,
 				vr."eventName",
@@ -360,7 +399,8 @@ async function getArchive(req, res, next) {
 			 INNER JOIN "Venue" v ON v.id = vr."venueId"
 			 INNER JOIN "Ministry" m ON m.id = vr."ministryId"
 			 WHERE vr.status IN ('APPROVED', 'REJECTED', 'REVISION_REQUESTED')
-			 ORDER BY vr."updatedAt" DESC`);
+			 ORDER BY vr."updatedAt" DESC
+			 LIMIT $1 OFFSET $2`, [limit, offset]);
         const approvalActionsResult = await client.query(`SELECT
 				aa."requestId",
 				aa."approverId",
@@ -411,7 +451,13 @@ async function getArchive(req, res, next) {
             },
             approvalActions: approvalActionsByRequestId.get(request.id) ?? [],
         }));
-        return res.json({ archive });
+        return res.json({
+            archive,
+            page,
+            limit,
+            total: totalResult.rows[0]?.total ?? 0,
+            totalPages: Math.max(1, Math.ceil((totalResult.rows[0]?.total ?? 0) / limit)),
+        });
     }
     catch (error) {
         return next(error);

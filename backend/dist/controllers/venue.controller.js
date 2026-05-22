@@ -31,19 +31,19 @@ function getPool() {
 }
 const { AppError } = require("../middleware/errorHandler");
 const updateVenueSchema = z.object({
-    name: z.string().min(1).optional(),
-    description: z.string().nullable().optional(),
+    name: z.string().trim().min(1).optional(),
+    description: z.string().trim().nullable().optional(),
     capacity: z.coerce.number().int().positive().optional(),
     status: z.enum(["ACTIVE", "INACTIVE", "MAINTENANCE"]).optional(),
 });
 const createVenueSchema = z.object({
-    name: z.string().min(1),
-    description: z.string().nullable().optional(),
+    name: z.string().trim().min(1),
+    description: z.string().trim().nullable().optional(),
     capacity: z.coerce.number().int().positive(),
     status: z.enum(["ACTIVE", "INACTIVE", "MAINTENANCE"]).optional(),
 });
 const deleteVenueSchema = z.object({
-    password: z.string().min(1).max(256),
+    password: z.string().trim().min(1).max(256),
 });
 function canManageVenues(role) {
     return role === "ADMIN" || role === "PARISH_PRIEST";
@@ -77,9 +77,7 @@ async function verifyCurrentAdminPassword(email, password) {
 async function getVenues(req, res, next) {
     const client = await getPool().connect();
     try {
-        console.log("getVenues: Starting request");
         if (!req.user) {
-            console.log("getVenues: User not authenticated");
             throw new AppError("Unauthorized", 401);
         }
         // Lookup the user's ministry by email. req.user.id is the Cognito sub,
@@ -102,15 +100,12 @@ async function getVenues(req, res, next) {
                     })),
                 };
             }));
-            console.log("getVenues: Found venues:", venues.length);
             return res.json({ venues });
         }
         const ministryId = ministryResult.rows[0]?.ministryId;
         if (!ministryId) {
-            console.log("getVenues: No ministry found for user", req.user.email);
             return res.json({ venues: [] });
         }
-        console.log("getVenues: Fetching venues for ministry", ministryId);
         const venueResult = await client.query(`SELECT DISTINCT v.*
 			 FROM "Venue" v
 			 INNER JOIN "VenueMinistry" vm ON vm."venueId" = v.id
@@ -132,7 +127,6 @@ async function getVenues(req, res, next) {
                 })),
             };
         }));
-        console.log("getVenues: Found venues:", venues.length);
         return res.json({ venues });
     }
     catch (error) {

@@ -4,13 +4,8 @@ exports.Role = void 0;
 exports.authenticate = authenticate;
 exports.requireRole = requireRole;
 const aws_jwt_verify_1 = require("aws-jwt-verify");
-var Role;
-(function (Role) {
-    Role["REQUESTER"] = "REQUESTER";
-    Role["PARISH_SECRETARY"] = "PARISH_SECRETARY";
-    Role["PARISH_PRIEST"] = "PARISH_PRIEST";
-    Role["ADMIN"] = "ADMIN";
-})(Role || (exports.Role = Role = {}));
+const types_1 = require("../types");
+exports.Role = types_1.UserRole;
 let verifier = null;
 function getVerifier() {
     if (verifier) {
@@ -30,15 +25,15 @@ function getVerifier() {
 }
 function mapGroupToRole(group) {
     switch (group) {
-        case Role.ADMIN:
-            return Role.ADMIN;
-        case Role.PARISH_PRIEST:
-            return Role.PARISH_PRIEST;
-        case Role.PARISH_SECRETARY:
-            return Role.PARISH_SECRETARY;
-        case Role.REQUESTER:
+        case types_1.UserRole.ADMIN:
+            return types_1.UserRole.ADMIN;
+        case types_1.UserRole.PARISH_PRIEST:
+            return types_1.UserRole.PARISH_PRIEST;
+        case types_1.UserRole.PARISH_SECRETARY:
+            return types_1.UserRole.PARISH_SECRETARY;
+        case types_1.UserRole.REQUESTER:
         default:
-            return Role.REQUESTER;
+            return types_1.UserRole.REQUESTER;
     }
 }
 function getBearerToken(req) {
@@ -65,7 +60,6 @@ async function authenticate(req, res, next) {
             return res.status(401).json({ message: "Invalid token" });
         }
         let role = mapGroupToRole(group);
-        console.log(`[AUTH] Email: ${email}, Cognito groups: ${JSON.stringify(groups)}, Mapped role: ${role}`);
         const { Pool } = require("pg");
         const dbPool = new Pool({
             connectionString: process.env.DATABASE_URL,
@@ -76,11 +70,7 @@ async function authenticate(req, res, next) {
             const userResult = await client.query(`SELECT role FROM "User" WHERE email = $1`, [email]);
             if (userResult.rows.length > 0) {
                 const dbRole = userResult.rows[0].role;
-                console.log(`[AUTH] Found database role ${dbRole} for ${email}`);
                 role = mapGroupToRole(dbRole);
-            }
-            else if (!group) {
-                console.log(`[AUTH] No database role found for ${email} and no Cognito group available`);
             }
         }
         finally {

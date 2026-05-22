@@ -14,6 +14,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1051.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "aws-jwt-verify": "^5.1.1",
@@ -35,7 +36,7 @@
     "typescript": "^6.0.3"
   },
   "engines": {
-  "node": ">=22.0.0",
-  "npm": ">=10.0.0"
-}
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  }
 }

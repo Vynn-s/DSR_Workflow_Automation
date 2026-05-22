@@ -3,6 +3,7 @@ import { Pool } from "pg";
 const { z } = require("zod") as typeof import("zod");
 import {
 	AdminInitiateAuthCommand,
+	InitiateAuthCommand,
 	CognitoIdentityProviderClient,
 } from "@aws-sdk/client-cognito-identity-provider";
 
@@ -77,6 +78,28 @@ async function verifyCurrentAdminPassword(email: string, password: string) {
 	} catch (error: any) {
 		if (error?.name === "NotAuthorizedException" || error?.name === "UserNotFoundException") {
 			throw new AppError("Invalid password", 401);
+		}
+
+		if (error?.name === "InvalidParameterException") {
+			try {
+				await getCognitoClient().send(
+					new InitiateAuthCommand({
+						ClientId: config.cognitoClientId,
+						AuthFlow: "USER_PASSWORD_AUTH",
+						AuthParameters: {
+							USERNAME: email,
+							PASSWORD: password,
+						},
+					}),
+				);
+				return;
+			} catch (fallbackError: any) {
+				if (fallbackError?.name === "NotAuthorizedException" || fallbackError?.name === "UserNotFoundException" || fallbackError?.name === "InvalidParameterException") {
+					throw new AppError("Invalid password", 401);
+				}
+
+				throw fallbackError;
+			}
 		}
 
 		throw error;

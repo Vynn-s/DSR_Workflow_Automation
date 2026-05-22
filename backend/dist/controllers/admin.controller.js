@@ -192,6 +192,25 @@ async function verifyAdminPassword(email, password) {
         if (error?.name === "NotAuthorizedException" || error?.name === "UserNotFoundException") {
             throw new AppError("Invalid password", 401);
         }
+        if (error?.name === "InvalidParameterException") {
+            try {
+                await getCognitoClient().send(new client_cognito_identity_provider_1.InitiateAuthCommand({
+                    ClientId: env_1.default.cognitoClientId,
+                    AuthFlow: "USER_PASSWORD_AUTH",
+                    AuthParameters: {
+                        USERNAME: email,
+                        PASSWORD: password,
+                    },
+                }));
+                return;
+            }
+            catch (fallbackError) {
+                if (fallbackError?.name === "NotAuthorizedException" || fallbackError?.name === "UserNotFoundException" || fallbackError?.name === "InvalidParameterException") {
+                    throw new AppError("Invalid password", 401);
+                }
+                throw fallbackError;
+            }
+        }
         throw error;
     }
 }

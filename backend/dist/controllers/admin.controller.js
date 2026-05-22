@@ -76,6 +76,20 @@ function generateTemporaryPassword() {
     }
     return chars.sort(() => Math.random() - 0.5).join("");
 }
+function getUserAttributeValue(attributes, attributeName) {
+    return attributes?.find((attribute) => attribute.Name === attributeName)?.Value ?? null;
+}
+function mapCognitoGroupToRole(groupName) {
+    switch (groupName) {
+        case "ADMIN":
+        case "PARISH_PRIEST":
+        case "PARISH_SECRETARY":
+        case "REQUESTER":
+            return groupName;
+        default:
+            return "REQUESTER";
+    }
+}
 function mapCognitoCreateUserError(error) {
     if (error?.name === "UsernameExistsException") {
         return new AppError("A user with that email already exists in Cognito", 409);
@@ -87,6 +101,48 @@ function mapCognitoCreateUserError(error) {
         return new AppError("Cognito user pool configuration is incomplete", 500);
     }
     return null;
+}
+async function listAllCognitoUsers() {
+    const client = getCognitoClient();
+    const users = [];
+    let paginationToken;
+    do {
+        const response = await client.send(new client_cognito_identity_provider_1.ListUsersCommand({
+            UserPoolId: env_1.default.cognitoUserPoolId,
+            PaginationToken: paginationToken,
+            Limit: 60,
+        }));
+        for (const user of response.Users ?? []) {
+            const email = getUserAttributeValue(user.Attributes, "email") ?? user.Username ?? "";
+            if (!email) {
+                continue;
+            }
+            const name = getUserAttributeValue(user.Attributes, "name") ?? email.split("@")[0] ?? email;
+            let role = "REQUESTER";
+            try {
+                const groupsResult = await client.send(new client_cognito_identity_provider_1.AdminListGroupsForUserCommand({
+                    UserPoolId: env_1.default.cognitoUserPoolId,
+                    Username: email,
+                }));
+                const groupName = groupsResult.Groups?.find((group) => group.GroupName && knownRoles.includes(group.GroupName))?.GroupName;
+                role = mapCognitoGroupToRole(groupName);
+            }
+            catch (groupError) {
+                console.warn(`Unable to read Cognito group for ${email}:`, groupError);
+            }
+            users.push({ email, name, role });
+        }
+        paginationToken = response.PaginationToken;
+    } while (paginationToken);
+    return users;
+}
+async function upsertUserFromCognito(client, user) {
+    await client.query(`INSERT INTO "User" (id, email, name, role, "ministryId", "createdAt", "updatedAt")
+		 VALUES ($1, $2, $3, $4, NULL, NOW(), NOW())
+		 ON CONFLICT (email) DO UPDATE SET
+		 	name = EXCLUDED.name,
+		 	role = EXCLUDED.role,
+		 	"updatedAt" = NOW()`, [(0, crypto_1.randomUUID)(), user.email, user.name, user.role]);
 }
 async function syncCognitoRole(email, nextRole) {
     const client = getCognitoClient();
@@ -154,7 +210,7 @@ async function listAdminUsers(req, res, next) {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);
         }
-        const usersResult = await client.query(`SELECT
+        let usersResult = await client.query(`SELECT
 				u.id,
 				u.email,
 				u.name,
@@ -166,9 +222,28 @@ async function listAdminUsers(req, res, next) {
 			 FROM "User" u
 			 LEFT JOIN "Ministry" m ON u."ministryId" = m.id
 			 ORDER BY u."createdAt" DESC, u.name ASC`);
-        return res.json({
-            users: usersResult.rows.map(mapRow),
-        });
+        try {
+            const cognitoUsers = await listAllCognitoUsers();
+            for (const cognitoUser of cognitoUsers) {
+                await upsertUserFromCognito(client, cognitoUser);
+            }
+            usersResult = await client.query(`SELECT
+					u.id,
+					u.email,
+					u.name,
+					u.role,
+					u."ministryId",
+					u."createdAt",
+					u."updatedAt",
+					m.name AS ministry_name
+				 FROM "User" u
+				 LEFT JOIN "Ministry" m ON u."ministryId" = m.id
+				 ORDER BY u."createdAt" DESC, u.name ASC`);
+        }
+        catch (syncError) {
+            console.error("Failed to sync admin users from Cognito:", syncError);
+        }
+        return res.json({ users: usersResult.rows.map(mapRow) });
     }
     catch (error) {
         return next(error);
@@ -211,9 +286,7 @@ async function createAdminUser(req, res, next) {
             await syncCognitoRole(email, role);
         }
         catch (error) {
-            const mappedError = mapCognitoCreateUserError(error);
-            await deleteCognitoUser(email);
-            throw mappedError ?? error;
+            console.warn(`Unable to sync Cognito groups for ${email}:`, error);
         }
         await client.query(`INSERT INTO "User" (id, email, name, role, "ministryId", "createdAt", "updatedAt")
 			 VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`, [(0, crypto_1.randomUUID)(), email, name, role, ministryId ?? null]);

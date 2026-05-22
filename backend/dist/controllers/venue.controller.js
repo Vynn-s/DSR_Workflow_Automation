@@ -36,6 +36,9 @@ const createVenueSchema = z.object({
     capacity: z.coerce.number().int().positive(),
     status: z.enum(["ACTIVE", "INACTIVE", "MAINTENANCE"]).optional(),
 });
+function canManageVenues(role) {
+    return role === "ADMIN" || role === "PARISH_PRIEST";
+}
 async function getVenues(req, res, next) {
     const client = await getPool().connect();
     try {
@@ -146,7 +149,7 @@ async function updateVenue(req, res, next) {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);
         }
-        if (req.user.role !== "ADMIN") {
+        if (!canManageVenues(req.user.role)) {
             throw new AppError("Insufficient permissions", 403);
         }
         const { id } = req.params;
@@ -214,7 +217,7 @@ async function createVenue(req, res, next) {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);
         }
-        if (req.user.role !== "ADMIN") {
+        if (!canManageVenues(req.user.role)) {
             throw new AppError("Insufficient permissions", 403);
         }
         const parsed = createVenueSchema.safeParse(req.body);
@@ -249,7 +252,7 @@ async function deleteVenue(req, res, next) {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);
         }
-        if (req.user.role !== "ADMIN") {
+        if (!canManageVenues(req.user.role)) {
             throw new AppError("Insufficient permissions", 403);
         }
         const { id } = req.params;

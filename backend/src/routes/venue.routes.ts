@@ -1,6 +1,6 @@
 const { Router } = require("express") as typeof import("express");
 
-const { authenticate } = require("../middleware/auth") as typeof import("../middleware/auth");
+const { authenticate, requireRole, Role } = require("../middleware/auth") as typeof import("../middleware/auth");
 const {
 	getVenues,
 	getVenueById,
@@ -12,6 +12,7 @@ const {
 const venueRoutes = Router();
 
 venueRoutes.use(authenticate);
+venueRoutes.use(requireRole([Role.ADMIN, Role.PARISH_PRIEST]));
 
 venueRoutes.get("/", getVenues);
 venueRoutes.post("/", createVenue);

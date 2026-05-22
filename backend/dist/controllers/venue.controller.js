@@ -82,8 +82,8 @@ async function getVenues(req, res, next) {
             console.log("getVenues: User not authenticated");
             throw new AppError("Unauthorized", 401);
         }
-        // Lookup the user's ministry by email (req.user.id is the Cognito sub,
-        // but the DB "User" row is keyed by email), so query by email.
+        // Lookup the user's ministry by email. req.user.id is the Cognito sub,
+        // but the DB "User" row is keyed by email in this app.
         const ministryResult = await client.query(`SELECT "ministryId" FROM "User" WHERE email = $1`, [req.user.email]);
         if (req.user.role === "ADMIN" || req.user.role === "PARISH_PRIEST") {
             const allVenuesResult = await client.query(`SELECT id, name, description, capacity, status, "createdAt", "updatedAt" FROM "Venue" ORDER BY name ASC`);
@@ -107,7 +107,7 @@ async function getVenues(req, res, next) {
         }
         const ministryId = ministryResult.rows[0]?.ministryId;
         if (!ministryId) {
-            console.log("getVenues: No ministry found for user", req.user.id);
+            console.log("getVenues: No ministry found for user", req.user.email);
             return res.json({ venues: [] });
         }
         console.log("getVenues: Fetching venues for ministry", ministryId);

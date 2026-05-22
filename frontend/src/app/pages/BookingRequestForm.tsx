@@ -52,6 +52,15 @@ interface VenueInfo {
   requiredSignatures: Signature[];
 }
 
+const attendeeRangeOptions = [
+  { label: "1-50", value: 50 },
+  { label: "51-150", value: 150 },
+  { label: "151-300", value: 300 },
+  { label: "301-500", value: 500 },
+];
+
+const defaultAttendeeRange = attendeeRangeOptions[0].value.toString();
+
 const buildVenueInfo = (venue: VenueApi): VenueInfo => {
   const authorizedMinistryNames = venue.authorizedMinistries
     .map((entry) => entry.ministry?.name)
@@ -119,6 +128,7 @@ export function BookingRequestForm() {
     startTime: "",
     endTime: "",
     purpose: "",
+    attendees: defaultAttendeeRange,
   });
   const [attachment, setAttachment] = useState<File | null>(null);
   const [venues, setVenues] = useState<VenueApi[]>([]);
@@ -188,7 +198,7 @@ export function BookingRequestForm() {
   }, [formData.venue, venues]);
 
   useEffect(() => {
-    const { venue, date, startTime, endTime } = formData;
+    const { venue, date, startTime, endTime, attendees } = formData;
 
     if (!(venue && date && startTime && endTime)) {
       setDssResults([]);
@@ -219,7 +229,7 @@ export function BookingRequestForm() {
           requestDate: date,
           startTime,
           endTime,
-          attendees: 1,
+          attendees: Number(attendees),
         });
 
         if (isMounted) {
@@ -243,7 +253,7 @@ export function BookingRequestForm() {
     return () => {
       isMounted = false;
     };
-  }, [formData.venue, formData.date, formData.startTime, formData.endTime, user?.ministryId, venues]);
+  }, [formData.venue, formData.date, formData.startTime, formData.endTime, formData.attendees, user?.ministryId, venues]);
 
   // Calendar helper functions
   const getDaysInMonth = (date: Date) => {
@@ -336,7 +346,7 @@ export function BookingRequestForm() {
       return;
     }
 
-    if (!formData.venue || !formData.date || !formData.startTime || !formData.endTime || !formData.purpose) {
+    if (!formData.venue || !formData.date || !formData.startTime || !formData.endTime || !formData.purpose || !formData.attendees) {
       setSubmitError("Please fill in all required fields");
       return;
     }
@@ -375,7 +385,7 @@ export function BookingRequestForm() {
         purpose: formData.purpose,
         startDateTime: combineDateAndTimeToIso(formData.date, formData.startTime),
         endDateTime: combineDateAndTimeToIso(formData.date, formData.endTime),
-        attendees: 1,
+        attendees: Number(formData.attendees),
         specialRequirements: "",
         attachments,
         signatures,
@@ -512,6 +522,33 @@ export function BookingRequestForm() {
                     ))
                   )}
                 </select>
+              </div>
+
+              {/* Attendee Range */}
+              <div>
+                <label
+                  htmlFor="attendees"
+                  className="block text-sm font-semibold text-slate-700 mb-2"
+                >
+                  Expected Attendees <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  id="attendees"
+                  name="attendees"
+                  value={formData.attendees}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                  required
+                >
+                  {attendeeRangeOptions.map((option) => (
+                    <option key={option.label} value={option.value}>
+                      {option.label} people
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-xs text-slate-500">
+                  Choose the range that best matches your expected headcount.
+                </p>
               </div>
 
               {/* Date Picker */}

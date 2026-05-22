@@ -577,6 +577,9 @@ export async function deleteAdminUser(req: Request, res: Response, next: NextFun
 			await client.query("COMMIT");
 		} catch (error) {
 			await client.query("ROLLBACK");
+			if (error && typeof error === "object" && "code" in error && (error as { code?: string }).code === "23503") {
+				throw new AppError("This user is still referenced by related records and cannot be deleted yet", 409);
+			}
 			throw error;
 		}
 

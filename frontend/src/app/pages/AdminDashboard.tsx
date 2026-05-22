@@ -222,30 +222,6 @@ async function fetchAllAuditLogs(): Promise<AuditLogItem[]> {
   return items;
 }
 
-function buildLiveUsers(logs: AuditLogItem[]): LiveUserRow[] {
-  const users = new Map<string, LiveUserRow>();
-
-  for (const log of logs) {
-    const actor = log.performedBy;
-    if (!actor) {
-      continue;
-    }
-
-    const existing = users.get(actor.id);
-    if (!existing || new Date(log.createdAt).getTime() > new Date(existing.lastSeen).getTime()) {
-      users.set(actor.id, {
-        id: actor.id,
-        name: actor.name,
-        email: actor.email,
-        role: actor.role,
-        lastSeen: log.createdAt,
-      });
-    }
-  }
-
-  return Array.from(users.values()).sort((left, right) => new Date(right.lastSeen).getTime() - new Date(left.lastSeen).getTime());
-}
-
 function getTopVenueName(logs: AuditLogItem[]): string {
   const counts = new Map<string, number>();
 
@@ -478,7 +454,7 @@ export function AdminDashboard() {
     };
   }, []);
 
-  const liveUsers = useMemo(() => buildLiveUsers(auditLogs), [auditLogs]);
+  const activityUsers = useMemo(() => adminUsers, [adminUsers]);
   const reportData = useMemo(() => buildReportRows(auditLogs, reportView), [auditLogs, reportView]);
   const insights = useMemo(() => buildInsights(auditStats, auditLogs), [auditStats, auditLogs]);
   const requestsThisMonth = auditStats?.totalRequestsThisMonth ?? 0;
@@ -1188,8 +1164,8 @@ export function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
-                  {liveUsers.length > 0 ? (
-                    liveUsers.map((user) => (
+                  {activityUsers.length > 0 ? (
+                    activityUsers.map((user) => (
                       <tr key={user.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-5 text-sm font-semibold text-slate-900">{user.id}</td>
                         <td className="px-6 py-5 text-sm font-semibold text-slate-900">{user.name}</td>
@@ -1214,7 +1190,7 @@ export function AdminDashboard() {
                   ) : (
                     <tr>
                       <td className="px-6 py-8 text-sm text-slate-500" colSpan={4}>
-                        {analyticsLoading ? "Loading live users..." : "No recent audit activity available."}
+                        {adminUsersLoading ? "Loading users..." : "No users available."}
                       </td>
                     </tr>
                   )}

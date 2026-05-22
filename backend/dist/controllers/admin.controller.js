@@ -414,6 +414,9 @@ async function deleteAdminUser(req, res, next) {
         }
         catch (error) {
             await client.query("ROLLBACK");
+            if (error && typeof error === "object" && "code" in error && error.code === "23503") {
+                throw new AppError("This user is still referenced by related records and cannot be deleted yet", 409);
+            }
             throw error;
         }
         try {

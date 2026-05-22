@@ -479,13 +479,26 @@ export function AdminDashboard() {
   }, []);
 
   const liveUsers = useMemo(() => buildLiveUsers(auditLogs), [auditLogs]);
-  const reportData = useMemo(() => buildReportRows(auditLogs, reportView), [auditLogs, reportView]);
   const insights = useMemo(() => buildInsights(auditStats, auditLogs), [auditStats, auditLogs]);
-  const requestsThisMonth = auditStats?.totalRequestsThisMonth ?? reportData.reduce((sum, row) => sum + row.requests, 0);
-  const chartMax = Math.max(
-    1,
-    ...reportData.map((row) => Math.max(row.requests, row.approved, row.rejected)),
-  );
+  const requestsThisMonth = auditStats?.totalRequestsThisMonth ?? 0;
+  const venueStatusCounts = useMemo(() => {
+    return venues.reduce(
+      (counts, venue) => {
+        counts[venue.status] += 1;
+        return counts;
+      },
+      { ACTIVE: 0, INACTIVE: 0, MAINTENANCE: 0 } as Record<LiveVenue["status"], number>,
+    );
+  }, [venues]);
+  const userRoleCounts = useMemo(() => {
+    return adminUsers.reduce(
+      (counts, user) => {
+        counts[user.role] += 1;
+        return counts;
+      },
+      { REQUESTER: 0, PARISH_SECRETARY: 0, PARISH_PRIEST: 0, ADMIN: 0 } as Record<LiveUserRow["role"], number>,
+    );
+  }, [adminUsers]);
   const selectedVenue = venues.find((venue) => venue.id === selectedVenueId) ?? null;
 
   useEffect(() => {
@@ -917,115 +930,147 @@ export function AdminDashboard() {
                 <BarChart3 className="w-6 h-6 text-indigo-600" />
               </div>
               <div>
-                <h2 className="font-semibold text-slate-900 text-xl">Booking Request Analytics</h2>
-                <p className="text-sm text-slate-600 mt-0.5">Quick breakdown of request volume and outcomes</p>
+                <h2 className="font-semibold text-slate-900 text-xl">Live Operations Snapshot</h2>
+                <p className="text-sm text-slate-600 mt-0.5">Directly from the venue and user APIs</p>
               </div>
             </div>
-
-            <div className="flex gap-2 bg-slate-100 p-1.5 rounded-xl">
-              <button
-                onClick={() => setReportView("weekly")}
-                className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                  reportView === "weekly"
-                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-900/30"
-                    : "text-slate-700 hover:bg-slate-200"
-                }`}
-              >
-                Weekly
-              </button>
-              <button
-                onClick={() => setReportView("monthly")}
-                className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                  reportView === "monthly"
-                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-900/30"
-                    : "text-slate-700 hover:bg-slate-200"
-                }`}
-              >
-                Monthly
-              </button>
-              <button
-                onClick={() => setReportView("yearly")}
-                className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                  reportView === "yearly"
-                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-900/30"
-                    : "text-slate-700 hover:bg-slate-200"
-                }`}
-              >
-                Yearly
-              </button>
-            </div>
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">No mock data</span>
           </div>
 
           <div className="p-8 space-y-6">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <div className="rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Requests</p>
-                <p className="mt-2 text-3xl font-semibold text-slate-900">{requestsThisMonth}</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Venues</p>
+                <p className="mt-2 text-3xl font-semibold text-slate-900">{venues.length}</p>
               </div>
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-5 py-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Avg Approval</p>
-                <p className="mt-2 text-3xl font-semibold text-slate-900">
-                  {auditStats ? `${auditStats.averageApprovalTimeHours.toFixed(1)}h` : "N/A"}
-                </p>
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Active</p>
+                <p className="mt-2 text-3xl font-semibold text-slate-900">{venueStatusCounts.ACTIVE}</p>
               </div>
-              <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-rose-700">Conflicts</p>
-                <p className="mt-2 text-3xl font-semibold text-slate-900">{auditStats?.totalConflictsDetected ?? 0}</p>
+              <div className="rounded-2xl border border-amber-100 bg-amber-50 px-5 py-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Users</p>
+                <p className="mt-2 text-3xl font-semibold text-slate-900">{adminUsers.length}</p>
+              </div>
+              <div className="rounded-2xl border border-purple-100 bg-purple-50 px-5 py-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-purple-700">Admins</p>
+                <p className="mt-2 text-3xl font-semibold text-slate-900">{userRoleCounts.ADMIN}</p>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-semibold text-slate-900">{reportView === "weekly" ? "Weekly" : reportView === "monthly" ? "Monthly" : "Yearly"} breakdown</h3>
-                  <p className="text-sm text-slate-600">Blue = requests, green = approved, red = rejected</p>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <h3 className="text-base font-semibold text-slate-900">Venue status mix</h3>
+                <p className="mt-1 text-sm text-slate-600">Quick read of current venue availability.</p>
+
+                <div className="mt-4 space-y-3">
+                  {(["ACTIVE", "INACTIVE", "MAINTENANCE"] as LiveVenue["status"][]).map((status) => {
+                    const count = venueStatusCounts[status];
+                    const percent = venues.length > 0 ? (count / venues.length) * 100 : 0;
+                    const label = status === "ACTIVE" ? "Active" : status === "INACTIVE" ? "Inactive" : "Maintenance";
+
+                    return (
+                      <div key={status}>
+                        <div className="mb-1 flex items-center justify-between text-sm">
+                          <span className="font-medium text-slate-700">{label}</span>
+                          <span className="font-semibold text-slate-900">{count}</span>
+                        </div>
+                        <div className="h-3 overflow-hidden rounded-full bg-slate-200">
+                          <div
+                            className={`h-full rounded-full ${
+                              status === "ACTIVE"
+                                ? "bg-emerald-500"
+                                : status === "INACTIVE"
+                                ? "bg-rose-500"
+                                : "bg-blue-500"
+                            }`}
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Live data</span>
               </div>
 
-              <div className="space-y-4">
-                {reportData.map((row) => (
-                  <div key={row.label} className="grid grid-cols-[88px_1fr_108px] items-center gap-4">
-                    <div className="text-sm font-semibold text-slate-700">{row.label}</div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <h3 className="text-base font-semibold text-slate-900">User role mix</h3>
+                <p className="mt-1 text-sm text-slate-600">Live Cognito/database users currently loaded.</p>
 
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-xs text-slate-600">
-                        <span className="w-14 font-semibold text-blue-700">Req</span>
-                        <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-200">
+                <div className="mt-4 space-y-3">
+                  {(["REQUESTER", "PARISH_SECRETARY", "PARISH_PRIEST", "ADMIN"] as LiveUserRow["role"][]).map((role) => {
+                    const count = userRoleCounts[role];
+                    const percent = adminUsers.length > 0 ? (count / adminUsers.length) * 100 : 0;
+
+                    return (
+                      <div key={role}>
+                        <div className="mb-1 flex items-center justify-between text-sm">
+                          <span className="font-medium text-slate-700">{formatRole(role)}</span>
+                          <span className="font-semibold text-slate-900">{count}</span>
+                        </div>
+                        <div className="h-3 overflow-hidden rounded-full bg-slate-200">
                           <div
-                            className="h-full rounded-full bg-blue-500"
-                            style={{ width: `${(row.requests / chartMax) * 100}%` }}
+                            className={`h-full rounded-full ${
+                              role === "REQUESTER"
+                                ? "bg-slate-500"
+                                : role === "PARISH_SECRETARY"
+                                ? "bg-emerald-500"
+                                : role === "PARISH_PRIEST"
+                                ? "bg-blue-500"
+                                : "bg-purple-500"
+                            }`}
+                            style={{ width: `${percent}%` }}
                           />
                         </div>
-                        <span className="w-8 text-right font-semibold text-slate-700">{row.requests}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-slate-600">
-                        <span className="w-14 font-semibold text-emerald-700">Apr</span>
-                        <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-200">
-                          <div
-                            className="h-full rounded-full bg-emerald-500"
-                            style={{ width: `${(row.approved / chartMax) * 100}%` }}
-                          />
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h3 className="text-base font-semibold text-slate-900">Recent venues</h3>
+                <p className="mt-1 text-sm text-slate-600">Pulled from the live venue API.</p>
+
+                <div className="mt-4 space-y-3">
+                  {venues.slice(0, 5).map((venue) => (
+                    <div key={venue.id} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-slate-900">{venue.name}</p>
+                          <p className="text-xs text-slate-500">Capacity {venue.capacity} • {venue.id}</p>
                         </div>
-                        <span className="w-8 text-right font-semibold text-slate-700">{row.approved}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-slate-600">
-                        <span className="w-14 font-semibold text-rose-700">Rej</span>
-                        <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-200">
-                          <div
-                            className="h-full rounded-full bg-rose-500"
-                            style={{ width: `${(row.rejected / chartMax) * 100}%` }}
-                          />
-                        </div>
-                        <span className="w-8 text-right font-semibold text-slate-700">{row.rejected}</span>
+                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${statusStyles[venue.status]}`}>
+                          {venue.status}
+                        </span>
                       </div>
                     </div>
+                  ))}
+                  {venues.length === 0 && <p className="text-sm text-slate-500">No venues loaded yet.</p>}
+                </div>
+              </div>
 
-                    <div className="text-right text-xs text-slate-500">
-                      Max: {Math.max(row.requests, row.approved, row.rejected)}
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <h3 className="text-base font-semibold text-slate-900">Recent users</h3>
+                <p className="mt-1 text-sm text-slate-600">Pulled from the live admin users API.</p>
+
+                <div className="mt-4 space-y-3">
+                  {adminUsers.slice(0, 5).map((user) => (
+                    <div key={user.id} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-slate-900">{user.name}</p>
+                          <p className="text-xs text-slate-500">{user.email}</p>
+                        </div>
+                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${roleStyles[user.role]}`}>
+                          {formatRole(user.role)}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                  {adminUsers.length === 0 && <p className="text-sm text-slate-500">No users loaded yet.</p>}
+                </div>
               </div>
             </div>
           </div>

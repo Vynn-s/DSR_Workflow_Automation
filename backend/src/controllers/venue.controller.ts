@@ -1,8 +1,15 @@
 import type { NextFunction, Request, Response } from "express";
 import { Pool } from "pg";
 const { z } = require("zod") as typeof import("zod");
+import {
+	AdminInitiateAuthCommand,
+	CognitoIdentityProviderClient,
+} from "@aws-sdk/client-cognito-identity-provider";
+
+import config from "../config/env";
 
 let pool: Pool | null = null;
+let cognitoClient: CognitoIdentityProviderClient | null = null;
 
 function getPool(): Pool {
 	if (pool) return pool;
@@ -37,8 +44,43 @@ const createVenueSchema = z.object({
 	status: z.enum(["ACTIVE", "INACTIVE", "MAINTENANCE"]).optional(),
 });
 
+const deleteVenueSchema = z.object({
+	password: z.string().min(1).max(256),
+});
+
 function canManageVenues(role?: string): boolean {
 	return role === "ADMIN" || role === "PARISH_PRIEST";
+}
+
+function getCognitoClient(): CognitoIdentityProviderClient {
+	if (cognitoClient) {
+		return cognitoClient;
+	}
+
+	cognitoClient = new CognitoIdentityProviderClient({ region: config.awsRegion });
+	return cognitoClient;
+}
+
+async function verifyCurrentAdminPassword(email: string, password: string) {
+	try {
+		await getCognitoClient().send(
+			new AdminInitiateAuthCommand({
+				UserPoolId: config.cognitoUserPoolId,
+				ClientId: config.cognitoClientId,
+				AuthFlow: "ADMIN_USER_PASSWORD_AUTH",
+				AuthParameters: {
+					USERNAME: email,
+					PASSWORD: password,
+				},
+			}),
+		);
+	} catch (error: any) {
+		if (error?.name === "NotAuthorizedException" || error?.name === "UserNotFoundException") {
+			throw new AppError("Invalid password", 401);
+		}
+
+		throw error;
+	}
 }
 
 export async function getVenues(req: Request, res: Response, next: NextFunction) {
@@ -333,6 +375,16 @@ export async function deleteVenue(req: Request, res: Response, next: NextFunctio
 		if (!canManageVenues(req.user.role)) {
 			throw new AppError("Insufficient permissions", 403);
 		}
+
+		const parsedBody = deleteVenueSchema.safeParse(req.body);
+		if (!parsedBody.success) {
+			throw new AppError(
+				`Invalid venue payload: ${parsedBody.error.issues.map((issue: any) => `${issue.path.join(".")}: ${issue.message}`).join(", ")}`,
+				400,
+			);
+		}
+
+		await verifyCurrentAdminPassword(req.user.email, parsedBody.data.password);
 
 		const { id } = req.params;
 		const venueId = Array.isArray(id) ? id[0] : id;

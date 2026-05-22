@@ -380,6 +380,7 @@ export function AdminDashboard() {
   const [venueCreateMessage, setVenueCreateMessage] = useState<string | null>(null);
   const [venueCreateMessageType, setVenueCreateMessageType] = useState<"success" | "error" | null>(null);
   const [deleteVenueTarget, setDeleteVenueTarget] = useState<LiveVenue | null>(null);
+  const [deleteVenuePassword, setDeleteVenuePassword] = useState("");
   const [deletingVenueId, setDeletingVenueId] = useState<string | null>(null);
   const [venueDeleteMessage, setVenueDeleteMessage] = useState<string | null>(null);
   const [venueDeleteMessageType, setVenueDeleteMessageType] = useState<"success" | "error" | null>(null);
@@ -604,16 +605,24 @@ export function AdminDashboard() {
 
   const startDeleteVenue = (venue: LiveVenue) => {
     setDeleteVenueTarget(venue);
+    setDeleteVenuePassword("");
     setVenueDeleteMessage(null);
     setVenueDeleteMessageType(null);
   };
 
   const closeDeleteVenueModal = () => {
     setDeleteVenueTarget(null);
+    setDeleteVenuePassword("");
   };
 
   const confirmDeleteVenue = async () => {
     if (!deleteVenueTarget) {
+      return;
+    }
+
+    if (!deleteVenuePassword.trim()) {
+      setVenueDeleteMessage("Password is required before deleting a venue.");
+      setVenueDeleteMessageType("error");
       return;
     }
 
@@ -622,7 +631,9 @@ export function AdminDashboard() {
     setVenueDeleteMessageType(null);
 
     try {
-      await api.delete<DeleteVenueResponse>(`/venues/${encodeURIComponent(deleteVenueTarget.id)}`);
+      await api.delete<DeleteVenueResponse>(`/venues/${encodeURIComponent(deleteVenueTarget.id)}`, {
+        data: { password: deleteVenuePassword },
+      });
 
       setVenues((current) => {
         const remainingVenues = current.filter((venue) => venue.id !== deleteVenueTarget.id);
@@ -1644,6 +1655,17 @@ export function AdminDashboard() {
             <div className="space-y-4 px-6 py-5">
               <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                 Delete <span className="font-semibold">{deleteVenueTarget.name}</span>? Venues with booking history will be blocked.
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Your Password</label>
+                <input
+                  type="password"
+                  value={deleteVenuePassword}
+                  onChange={(e) => setDeleteVenuePassword(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                  placeholder="Re-enter your password"
+                />
               </div>
 
               {venueDeleteMessage && (

@@ -1,4 +1,7 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getVenues = getVenues;
 exports.getVenueById = getVenueById;
@@ -7,7 +10,10 @@ exports.createVenue = createVenue;
 exports.deleteVenue = deleteVenue;
 const pg_1 = require("pg");
 const { z } = require("zod");
+const client_cognito_identity_provider_1 = require("@aws-sdk/client-cognito-identity-provider");
+const env_1 = __importDefault(require("../config/env"));
 let pool = null;
+let cognitoClient = null;
 function getPool() {
     if (pool)
         return pool;
@@ -36,8 +42,37 @@ const createVenueSchema = z.object({
     capacity: z.coerce.number().int().positive(),
     status: z.enum(["ACTIVE", "INACTIVE", "MAINTENANCE"]).optional(),
 });
+const deleteVenueSchema = z.object({
+    password: z.string().min(1).max(256),
+});
 function canManageVenues(role) {
     return role === "ADMIN" || role === "PARISH_PRIEST";
+}
+function getCognitoClient() {
+    if (cognitoClient) {
+        return cognitoClient;
+    }
+    cognitoClient = new client_cognito_identity_provider_1.CognitoIdentityProviderClient({ region: env_1.default.awsRegion });
+    return cognitoClient;
+}
+async function verifyCurrentAdminPassword(email, password) {
+    try {
+        await getCognitoClient().send(new client_cognito_identity_provider_1.AdminInitiateAuthCommand({
+            UserPoolId: env_1.default.cognitoUserPoolId,
+            ClientId: env_1.default.cognitoClientId,
+            AuthFlow: "ADMIN_USER_PASSWORD_AUTH",
+            AuthParameters: {
+                USERNAME: email,
+                PASSWORD: password,
+            },
+        }));
+    }
+    catch (error) {
+        if (error?.name === "NotAuthorizedException" || error?.name === "UserNotFoundException") {
+            throw new AppError("Invalid password", 401);
+        }
+        throw error;
+    }
 }
 async function getVenues(req, res, next) {
     const client = await getPool().connect();
@@ -255,6 +290,11 @@ async function deleteVenue(req, res, next) {
         if (!canManageVenues(req.user.role)) {
             throw new AppError("Insufficient permissions", 403);
         }
+        const parsedBody = deleteVenueSchema.safeParse(req.body);
+        if (!parsedBody.success) {
+            throw new AppError(`Invalid venue payload: ${parsedBody.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join(", ")}`, 400);
+        }
+        await verifyCurrentAdminPassword(req.user.email, parsedBody.data.password);
         const { id } = req.params;
         const venueId = Array.isArray(id) ? id[0] : id;
         const existingVenue = await client.query(`SELECT id, name FROM "Venue" WHERE id = $1`, [venueId]);

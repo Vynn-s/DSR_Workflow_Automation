@@ -7,10 +7,10 @@ const { getVenues, getVenueById, updateVenue, createVenue, deleteVenue, } = requ
 const venueRoutes = Router();
 exports.venueRoutes = venueRoutes;
 venueRoutes.use(authenticate);
-venueRoutes.use(requireRole([Role.ADMIN, Role.PARISH_PRIEST]));
 venueRoutes.get("/", getVenues);
-venueRoutes.post("/", createVenue);
 venueRoutes.get("/:id", getVenueById);
+venueRoutes.use(requireRole([Role.ADMIN, Role.PARISH_PRIEST]));
+venueRoutes.post("/", createVenue);
 venueRoutes.put("/:id", updateVenue);
 venueRoutes.delete("/:id", deleteVenue);
 exports.default = venueRoutes;

@@ -23,7 +23,7 @@ app.use(cors({
         return callback(new Error("CORS blocked"));
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Ngrok-Skip-Browser-Warning'],
 }));
 app.use(express.json({ limit: "10mb" }));

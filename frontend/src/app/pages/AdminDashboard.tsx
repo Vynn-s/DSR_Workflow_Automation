@@ -710,7 +710,15 @@ export function AdminDashboard() {
       setUserCreateMessageType("success");
     } catch (error) {
       console.error("Failed to create admin user:", error);
-      setUserCreateMessage("Unable to create user right now.");
+      const apiMessage =
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message === "string"
+          ? (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message
+          : null;
+
+      setUserCreateMessage(apiMessage ?? "Unable to create user right now.");
       setUserCreateMessageType("error");
     } finally {
       setCreatingUser(false);

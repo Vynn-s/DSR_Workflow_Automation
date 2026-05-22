@@ -119,6 +119,22 @@ function generateTemporaryPassword(): string {
 	return chars.sort(() => Math.random() - 0.5).join("");
 }
 
+function mapCognitoCreateUserError(error: any): InstanceType<typeof AppError> | null {
+	if (error?.name === "UsernameExistsException") {
+		return new AppError("A user with that email already exists in Cognito", 409);
+	}
+
+	if (error?.name === "InvalidPasswordException" || error?.name === "InvalidParameterException") {
+		return new AppError("Temporary password does not meet Cognito password requirements", 400);
+	}
+
+	if (error?.name === "ResourceNotFoundException") {
+		return new AppError("Cognito user pool configuration is incomplete", 500);
+	}
+
+	return null;
+}
+
 async function syncCognitoRole(email: string, nextRole: AdminUserRole) {
 	const client = getCognitoClient();
 
@@ -279,8 +295,9 @@ export async function createAdminUser(req: Request, res: Response, next: NextFun
 		try {
 			await syncCognitoRole(email, role);
 		} catch (error) {
+			const mappedError = mapCognitoCreateUserError(error);
 			await deleteCognitoUser(email);
-			throw error;
+			throw mappedError ?? error;
 		}
 
 		await client.query(
@@ -310,6 +327,14 @@ export async function createAdminUser(req: Request, res: Response, next: NextFun
 			temporaryPassword,
 		});
 	} catch (error) {
+		const mappedError = mapCognitoCreateUserError(error);
+		if (mappedError) {
+			if (req.body?.email && cognitoUserCreated) {
+				await deleteCognitoUser(req.body.email);
+			}
+			return next(mappedError);
+		}
+
 		if (req.body?.email && cognitoUserCreated) {
 			await deleteCognitoUser(req.body.email);
 		}

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Users, Building2, Brain, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock, Edit2, Plus, X, KeyRound, Save, Trash2 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import api from "../../lib/api";
 import { fetchVenues, type LiveVenue } from "../../lib/venues";
 
@@ -483,6 +482,10 @@ export function AdminDashboard() {
   const reportData = useMemo(() => buildReportRows(auditLogs, reportView), [auditLogs, reportView]);
   const insights = useMemo(() => buildInsights(auditStats, auditLogs), [auditStats, auditLogs]);
   const requestsThisMonth = auditStats?.totalRequestsThisMonth ?? reportData.reduce((sum, row) => sum + row.requests, 0);
+  const chartMax = Math.max(
+    1,
+    ...reportData.map((row) => Math.max(row.requests, row.approved, row.rejected)),
+  );
   const selectedVenue = venues.find((venue) => venue.id === selectedVenueId) ?? null;
 
   useEffect(() => {
@@ -799,8 +802,6 @@ export function AdminDashboard() {
     ADMIN: "bg-purple-50 text-purple-700 border-purple-200",
   };
 
-  const getXAxisKey = () => "label";
-
   return (
     <div>
       <div className="mb-10">
@@ -917,7 +918,7 @@ export function AdminDashboard() {
               </div>
               <div>
                 <h2 className="font-semibold text-slate-900 text-xl">Booking Request Analytics</h2>
-                <p className="text-sm text-slate-600 mt-0.5">Track booking trends over time</p>
+                <p className="text-sm text-slate-600 mt-0.5">Quick breakdown of request volume and outcomes</p>
               </div>
             </div>
 
@@ -955,26 +956,78 @@ export function AdminDashboard() {
             </div>
           </div>
 
-          <div className="p-8">
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={reportData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey={getXAxisKey()} stroke="#64748b" style={{ fontSize: "12px" }} />
-                <YAxis stroke="#64748b" style={{ fontSize: "12px" }} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#ffffff",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                  }}
-                />
-                <Legend wrapperStyle={{ fontSize: "12px" }} />
-                <Bar dataKey="requests" fill="#3b82f6" name="Total Requests" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="approved" fill="#10b981" name="Approved" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="rejected" fill="#ef4444" name="Rejected" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="p-8 space-y-6">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Requests</p>
+                <p className="mt-2 text-3xl font-semibold text-slate-900">{requestsThisMonth}</p>
+              </div>
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-5 py-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Avg Approval</p>
+                <p className="mt-2 text-3xl font-semibold text-slate-900">
+                  {auditStats ? `${auditStats.averageApprovalTimeHours.toFixed(1)}h` : "N/A"}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-rose-700">Conflicts</p>
+                <p className="mt-2 text-3xl font-semibold text-slate-900">{auditStats?.totalConflictsDetected ?? 0}</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900">{reportView === "weekly" ? "Weekly" : reportView === "monthly" ? "Monthly" : "Yearly"} breakdown</h3>
+                  <p className="text-sm text-slate-600">Blue = requests, green = approved, red = rejected</p>
+                </div>
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Live data</span>
+              </div>
+
+              <div className="space-y-4">
+                {reportData.map((row) => (
+                  <div key={row.label} className="grid grid-cols-[88px_1fr_108px] items-center gap-4">
+                    <div className="text-sm font-semibold text-slate-700">{row.label}</div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-xs text-slate-600">
+                        <span className="w-14 font-semibold text-blue-700">Req</span>
+                        <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-200">
+                          <div
+                            className="h-full rounded-full bg-blue-500"
+                            style={{ width: `${(row.requests / chartMax) * 100}%` }}
+                          />
+                        </div>
+                        <span className="w-8 text-right font-semibold text-slate-700">{row.requests}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-600">
+                        <span className="w-14 font-semibold text-emerald-700">Apr</span>
+                        <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-200">
+                          <div
+                            className="h-full rounded-full bg-emerald-500"
+                            style={{ width: `${(row.approved / chartMax) * 100}%` }}
+                          />
+                        </div>
+                        <span className="w-8 text-right font-semibold text-slate-700">{row.approved}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-600">
+                        <span className="w-14 font-semibold text-rose-700">Rej</span>
+                        <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-200">
+                          <div
+                            className="h-full rounded-full bg-rose-500"
+                            style={{ width: `${(row.rejected / chartMax) * 100}%` }}
+                          />
+                        </div>
+                        <span className="w-8 text-right font-semibold text-slate-700">{row.rejected}</span>
+                      </div>
+                    </div>
+
+                    <div className="text-right text-xs text-slate-500">
+                      Max: {Math.max(row.requests, row.approved, row.rejected)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>

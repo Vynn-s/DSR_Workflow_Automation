@@ -171,7 +171,7 @@ export async function checkConflicts(
 	res: Response,
 	next: NextFunction,
 ) {
-	const client = await getPool().connect();
+	const client = await pool.connect();
 	try {
 		const parsed = conflictQuerySchema.safeParse(req.query);
 

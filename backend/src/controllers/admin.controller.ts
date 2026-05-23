@@ -1,6 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
 import { randomBytes, randomUUID } from "crypto";
-import { Pool } from "pg";
 import { z } from "zod";
 import {
 	AdminAddUserToGroupCommand,
@@ -15,6 +14,7 @@ import {
 } from "@aws-sdk/client-cognito-identity-provider";
 
 import config from "../config/env";
+import { pool } from "../config/database";
 const { AppError } = require("../middleware/errorHandler") as typeof import("../middleware/errorHandler");
 
 type AdminUserRole = "REQUESTER" | "PARISH_SECRETARY" | "PARISH_PRIEST" | "ADMIN";
@@ -49,26 +49,7 @@ type CognitoUserRecord = {
 
 type CognitoGroupRole = Exclude<AdminUserRole, "ADMIN">;
 
-let pool: Pool | null = null;
 let cognitoClient: CognitoIdentityProviderClient | null = null;
-
-function getPool(): Pool {
-	if (pool) {
-		return pool;
-	}
-
-	const connectionString = process.env.DATABASE_URL;
-	if (!connectionString) {
-		throw new AppError("Missing required environment variable: DATABASE_URL", 500);
-	}
-
-	pool = new Pool({
-		connectionString,
-		ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : { rejectUnauthorized: false },
-	});
-
-	return pool;
-}
 
 function getCognitoClient(): CognitoIdentityProviderClient {
 	if (cognitoClient) {
@@ -365,7 +346,7 @@ async function getDeleteUsageCounts(client: any, userId: string) {
 }
 
 export async function listAdminUsers(req: Request, res: Response, next: NextFunction) {
-	const client = await getPool().connect();
+	const client = await pool.connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);
@@ -420,7 +401,7 @@ export async function listAdminUsers(req: Request, res: Response, next: NextFunc
 }
 
 export async function createAdminUser(req: Request, res: Response, next: NextFunction) {
-	const client = await getPool().connect();
+	const client = await pool.connect();
 	let cognitoUserCreated = false;
 	try {
 		if (!req.user) {
@@ -510,7 +491,7 @@ export async function createAdminUser(req: Request, res: Response, next: NextFun
 }
 
 export async function updateAdminUserRole(req: Request, res: Response, next: NextFunction) {
-	const client = await getPool().connect();
+	const client = await pool.connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);
@@ -584,7 +565,7 @@ export async function updateAdminUserRole(req: Request, res: Response, next: Nex
 }
 
 export async function deleteAdminUser(req: Request, res: Response, next: NextFunction) {
-	const client = await getPool().connect();
+	const client = await pool.connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);

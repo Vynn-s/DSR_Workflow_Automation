@@ -13,7 +13,7 @@ if (!connectionString) {
   throw new Error("Missing required environment variable: DATABASE_URL");
 }
 
-const pool = new Pool({
+export const pool = new Pool({
   connectionString,
   ssl: process.env.NODE_ENV === "production"
     ? { rejectUnauthorized: true }

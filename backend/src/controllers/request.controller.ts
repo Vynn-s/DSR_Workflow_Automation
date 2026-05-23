@@ -1,28 +1,11 @@
 import type { NextFunction, Request, Response } from "express";
 import { randomUUID } from "crypto";
-import { Pool } from "pg";
 import { z } from "zod";
+import { pool } from "../config/database";
 const {
 	evaluateRequest: runDssEvaluation,
 } = require("../dss/rulesEngine") as typeof import("../dss/rulesEngine");
 const { AppError } = require("../middleware/errorHandler") as typeof import("../middleware/errorHandler");
-
-let pool: Pool | null = null;
-
-function getPool(): Pool {
-	if (pool) return pool;
-
-	const connectionString = process.env.DATABASE_URL;
-	if (!connectionString) {
-		throw new AppError("Missing required environment variable: DATABASE_URL", 500);
-	}
-
-	pool = new Pool({
-		connectionString,
-		ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : { rejectUnauthorized: false },
-	});
-	return pool;
-}
 
 const createRequestSchema = z.object({
 	venueId: z.string().trim().min(1),
@@ -105,7 +88,7 @@ function parseListPagination(query: Request["query"]) {
 }
 
 export async function createRequest(req: Request, res: Response, next: NextFunction) {
-	const client = await getPool().connect();
+	const client = await pool.connect();
 	try {
 		if (!req.user?.id) {
 			throw new AppError("Unauthorized", 401);
@@ -259,7 +242,7 @@ export async function createRequest(req: Request, res: Response, next: NextFunct
 }
 
 export async function getRequests(req: Request, res: Response, next: NextFunction) {
-	const client = await getPool().connect();
+	const client = await pool.connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);
@@ -332,7 +315,7 @@ export async function getRequests(req: Request, res: Response, next: NextFunctio
 }
 
 export async function getRequestById(req: Request, res: Response, next: NextFunction) {
-	const client = await getPool().connect();
+	const client = await pool.connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);
@@ -454,7 +437,7 @@ export async function getRequestById(req: Request, res: Response, next: NextFunc
 }
 
 export async function cancelRequest(req: Request, res: Response, next: NextFunction) {
-	const client = await getPool().connect();
+	const client = await pool.connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);
@@ -521,7 +504,7 @@ export async function cancelRequest(req: Request, res: Response, next: NextFunct
 }
 
 export async function getAvailability(req: Request, res: Response, next: NextFunction) {
-	const client = await getPool().connect();
+	const client = await pool.connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);

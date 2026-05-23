@@ -1,5 +1,6 @@
 import { CognitoJwtVerifier } from "aws-jwt-verify";
 import type { NextFunction, Request, Response } from "express";
+import { pool } from "../config/database";
 import { UserRole, type AuthUser } from "../types";
 
 export const Role = UserRole;
@@ -86,21 +87,19 @@ export async function authenticate(
 
 		let role = mapGroupToRole(group);
 
-		const { Pool } = require("pg");
-		const dbPool = new Pool({
-			connectionString: process.env.DATABASE_URL,
-			ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : { rejectUnauthorized: false },
-		});
-		const client = await dbPool.connect();
 		try {
-			const userResult = await client.query(`SELECT role FROM "User" WHERE email = $1`, [email]);
-			if (userResult.rows.length > 0) {
-				const dbRole = userResult.rows[0].role;
-				role = mapGroupToRole(dbRole);
+			const client = await pool.connect();
+			try {
+				const userResult = await client.query(`SELECT role FROM "User" WHERE email = $1`, [email]);
+				if (userResult.rows.length > 0) {
+					const dbRole = userResult.rows[0].role;
+					role = mapGroupToRole(dbRole);
+				}
+			} finally {
+				client.release();
 			}
-		} finally {
-			client.release();
-			await dbPool.end();
+		} catch (dbError) {
+			console.warn("Role lookup failed; continuing with Cognito role only:", dbError);
 		}
 
 		req.user = {

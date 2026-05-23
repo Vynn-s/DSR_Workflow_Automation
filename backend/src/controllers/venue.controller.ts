@@ -1,5 +1,4 @@
 import type { NextFunction, Request, Response } from "express";
-import { Pool } from "pg";
 const { z } = require("zod") as typeof import("zod");
 import {
 	AdminInitiateAuthCommand,
@@ -8,26 +7,9 @@ import {
 } from "@aws-sdk/client-cognito-identity-provider";
 
 import config from "../config/env";
+import { pool } from "../config/database";
 
-let pool: Pool | null = null;
 let cognitoClient: CognitoIdentityProviderClient | null = null;
-
-function getPool(): Pool {
-	if (pool) return pool;
-
-	const connectionString = process.env.DATABASE_URL;
-	if (!connectionString) {
-		throw new Error("Missing required environment variable: DATABASE_URL");
-	}
-
-	pool = new Pool({
-		connectionString,
-		ssl: process.env.NODE_ENV === "production" 
-			? { rejectUnauthorized: true }
-				: { rejectUnauthorized: false },
-	});
-	return pool;
-}
 
 const { AppError } = require("../middleware/errorHandler") as typeof import("../middleware/errorHandler");
 
@@ -107,7 +89,7 @@ async function verifyCurrentAdminPassword(email: string, password: string) {
 }
 
 export async function getVenues(req: Request, res: Response, next: NextFunction) {
-	const client = await getPool().connect();
+	const client = await pool.connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);
@@ -197,7 +179,7 @@ export async function getVenues(req: Request, res: Response, next: NextFunction)
 }
 
 export async function getVenueById(req: Request, res: Response, next: NextFunction) {
-	const client = await getPool().connect();
+	const client = await pool.connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);
@@ -243,7 +225,7 @@ export async function getVenueById(req: Request, res: Response, next: NextFuncti
 }
 
 export async function updateVenue(req: Request, res: Response, next: NextFunction) {
-	const client = await getPool().connect();
+	const client = await pool.connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);
@@ -337,7 +319,7 @@ export async function updateVenue(req: Request, res: Response, next: NextFunctio
 }
 
 export async function createVenue(req: Request, res: Response, next: NextFunction) {
-	const client = await getPool().connect();
+	const client = await pool.connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);
@@ -381,7 +363,7 @@ export async function createVenue(req: Request, res: Response, next: NextFunctio
 }
 
 export async function deleteVenue(req: Request, res: Response, next: NextFunction) {
-	const client = await getPool().connect();
+	const client = await pool.connect();
 	try {
 		if (!req.user) {
 			throw new AppError("Unauthorized", 401);

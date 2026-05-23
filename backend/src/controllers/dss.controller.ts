@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { randomUUID } from "crypto";
-import { Pool } from "pg";
+import { pool } from "../config/database";
 
 const { z } = require("zod") as typeof import("zod");
 
@@ -33,23 +33,6 @@ const conflictQuerySchema = z.object({
 	endTime: z.string().regex(timePattern),
 });
 
-let pool: Pool | null = null;
-
-function getPool(): Pool {
-	if (pool) return pool;
-
-	const connectionString = process.env.DATABASE_URL;
-	if (!connectionString) {
-		throw new AppError("Missing required environment variable: DATABASE_URL", 500);
-	}
-
-	pool = new Pool({
-		connectionString,
-		ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : { rejectUnauthorized: false },
-	});
-	return pool;
-}
-
 function combineDateAndTime(date: Date, time: string): Date {
 	const [hours, minutes] = time.split(":").map((value) => Number(value));
 	const combined = new Date(date);
@@ -62,7 +45,7 @@ export async function evaluateRequest(
 	res: Response,
 	next: NextFunction,
 ) {
-	const client = await getPool().connect();
+	const client = await pool.connect();
 	try {
 		const parsed = evaluateRequestSchema.safeParse(req.body);
 

@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { Pool } from "pg";
+import { pool } from "../config/database";
 
 const { z } = require("zod") as typeof import("zod");
 
@@ -28,26 +28,6 @@ const auditQuerySchema = z.object({
 	page: z.coerce.number().int().positive().optional(),
 	limit: z.coerce.number().int().positive().max(100).optional(),
 });
-
-let pool: Pool | null = null;
-
-function getPool(): Pool {
-	if (pool) {
-		return pool;
-	}
-
-	const connectionString = process.env.DATABASE_URL;
-	if (!connectionString) {
-		throw new Error("Missing required environment variable: DATABASE_URL");
-	}
-
-	pool = new Pool({
-		connectionString,
-		ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : { rejectUnauthorized: false },
-	});
-
-	return pool;
-}
 
 function startOfMonth(date: Date): Date {
 	return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
@@ -257,7 +237,7 @@ function buildAuditFilterClauses(
 }
 
 export async function getAuditLogs(req: Request, res: Response, next: NextFunction) {
-	const client = await getPool().connect();
+	const client = await pool.connect();
 	try {
 		const parsed = auditQuerySchema.safeParse(req.query);
 
@@ -336,7 +316,7 @@ export async function getAuditLogs(req: Request, res: Response, next: NextFuncti
 }
 
 export async function getAuditStats(req: Request, res: Response, next: NextFunction) {
-	const client = await getPool().connect();
+	const client = await pool.connect();
 	try {
 		const parsed = auditQuerySchema.safeParse(req.query);
 

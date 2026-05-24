@@ -86,12 +86,14 @@ export async function authenticate(
 		}
 
 		let role = mapGroupToRole(group);
+		let userId = sub;
 
 		try {
 			const client = await pool.connect();
 			try {
-				const userResult = await client.query(`SELECT role FROM "User" WHERE email = $1`, [email]);
+				const userResult = await client.query(`SELECT id, role FROM "User" WHERE email = $1`, [email]);
 				if (userResult.rows.length > 0) {
+					userId = userResult.rows[0].id;
 					const dbRole = userResult.rows[0].role;
 					role = mapGroupToRole(dbRole);
 				}
@@ -103,7 +105,7 @@ export async function authenticate(
 		}
 
 		req.user = {
-			id: sub,
+			id: userId,
 			email,
 			role,
 		};

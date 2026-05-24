@@ -235,6 +235,7 @@ export async function createRequest(req: Request, res: Response, next: NextFunct
 			currentApproverId: secretaryId,
 		});
 	} catch (error) {
+		console.error("getRequests failed:", error);
 		return next(error);
 	} finally {
 		client.release();

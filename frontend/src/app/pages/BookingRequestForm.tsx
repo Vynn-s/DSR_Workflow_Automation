@@ -152,6 +152,46 @@ function getTimeSlotIndex(timeStr: string | undefined, fallbackIndex: number) {
   return slotIndex >= 0 ? slotIndex : fallbackIndex;
 }
 
+type TimePickerValues = {
+  hour: number;
+  minute: number;
+  period: "AM" | "PM";
+};
+
+const defaultStartTimeValues: TimePickerValues = { hour: 9, minute: 0, period: "AM" };
+const defaultEndTimeValues: TimePickerValues = { hour: 5, minute: 0, period: "PM" };
+
+function convertTo24Hour(hour: number, period: "AM" | "PM") {
+  if (period === "AM") {
+    return hour === 12 ? 0 : hour;
+  }
+
+  return hour === 12 ? 12 : hour + 12;
+}
+
+function parseTimeForPicker(timeStr: string | undefined, fallback: TimePickerValues): TimePickerValues {
+  if (!timeStr) {
+    return fallback;
+  }
+
+  const [hoursRaw, minutesRaw] = timeStr.split(":");
+  const hours = Number(hoursRaw);
+  const minutes = Number(minutesRaw);
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return fallback;
+  }
+
+  const period: "AM" | "PM" = hours >= 12 ? "PM" : "AM";
+  const hour12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+
+  return {
+    hour: hour12,
+    minute: Math.max(0, Math.min(55, Math.round(minutes / 5) * 5)),
+    period,
+  };
+}
+
 const formatBytes = (bytes: number) => {
   if (bytes < 1024) {
     return `${bytes} B`;
@@ -197,6 +237,8 @@ export function BookingRequestForm() {
   // Time picker states
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [startTimeValues, setStartTimeValues] = useState<TimePickerValues>(defaultStartTimeValues);
+  const [endTimeValues, setEndTimeValues] = useState<TimePickerValues>(defaultEndTimeValues);
   const startTimeButtonRef = useRef<HTMLButtonElement>(null);
   const endTimeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -364,22 +406,28 @@ export function BookingRequestForm() {
     new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1) <=
     new Date(today.getFullYear(), today.getMonth(), 1);
 
-  const updateStartTime = (index: number) => {
-    const minutes = timeSlots[index];
-    if (typeof minutes !== "number") {
-      return;
-    }
-
-    setFormData((prev) => ({ ...prev, startTime: minutesToTimeString(minutes) }));
+  const openStartTimePicker = () => {
+    setStartTimeValues(parseTimeForPicker(formData.startTime, defaultStartTimeValues));
+    setShowStartTimePicker(true);
   };
 
-  const updateEndTime = (index: number) => {
-    const minutes = timeSlots[index];
-    if (typeof minutes !== "number") {
-      return;
-    }
+  const openEndTimePicker = () => {
+    setEndTimeValues(parseTimeForPicker(formData.endTime, defaultEndTimeValues));
+    setShowEndTimePicker(true);
+  };
 
-    setFormData((prev) => ({ ...prev, endTime: minutesToTimeString(minutes) }));
+  const applyStartTime = () => {
+    const hour24 = convertTo24Hour(startTimeValues.hour, startTimeValues.period);
+    const timeStr = `${String(hour24).padStart(2, "0")}:${String(startTimeValues.minute).padStart(2, "0")}`;
+    setFormData((prev) => ({ ...prev, startTime: timeStr }));
+    setShowStartTimePicker(false);
+  };
+
+  const applyEndTime = () => {
+    const hour24 = convertTo24Hour(endTimeValues.hour, endTimeValues.period);
+    const timeStr = `${String(hour24).padStart(2, "0")}:${String(endTimeValues.minute).padStart(2, "0")}`;
+    setFormData((prev) => ({ ...prev, endTime: timeStr }));
+    setShowEndTimePicker(false);
   };
 
   const handleSubmit = async (e: React.FormEvent, isDraft: boolean = false) => {
@@ -633,7 +681,7 @@ export function BookingRequestForm() {
                   <button
                     ref={startTimeButtonRef}
                     type="button"
-                    onClick={() => setShowStartTimePicker(!showStartTimePicker)}
+                    onClick={openStartTimePicker}
                     className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-left flex items-center justify-between group"
                   >
                     <span className={formData.startTime ? "text-slate-900 font-medium" : "text-slate-400"}>
@@ -649,7 +697,7 @@ export function BookingRequestForm() {
                   <button
                     ref={endTimeButtonRef}
                     type="button"
-                    onClick={() => setShowEndTimePicker(!showEndTimePicker)}
+                    onClick={openEndTimePicker}
                     className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl hover:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all text-left flex items-center justify-between group"
                   >
                     <span className={formData.endTime ? "text-slate-900 font-medium" : "text-slate-400"}>
@@ -1054,13 +1102,33 @@ export function BookingRequestForm() {
 
             {/* Time Picker */}
             <div className="p-6">
-              <div>
-                <p className="text-xs font-bold text-slate-600 text-center mb-2">Scroll to select a time</p>
-                <ScrollPicker
-                  items={timeSlotLabels}
-                  selectedIndex={getTimeSlotIndex(formData.startTime, getTimeSlotIndex("09:00", 36))}
-                  onChange={updateStartTime}
-                />
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs font-bold text-slate-600 text-center mb-2">Hour</p>
+                  <ScrollPicker
+                    items={Array.from({ length: 12 }, (_, i) => i + 1)}
+                    selectedIndex={startTimeValues.hour - 1}
+                    onChange={(index) => setStartTimeValues((prev) => ({ ...prev, hour: index + 1 }))}
+                  />
+                </div>
+
+                <div>
+                  <p className="text-xs font-bold text-slate-600 text-center mb-2">Minute</p>
+                  <ScrollPicker
+                    items={Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"))}
+                    selectedIndex={startTimeValues.minute / 5}
+                    onChange={(index) => setStartTimeValues((prev) => ({ ...prev, minute: index * 5 }))}
+                  />
+                </div>
+
+                <div>
+                  <p className="text-xs font-bold text-slate-600 text-center mb-2">Period</p>
+                  <ScrollPicker
+                    items={["AM", "PM"]}
+                    selectedIndex={startTimeValues.period === "AM" ? 0 : 1}
+                    onChange={(index) => setStartTimeValues((prev) => ({ ...prev, period: index === 0 ? "AM" : "PM" }))}
+                  />
+                </div>
               </div>
             </div>
 
@@ -1068,10 +1136,10 @@ export function BookingRequestForm() {
             <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
               <button
                 type="button"
-                onClick={() => setShowStartTimePicker(false)}
+                onClick={applyStartTime}
                 className="w-full px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition-all shadow-lg font-medium"
               >
-                Done
+                Confirm
               </button>
             </div>
           </div>
@@ -1102,13 +1170,33 @@ export function BookingRequestForm() {
 
             {/* Time Picker */}
             <div className="p-6">
-              <div>
-                <p className="text-xs font-bold text-slate-600 text-center mb-2">Scroll to select a time</p>
-                <ScrollPicker
-                  items={timeSlotLabels}
-                  selectedIndex={getTimeSlotIndex(formData.endTime, getTimeSlotIndex("05:00", 60))}
-                  onChange={updateEndTime}
-                />
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs font-bold text-slate-600 text-center mb-2">Hour</p>
+                  <ScrollPicker
+                    items={Array.from({ length: 12 }, (_, i) => i + 1)}
+                    selectedIndex={endTimeValues.hour - 1}
+                    onChange={(index) => setEndTimeValues((prev) => ({ ...prev, hour: index + 1 }))}
+                  />
+                </div>
+
+                <div>
+                  <p className="text-xs font-bold text-slate-600 text-center mb-2">Minute</p>
+                  <ScrollPicker
+                    items={Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"))}
+                    selectedIndex={endTimeValues.minute / 5}
+                    onChange={(index) => setEndTimeValues((prev) => ({ ...prev, minute: index * 5 }))}
+                  />
+                </div>
+
+                <div>
+                  <p className="text-xs font-bold text-slate-600 text-center mb-2">Period</p>
+                  <ScrollPicker
+                    items={["AM", "PM"]}
+                    selectedIndex={endTimeValues.period === "AM" ? 0 : 1}
+                    onChange={(index) => setEndTimeValues((prev) => ({ ...prev, period: index === 0 ? "AM" : "PM" }))}
+                  />
+                </div>
               </div>
             </div>
 
@@ -1116,10 +1204,10 @@ export function BookingRequestForm() {
             <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
               <button
                 type="button"
-                onClick={() => setShowEndTimePicker(false)}
+                onClick={applyEndTime}
                 className="w-full px-6 py-3 bg-gradient-to-r from-rose-600 to-rose-700 text-white rounded-xl hover:from-rose-700 hover:to-rose-800 transition-all shadow-lg font-medium"
               >
-                Done
+                Confirm
               </button>
             </div>
           </div>

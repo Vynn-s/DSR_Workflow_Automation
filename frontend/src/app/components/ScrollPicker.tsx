@@ -89,11 +89,11 @@ export function ScrollPicker({ items, selectedIndex, onChange, className }: Scro
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 top-1/2 z-10 -translate-y-1/2">
-        <div className="h-11 rounded-none border-y border-emerald-300/70 bg-white/60 backdrop-blur-[1px] shadow-[0_0_0_1px_rgba(255,255,255,0.7)_inset]" />
+        <div className="h-11 rounded-none border-y border-emerald-300/70 bg-white shadow-[0_0_0_1px_rgba(255,255,255,0.9)_inset]" />
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 top-1/2 z-0 -translate-y-1/2">
-        <div className="h-11 rounded-none bg-gradient-to-b from-white/0 via-white/10 to-white/0" />
+        <div className="h-11 rounded-none bg-gradient-to-b from-white/0 via-white/5 to-white/0" />
       </div>
     </div>
   );

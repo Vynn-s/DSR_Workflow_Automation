@@ -31,10 +31,14 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
 api.interceptors.response.use(
   (response) => response.data,
   async (error: AxiosError) => {
-    // Always log the error for debugging
-    console.error("API interceptor caught error:", error);
+    const status = error.response?.status;
 
-    if (error.response?.status === 401) {
+    // Only log unexpected errors loudly; 400s are often user input/DSS validation issues.
+    if (!status || status >= 500) {
+      console.error("API interceptor caught error:", error);
+    }
+
+    if (status === 401) {
       console.error("API error (full):", error);
       console.error("API error response status:", error.response?.status);
       console.error("API error response data:", error.response?.data);

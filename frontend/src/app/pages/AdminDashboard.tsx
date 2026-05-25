@@ -140,6 +140,35 @@ function getDayKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+function getReportWindow(view: ReportView) {
+  const now = new Date();
+
+  if (view === "weekly") {
+    const start = new Date(now);
+    const currentDay = start.getDay();
+    const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay;
+    start.setDate(start.getDate() + mondayOffset);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+
+    return { dateFrom: start.toISOString(), dateTo: end.toISOString() };
+  }
+
+  if (view === "monthly") {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
+
+    return { dateFrom: start.toISOString(), dateTo: end.toISOString() };
+  }
+
+  const start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+  const end = new Date(now.getFullYear() + 1, 0, 1, 0, 0, 0, 0);
+
+  return { dateFrom: start.toISOString(), dateTo: end.toISOString() };
+}
+
 function getActionBucket(action: string): "requests" | "approved" | "rejected" {
   if (action === "REQUEST_CREATED") {
     return "requests";
@@ -208,10 +237,14 @@ function buildReportRows(logs: AuditLogItem[], view: ReportView): ChartRow[] {
   });
 }
 
-async function fetchAllAuditLogs(): Promise<AuditLogItem[]> {
+async function fetchAuditLogs(window?: { dateFrom: string; dateTo: string }): Promise<AuditLogItem[]> {
   const limit = 100;
   const firstPage = await api.get<AuditLogsResponse>("/audit", {
-    params: { limit: String(limit), page: "1" },
+    params: {
+      limit: String(limit),
+      page: "1",
+      ...(window ?? {}),
+    },
   });
 
   const items = [...(firstPage.data.items ?? [])];
@@ -220,7 +253,11 @@ async function fetchAllAuditLogs(): Promise<AuditLogItem[]> {
 
   for (let page = 2; page <= cappedPages; page += 1) {
     const response = await api.get<AuditLogsResponse>("/audit", {
-      params: { limit: String(limit), page: String(page) },
+      params: {
+        limit: String(limit),
+        page: String(page),
+        ...(window ?? {}),
+      },
     });
     items.push(...(response.data.items ?? []));
   }
@@ -397,11 +434,13 @@ export function AdminDashboard() {
       setAdminUsersError(null);
       setAnalyticsError(null);
 
+      const window = getReportWindow(reportView);
+
       const [liveVenuesResult, adminUsersResult, auditStatsResult, auditLogsResult] = await Promise.allSettled([
         fetchVenues(),
         api.get<AdminUsersResponse>("/admin/users"),
-        api.get<AuditStats>("/audit/stats"),
-        fetchAllAuditLogs(),
+        api.get<AuditStats>("/audit/stats", { params: window }),
+        fetchAuditLogs(window),
       ]);
 
       if (!isMounted) {
@@ -464,7 +503,7 @@ export function AdminDashboard() {
     return () => {
       isMounted = false;
     };
-  }, [isAuthLoading]);
+  }, [isAuthLoading, reportView]);
 
   const activityUsers = useMemo(() => adminUsers, [adminUsers]);
   const reportData = useMemo(() => buildReportRows(auditLogs, reportView), [auditLogs, reportView]);

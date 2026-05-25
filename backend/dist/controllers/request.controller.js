@@ -142,13 +142,6 @@ async function createRequest(req, res, next) {
 			 AND status <> 'REJECTED'
 			 AND "startDateTime" < $2
 			 AND "endDateTime" > $3`, [input.venueId, input.endDateTime, input.startDateTime]);
-        // Log the incoming times and context so we can diagnose business-hour failures in DSS
-        console.info("DSS evaluation - requestDate ISO:", input.startDateTime.toISOString());
-        console.info("DSS evaluation - startDateTime (server local):", input.startDateTime.toString());
-        console.info("DSS evaluation - endDateTime (server local):", input.endDateTime.toString());
-        console.info("DSS evaluation - startTime string:", toTimeString(input.startDateTime));
-        console.info("DSS evaluation - endTime string:", toTimeString(input.endDateTime));
-        console.info("DSS evaluation - venue capacity:", venue.capacity);
         // Prefer client-provided HH:MM `startTime`/`endTime` to avoid timezone conversion issues;
         // fall back to server-local extraction if missing.
         const clientStartTime = input.startTime;

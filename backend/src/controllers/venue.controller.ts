@@ -118,11 +118,16 @@ async function verifyCurrentAdminPassword(user: { email: string; cognitoUsername
 		user.cognitoSub,
 	].filter((value, index, all): value is string => Boolean(value && all.indexOf(value) === index));
 
+	console.info("verifyCurrentAdminPassword: username candidates:", usernameCandidates);
+
 	for (const username of usernameCandidates) {
+		console.info(`verifyCurrentAdminPassword: trying username='${username}'`);
 		const verified = await verifyWithSingleUsername(username, password);
 		if (verified) {
+			console.info(`verifyCurrentAdminPassword: verified for username='${username}'`);
 			return;
 		}
+		console.info(`verifyCurrentAdminPassword: failed for username='${username}'`);
 	}
 
 	throw new AppError("Invalid password", 401);

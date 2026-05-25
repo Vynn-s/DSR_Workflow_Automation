@@ -10,6 +10,9 @@ type ScrollPickerProps = {
 export function ScrollPicker({ items, selectedIndex, onChange, className }: ScrollPickerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const selectedButtonRef = useRef<HTMLButtonElement | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const isAutoScrollingRef = useRef(false);
+  const lastReportedIndexRef = useRef<number>(selectedIndex);
   const itemHeight = 44;
   const visibleItemCount = 5;
   const edgePadding = Math.round(((visibleItemCount - 1) / 2) * itemHeight);
@@ -20,26 +23,46 @@ export function ScrollPicker({ items, selectedIndex, onChange, className }: Scro
       return;
     }
 
+    isAutoScrollingRef.current = true;
     const targetTop = selectedIndex * itemHeight;
     container.scrollTo({
       top: targetTop,
       behavior: "smooth",
     });
+
+    const timeoutId = window.setTimeout(() => {
+      isAutoScrollingRef.current = false;
+    }, 180);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [selectedIndex, itemHeight]);
 
   const handleScroll = () => {
+    if (isAutoScrollingRef.current) {
+      return;
+    }
+
     const container = containerRef.current;
     if (!container) {
       return;
     }
 
-    const centerLine = container.scrollTop + container.clientHeight / 2;
-    const relativeCenter = centerLine - edgePadding;
-    const nextIndex = Math.max(0, Math.min(items.length - 1, Math.round(relativeCenter / itemHeight)));
-
-    if (nextIndex !== selectedIndex) {
-      onChange(nextIndex);
+    if (rafRef.current !== null) {
+      window.cancelAnimationFrame(rafRef.current);
     }
+
+    rafRef.current = window.requestAnimationFrame(() => {
+      const centerLine = container.scrollTop + container.clientHeight / 2;
+      const relativeCenter = centerLine - edgePadding;
+      const nextIndex = Math.max(0, Math.min(items.length - 1, Math.round(relativeCenter / itemHeight)));
+
+      if (nextIndex !== lastReportedIndexRef.current) {
+        lastReportedIndexRef.current = nextIndex;
+        onChange(nextIndex);
+      }
+    });
   };
 
   return (
@@ -51,7 +74,7 @@ export function ScrollPicker({ items, selectedIndex, onChange, className }: Scro
         ref={containerRef}
         onScroll={handleScroll}
         className={[
-          "h-full overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 shadow-inner scrollbar-hide snap-y snap-mandatory",
+          "h-full overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/90 shadow-inner scrollbar-hide snap-y snap-mandatory",
           className,
         ]
           .filter(Boolean)
@@ -89,11 +112,11 @@ export function ScrollPicker({ items, selectedIndex, onChange, className }: Scro
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 top-1/2 z-10 -translate-y-1/2">
-        <div className="h-11 rounded-none border-y border-emerald-300/70 bg-white shadow-[0_0_0_1px_rgba(255,255,255,0.9)_inset]" />
+        <div className="h-11 rounded-none border-y border-emerald-300/70 bg-emerald-50/30 backdrop-blur-[0.5px] shadow-[0_0_0_1px_rgba(16,185,129,0.08)_inset]" />
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 top-1/2 z-0 -translate-y-1/2">
-        <div className="h-11 rounded-none bg-gradient-to-b from-white/0 via-white/5 to-white/0" />
+        <div className="h-11 rounded-none bg-gradient-to-b from-white/0 via-emerald-50/10 to-white/0" />
       </div>
     </div>
   );

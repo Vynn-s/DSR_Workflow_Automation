@@ -152,6 +152,22 @@ function getTimeSlotIndex(timeStr: string | undefined, fallbackIndex: number) {
   return slotIndex >= 0 ? slotIndex : fallbackIndex;
 }
 
+function isWithinBusinessHours(timeStr: string) {
+  const minutes = timeStringToMinutes(timeStr);
+  return minutes !== null && minutes >= BUSINESS_HOURS_OPEN_MINUTES && minutes <= BUSINESS_HOURS_CLOSE_MINUTES;
+}
+
+function isEndAfterStart(startTime: string, endTime: string) {
+  const startMinutes = timeStringToMinutes(startTime);
+  const endMinutes = timeStringToMinutes(endTime);
+
+  if (startMinutes === null || endMinutes === null) {
+    return false;
+  }
+
+  return endMinutes > startMinutes;
+}
+
 type TimePickerValues = {
   hour: number;
   minute: number;
@@ -447,6 +463,16 @@ export function BookingRequestForm() {
     const selectedVenue = venues.find((venue) => venue.id === formData.venue);
     if (!selectedVenue) {
       setSubmitError("Please select a valid venue");
+      return;
+    }
+
+    if (!isWithinBusinessHours(formData.startTime) || !isWithinBusinessHours(formData.endTime)) {
+      setSubmitError("Please choose a time between 6:00 AM and 10:00 PM.");
+      return;
+    }
+
+    if (!isEndAfterStart(formData.startTime, formData.endTime)) {
+      setSubmitError("End time must be later than start time.");
       return;
     }
 

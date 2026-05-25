@@ -274,6 +274,13 @@ async function syncCognitoRole(email: string, nextRole: AdminUserRole) {
 }
 
 async function deleteCognitoUser(email: string) {
+	if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+		throw new AppError(
+			"AWS credentials are not configured on the server, so Cognito users cannot be deleted yet.",
+			500,
+		);
+	}
+
 	try {
 		await getCognitoClient().send(
 			new AdminDeleteUserCommand({

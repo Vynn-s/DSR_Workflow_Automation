@@ -794,7 +794,6 @@ export function AdminDashboard() {
 
   const startDeleteUser = (user: AdminUserRow) => {
     setDeleteTargetUser(user);
-    setDeleteUserPassword("");
     setUserDeleteMessage(null);
     setUserDeleteMessageType(null);
   };

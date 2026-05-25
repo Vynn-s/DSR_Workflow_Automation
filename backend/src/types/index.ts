@@ -27,6 +27,7 @@ export interface AuthUser {
 	role: UserRole;
 	cognitoUsername?: string;
 	cognitoSub?: string;
+	authTime?: number;
 }
 
 export interface VenueRequestInput {

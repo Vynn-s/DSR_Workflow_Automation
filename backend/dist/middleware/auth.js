@@ -56,6 +56,7 @@ async function authenticate(req, res, next) {
         const sub = payload.sub;
         const email = typeof payload.email === "string" ? payload.email : "";
         const cognitoUsername = typeof payload["cognito:username"] === "string" ? payload["cognito:username"] : email;
+        const authTime = typeof payload.auth_time === "number" ? payload.auth_time : undefined;
         if (!sub || !email) {
             console.error("Token verified but missing required claims:", { sub, email, payload });
             return res.status(401).json({ message: "Invalid token" });
@@ -84,6 +85,7 @@ async function authenticate(req, res, next) {
             role,
             cognitoUsername,
             cognitoSub: sub,
+            authTime,
         };
         return next();
     }

@@ -43,8 +43,9 @@ const createVenueSchema = z.object({
     status: z.enum(["ACTIVE", "INACTIVE", "MAINTENANCE"]).optional(),
 });
 const deleteVenueSchema = z.object({
-    password: z.string().trim().min(1).max(256),
+    password: z.string().trim().min(1).max(256).optional(),
 });
+const RECENT_SIGNIN_WINDOW_SECONDS = 15 * 60;
 function canManageVenues(role) {
     return role === "ADMIN" || role === "PARISH_PRIEST";
 }
@@ -384,7 +385,15 @@ async function deleteVenue(req, res, next) {
         if (!parsedBody.success) {
             throw new AppError(`Invalid venue payload: ${parsedBody.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join(", ")}`, 400);
         }
-        await verifyCurrentAdminPassword(req.user, parsedBody.data.password);
+        const nowSeconds = Math.floor(Date.now() / 1000);
+        const authTime = req.user.authTime;
+        const hasRecentSignIn = typeof authTime === "number" && nowSeconds - authTime <= RECENT_SIGNIN_WINDOW_SECONDS;
+        if (!hasRecentSignIn) {
+            if (!parsedBody.data.password) {
+                throw new AppError("Please sign in again or provide your current password to delete a venue", 401);
+            }
+            await verifyCurrentAdminPassword(req.user, parsedBody.data.password);
+        }
         const { id } = req.params;
         const venueId = Array.isArray(id) ? id[0] : id;
         const existingVenue = await client.query(`SELECT id, name FROM "Venue" WHERE id = $1`, [venueId]);

@@ -122,6 +122,11 @@ async function createRequest(req, res, next) {
                 throw new AppError("User ministry not found. Please contact an administrator.", 400);
             }
         }
+        let ministryName = null;
+        if (ministryId) {
+            const mres = await client.query(`SELECT name FROM "Ministry" WHERE id = $1`, [ministryId]);
+            ministryName = mres.rows[0]?.name ?? null;
+        }
         const venueResult = await client.query(`SELECT id, capacity FROM "Venue" WHERE id = $1`, [input.venueId]);
         if (venueResult.rows.length === 0) {
             throw new AppError("Venue not found", 404);
@@ -179,6 +184,8 @@ async function createRequest(req, res, next) {
             JSON.stringify({
                 requestId,
                 dssDecision,
+                ministryId,
+                ministryName,
             }),
             req.ip,
         ]);
@@ -388,7 +395,7 @@ async function cancelRequest(req, res, next) {
         if (!parsedParams.success) {
             throw new AppError("Invalid request id", 400);
         }
-        const existingRequestResult = await client.query(`SELECT id, "requesterId", status FROM "VenueRequest" WHERE id = $1`, [parsedParams.data.id]);
+        const existingRequestResult = await client.query(`SELECT id, "requesterId", status, "ministryId" FROM "VenueRequest" WHERE id = $1`, [parsedParams.data.id]);
         if (existingRequestResult.rows.length === 0) {
             throw new AppError("Request not found", 404);
         }
@@ -402,8 +409,14 @@ async function cancelRequest(req, res, next) {
         await client.query(`UPDATE "VenueRequest"
 			 SET status = 'REJECTED', "currentApproverId" = NULL, "updatedAt" = NOW()
 			 WHERE id = $1`, [existingRequest.id]);
+        let cancelMinistryName = null;
+        if (existingRequest.ministryId) {
+            const mres = await client.query(`SELECT name FROM "Ministry" WHERE id = $1`, [existingRequest.ministryId]);
+            cancelMinistryName = mres.rows[0]?.name ?? null;
+        }
+
         await client.query(`INSERT INTO "AuditLog" (id, "requestId", "performedById", action, details, "ipAddress", "createdAt")
-			 VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())`, [
+             VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())`, [
             (0, crypto_1.randomUUID)(),
             existingRequest.id,
             req.user.id,
@@ -411,6 +424,8 @@ async function cancelRequest(req, res, next) {
             JSON.stringify({
                 previousStatus: existingRequest.status,
                 nextStatus: "REJECTED",
+                ministryId: existingRequest.ministryId ?? null,
+                ministryName: cancelMinistryName,
             }),
             req.ip,
         ]);

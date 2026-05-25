@@ -198,7 +198,14 @@ function mapAuditEntry(item: AuditLogItem): AuditEntry {
     ? item.venueRequest.attendees
     : undefined;
   const requestStatus = item.venueRequest?.status ?? getString(details.requestStatus);
-  const requestMinistry = item.venueRequest?.ministry?.name ?? getString(details.ministry) ?? getString(details.ministryName);
+  let requestMinistry = item.venueRequest?.ministry?.name ?? getString(details.ministry) ?? getString(details.ministryName);
+
+  // If the ministry value is a UUID, make it more readable by showing a short token.
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (requestMinistry && uuidRegex.test(requestMinistry)) {
+    const short = requestMinistry.split("-")[0];
+    requestMinistry = `Ministry ${short.toUpperCase()}`;
+  }
   const requesterName = item.venueRequest?.requester?.name ?? getString(details.requesterName);
 
   return {

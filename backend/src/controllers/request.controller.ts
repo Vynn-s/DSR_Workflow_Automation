@@ -124,6 +124,12 @@ export async function createRequest(req: Request, res: Response, next: NextFunct
 			}
 		}
 
+		let ministryName: string | null = null;
+		if (ministryId) {
+			const mres = await client.query(`SELECT name FROM "Ministry" WHERE id = $1`, [ministryId]);
+			ministryName = mres.rows[0]?.name ?? null;
+		}
+
 		const venueResult = await client.query(
 			`SELECT id, capacity FROM "Venue" WHERE id = $1`,
 			[input.venueId],
@@ -213,6 +219,8 @@ export async function createRequest(req: Request, res: Response, next: NextFunct
 				JSON.stringify({
 					requestId,
 					dssDecision,
+					ministryId,
+					ministryName,
 				}),
 				req.ip,
 			],
@@ -451,7 +459,7 @@ export async function cancelRequest(req: Request, res: Response, next: NextFunct
 		}
 
 		const existingRequestResult = await client.query(
-			`SELECT id, "requesterId", status FROM "VenueRequest" WHERE id = $1`,
+			`SELECT id, "requesterId", status, "ministryId" FROM "VenueRequest" WHERE id = $1`,
 			[parsedParams.data.id],
 		);
 
@@ -476,6 +484,12 @@ export async function cancelRequest(req: Request, res: Response, next: NextFunct
 			[existingRequest.id],
 		);
 
+		let cancelMinistryName: string | null = null;
+		if (existingRequest.ministryId) {
+			const mres = await client.query(`SELECT name FROM "Ministry" WHERE id = $1`, [existingRequest.ministryId]);
+			cancelMinistryName = mres.rows[0]?.name ?? null;
+		}
+
 		await client.query(
 			`INSERT INTO "AuditLog" (id, "requestId", "performedById", action, details, "ipAddress", "createdAt")
 			 VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())`,
@@ -487,6 +501,8 @@ export async function cancelRequest(req: Request, res: Response, next: NextFunct
 				JSON.stringify({
 					previousStatus: existingRequest.status,
 					nextStatus: "REJECTED",
+					ministryId: existingRequest.ministryId ?? null,
+					ministryName: cancelMinistryName,
 				}),
 				req.ip,
 			],

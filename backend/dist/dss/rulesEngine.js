@@ -4,7 +4,7 @@ exports.evaluateRequest = evaluateRequest;
 const rules_1 = require("./rules");
 function evaluateRequest(input, venueCapacity, authorizedMinistryIds, hasConflict) {
     const results = [
-        (0, rules_1.checkAdvanceNotice)(input.requestDate, 7),
+        (0, rules_1.checkAdvanceNotice)(input.requestDate, 3),
         (0, rules_1.checkCapacity)(input.attendees, venueCapacity),
         (0, rules_1.checkMinistryAuthorization)(input.ministryId, authorizedMinistryIds),
         (0, rules_1.checkNoConflict)(hasConflict),

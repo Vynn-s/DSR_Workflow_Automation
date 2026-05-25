@@ -283,10 +283,27 @@ export async function approveRequest(req: Request, res: Response, next: NextFunc
 					nextStatus,
 					approvedByRole: req.user.role,
 					remarks: parsedBody.data.remarks ?? null,
+					ministryId: requestRecord.ministryId ?? null,
+					ministryName: null,
 				}),
 				req.ip,
 			],
 		);
+
+		// Attempt to include ministry name if available (non-blocking)
+		if (requestRecord.ministryId) {
+			try {
+				const mres = await client.query(`SELECT name FROM "Ministry" WHERE id = $1`, [requestRecord.ministryId]);
+				const ministryName = mres.rows[0]?.name ?? null;
+				await client.query(
+					`UPDATE "AuditLog" SET details = details || $1::jsonb WHERE "requestId" = $2 AND action = 'REQUEST_APPROVED'`,
+					[JSON.stringify({ ministryName }), requestRecord.id],
+				);
+			} catch (e) {
+				// Don't fail the request if ministry name lookup fails
+				console.warn("Failed to attach ministry name to audit log", e);
+			}
+		}
 
 		return res.json({
 			id: requestRecord.id,
@@ -364,10 +381,25 @@ export async function rejectRequest(req: Request, res: Response, next: NextFunct
 					previousStatus: requestRecord.status,
 					nextStatus: "REJECTED",
 					remarks: parsedBody.data.remarks,
+					ministryId: requestRecord.ministryId ?? null,
+					ministryName: null,
 				}),
 				req.ip,
 			],
 		);
+
+		if (requestRecord.ministryId) {
+			try {
+				const mres = await client.query(`SELECT name FROM "Ministry" WHERE id = $1`, [requestRecord.ministryId]);
+				const ministryName = mres.rows[0]?.name ?? null;
+				await client.query(
+					`UPDATE "AuditLog" SET details = details || $1::jsonb WHERE "requestId" = $2 AND action = 'REQUEST_REJECTED'`,
+					[JSON.stringify({ ministryName }), requestRecord.id],
+				);
+			} catch (e) {
+				console.warn("Failed to attach ministry name to audit log", e);
+			}
+		}
 
 		return res.json({
 			id: requestRecord.id,

@@ -36,7 +36,7 @@ export function evaluateRequest(
 	hasConflict: boolean,
 ): DSSDecision {
 	const results: RuleResult[] = [
-		checkAdvanceNotice(input.requestDate, 7),
+		checkAdvanceNotice(input.requestDate, 3),
 		checkCapacity(input.attendees, venueCapacity),
 		checkMinistryAuthorization(input.ministryId, authorizedMinistryIds),
 		checkNoConflict(hasConflict),

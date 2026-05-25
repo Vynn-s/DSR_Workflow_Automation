@@ -133,6 +133,12 @@ export async function evaluateRequest(
 			conflictsResult.rows.length > 0,
 		);
 
+		let ministryName: string | null = null;
+		if (ministryId) {
+			const mres = await client.query(`SELECT name FROM "Ministry" WHERE id = $1`, [ministryId]);
+			ministryName = mres.rows[0]?.name ?? null;
+		}
+
 		await client.query(
 			`INSERT INTO "AuditLog" (id, "requestId", "performedById", action, details, "ipAddress", "createdAt")
 			 VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())`,
@@ -144,6 +150,7 @@ export async function evaluateRequest(
 				JSON.stringify({
 					venueId,
 					ministryId,
+					ministryName,
 					requestId,
 					hasConflict: conflictsResult.rows.length > 0,
 					attachmentCount,

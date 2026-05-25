@@ -105,8 +105,14 @@ async function evaluateRequest(req, res, next) {
             signatures,
             attachmentCount,
         }, venue.capacity, authorizedMinistriesResult.rows.map((entry) => entry.ministryId), conflictsResult.rows.length > 0);
+        let ministryName = null;
+        if (ministryId) {
+            const mres = await client.query(`SELECT name FROM "Ministry" WHERE id = $1`, [ministryId]);
+            ministryName = mres.rows[0]?.name ?? null;
+        }
+
         await client.query(`INSERT INTO "AuditLog" (id, "requestId", "performedById", action, details, "ipAddress", "createdAt")
-			 VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())`, [
+             VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())`, [
             (0, crypto_1.randomUUID)(),
             null,
             actorUserId,
@@ -114,6 +120,7 @@ async function evaluateRequest(req, res, next) {
             JSON.stringify({
                 venueId,
                 ministryId,
+                ministryName,
                 requestId,
                 hasConflict: conflictsResult.rows.length > 0,
                 attachmentCount,

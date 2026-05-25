@@ -233,9 +233,21 @@ async function approveRequest(req, res, next) {
                 nextStatus,
                 approvedByRole: req.user.role,
                 remarks: parsedBody.data.remarks ?? null,
+                ministryId: requestRecord.ministryId ?? null,
+                ministryName: null,
             }),
             req.ip,
         ]);
+        if (requestRecord.ministryId) {
+            try {
+                const mres = await client.query(`SELECT name FROM "Ministry" WHERE id = $1`, [requestRecord.ministryId]);
+                const ministryName = mres.rows[0]?.name ?? null;
+                await client.query(`UPDATE "AuditLog" SET details = details || $1::jsonb WHERE "requestId" = $2 AND action = 'REQUEST_APPROVED'`, [JSON.stringify({ ministryName }), requestRecord.id]);
+            }
+            catch (e) {
+                console.warn("Failed to attach ministry name to audit log", e);
+            }
+        }
         return res.json({
             id: requestRecord.id,
             status: nextStatus,
@@ -296,9 +308,21 @@ async function rejectRequest(req, res, next) {
                 previousStatus: requestRecord.status,
                 nextStatus: "REJECTED",
                 remarks: parsedBody.data.remarks,
+                ministryId: requestRecord.ministryId ?? null,
+                ministryName: null,
             }),
             req.ip,
         ]);
+        if (requestRecord.ministryId) {
+            try {
+                const mres = await client.query(`SELECT name FROM "Ministry" WHERE id = $1`, [requestRecord.ministryId]);
+                const ministryName = mres.rows[0]?.name ?? null;
+                await client.query(`UPDATE "AuditLog" SET details = details || $1::jsonb WHERE "requestId" = $2 AND action = 'REQUEST_REJECTED'`, [JSON.stringify({ ministryName }), requestRecord.id]);
+            }
+            catch (e) {
+                console.warn("Failed to attach ministry name to audit log", e);
+            }
+        }
         return res.json({
             id: requestRecord.id,
             status: "REJECTED",

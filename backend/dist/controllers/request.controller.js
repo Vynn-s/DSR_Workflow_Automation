@@ -30,7 +30,9 @@ const createRequestSchema = zod_1.z.object({
     eventName: zod_1.z.string().trim().min(1),
     purpose: zod_1.z.string().trim().min(1),
     startDateTime: zod_1.z.coerce.date(),
+    startTime: zod_1.z.string().regex(/^\d{2}:\d{2}$/).optional(),
     endDateTime: zod_1.z.coerce.date(),
+    endTime: zod_1.z.string().regex(/^\d{2}:\d{2}$/).optional(),
     attendees: zod_1.z.coerce.number().int().positive(),
     specialRequirements: zod_1.z.string().trim().optional(),
     attachments: zod_1.z.array(zod_1.z.object({
@@ -79,6 +81,8 @@ function sanitizeCreateRequestInput(input) {
             uploadedDate: attachment.uploadedDate.trim(),
             dataUrl: attachment.dataUrl.trim(),
         })) ?? [],
+        startTime: input.startTime?.trim(),
+        endTime: input.endTime?.trim(),
         signatures: input.signatures?.map((signature) => ({
             ...signature,
             role: signature.role.trim(),
@@ -145,13 +149,17 @@ async function createRequest(req, res, next) {
         console.info("DSS evaluation - startTime string:", toTimeString(input.startDateTime));
         console.info("DSS evaluation - endTime string:", toTimeString(input.endDateTime));
         console.info("DSS evaluation - venue capacity:", venue.capacity);
+        // Prefer client-provided HH:MM `startTime`/`endTime` to avoid timezone conversion issues;
+        // fall back to server-local extraction if missing.
+        const clientStartTime = input.startTime;
+        const clientEndTime = input.endTime;
 
         const dssDecision = runDssEvaluation({
             venueId: input.venueId,
             ministryId: ministryId,
             requestDate: input.startDateTime,
-            startTime: toTimeString(input.startDateTime),
-            endTime: toTimeString(input.endDateTime),
+            startTime: clientStartTime ?? toTimeString(input.startDateTime),
+            endTime: clientEndTime ?? toTimeString(input.endDateTime),
             attendees: input.attendees,
         }, venue.capacity, authorizedMinistriesResult.rows.map((entry) => entry.ministryId), conflictsResult.rows.length > 0);
         if (!dssDecision.canProceed) {

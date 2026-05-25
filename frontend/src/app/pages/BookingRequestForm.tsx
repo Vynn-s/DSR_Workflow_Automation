@@ -531,6 +531,8 @@ export function BookingRequestForm() {
         purpose: formData.purpose,
         startDateTime: combineDateAndTimeToIso(formData.date, formData.startTime),
         endDateTime: combineDateAndTimeToIso(formData.date, formData.endTime),
+        startTime: formData.startTime,
+        endTime: formData.endTime,
         attendees: Number(formData.attendees),
         specialRequirements: "",
         attachments,

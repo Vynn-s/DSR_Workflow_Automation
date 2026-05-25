@@ -13,7 +13,9 @@ const createRequestSchema = z.object({
 	eventName: z.string().trim().min(1),
 	purpose: z.string().trim().min(1),
 	startDateTime: z.coerce.date(),
+	startTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
 	endDateTime: z.coerce.date(),
+	endTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
 	attendees: z.coerce.number().int().positive(),
 	specialRequirements: z.string().trim().optional(),
 	attachments: z.array(z.object({
@@ -66,6 +68,8 @@ function sanitizeCreateRequestInput(input: z.infer<typeof createRequestSchema>) 
 			uploadedDate: attachment.uploadedDate.trim(),
 			dataUrl: attachment.dataUrl.trim(),
 		})) ?? [],
+		startTime: input.startTime?.trim(),
+		endTime: input.endTime?.trim(),
 		signatures: input.signatures?.map((signature) => ({
 			...signature,
 			role: signature.role.trim(),
@@ -163,13 +167,18 @@ export async function createRequest(req: Request, res: Response, next: NextFunct
 		console.info("DSS evaluation - endTime string:", toTimeString(input.endDateTime));
 		console.info("DSS evaluation - venue capacity:", venue.capacity);
 
+		// Prefer client-provided HH:MM `startTime`/`endTime` to avoid timezone conversion issues;
+		// fall back to server-local extraction if missing.
+		const clientStartTime = (input as any).startTime as string | undefined;
+		const clientEndTime = (input as any).endTime as string | undefined;
+
 		const dssDecision = runDssEvaluation(
 			{
 				venueId: input.venueId,
 				ministryId: ministryId,
 				requestDate: input.startDateTime,
-				startTime: toTimeString(input.startDateTime),
-				endTime: toTimeString(input.endDateTime),
+				startTime: clientStartTime ?? toTimeString(input.startDateTime),
+				endTime: clientEndTime ?? toTimeString(input.endDateTime),
 				attendees: input.attendees,
 			},
 			venue.capacity,

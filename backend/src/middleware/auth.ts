@@ -110,6 +110,7 @@ export async function authenticate(
 			email,
 			role,
 			cognitoUsername,
+			cognitoSub: sub,
 		};
 
 		return next();

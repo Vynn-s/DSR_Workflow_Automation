@@ -83,6 +83,7 @@ async function authenticate(req, res, next) {
             email,
             role,
             cognitoUsername,
+            cognitoSub: sub,
         };
         return next();
     }

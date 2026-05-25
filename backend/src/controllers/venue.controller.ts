@@ -3,6 +3,7 @@ const { z } = require("zod") as typeof import("zod");
 import {
 	AdminInitiateAuthCommand,
 	InitiateAuthCommand,
+	ListUsersCommand,
 	CognitoIdentityProviderClient,
 } from "@aws-sdk/client-cognito-identity-provider";
 
@@ -44,7 +45,24 @@ function getCognitoClient(): CognitoIdentityProviderClient {
 	return cognitoClient;
 }
 
-async function verifyCurrentAdminPassword(username: string, password: string) {
+async function resolveCognitoUsernameByEmail(email: string): Promise<string | null> {
+	try {
+		const response = await getCognitoClient().send(
+			new ListUsersCommand({
+				UserPoolId: config.cognitoUserPoolId,
+				Filter: `email = \"${email.replace(/\"/g, "")}\"`,
+				Limit: 1,
+			}),
+		);
+
+		return response.Users?.[0]?.Username ?? null;
+	} catch (error) {
+		console.warn(`Unable to resolve Cognito username for ${email}; continuing with available username candidates.`, error);
+		return null;
+	}
+}
+
+async function verifyWithSingleUsername(username: string, password: string): Promise<boolean> {
 	try {
 		await getCognitoClient().send(
 			new AdminInitiateAuthCommand({
@@ -57,9 +75,11 @@ async function verifyCurrentAdminPassword(username: string, password: string) {
 				},
 			}),
 		);
+
+		return true;
 	} catch (error: any) {
 		if (error?.name === "NotAuthorizedException" || error?.name === "UserNotFoundException") {
-			throw new AppError("Invalid password", 401);
+			return false;
 		}
 
 		if (error?.name === "InvalidParameterException") {
@@ -74,10 +94,11 @@ async function verifyCurrentAdminPassword(username: string, password: string) {
 						},
 					}),
 				);
-				return;
+
+				return true;
 			} catch (fallbackError: any) {
 				if (fallbackError?.name === "NotAuthorizedException" || fallbackError?.name === "UserNotFoundException" || fallbackError?.name === "InvalidParameterException") {
-					throw new AppError("Invalid password", 401);
+					return false;
 				}
 
 				throw fallbackError;
@@ -86,6 +107,25 @@ async function verifyCurrentAdminPassword(username: string, password: string) {
 
 		throw error;
 	}
+}
+
+async function verifyCurrentAdminPassword(user: { email: string; cognitoUsername?: string; cognitoSub?: string }, password: string) {
+	const resolvedUsername = await resolveCognitoUsernameByEmail(user.email);
+	const usernameCandidates = [
+		user.cognitoUsername,
+		resolvedUsername,
+		user.email,
+		user.cognitoSub,
+	].filter((value, index, all): value is string => Boolean(value && all.indexOf(value) === index));
+
+	for (const username of usernameCandidates) {
+		const verified = await verifyWithSingleUsername(username, password);
+		if (verified) {
+			return;
+		}
+	}
+
+	throw new AppError("Invalid password", 401);
 }
 
 export async function getVenues(req: Request, res: Response, next: NextFunction) {
@@ -414,7 +454,7 @@ export async function deleteVenue(req: Request, res: Response, next: NextFunctio
 			);
 		}
 
-		await verifyCurrentAdminPassword(req.user.cognitoUsername ?? req.user.email, parsedBody.data.password);
+		await verifyCurrentAdminPassword(req.user, parsedBody.data.password);
 
 		const { id } = req.params;
 		const venueId = Array.isArray(id) ? id[0] : id;

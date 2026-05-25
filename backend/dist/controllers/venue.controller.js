@@ -55,7 +55,21 @@ function getCognitoClient() {
     cognitoClient = new client_cognito_identity_provider_1.CognitoIdentityProviderClient({ region: env_1.default.awsRegion });
     return cognitoClient;
 }
-async function verifyCurrentAdminPassword(username, password) {
+async function resolveCognitoUsernameByEmail(email) {
+    try {
+        const response = await getCognitoClient().send(new client_cognito_identity_provider_1.ListUsersCommand({
+            UserPoolId: env_1.default.cognitoUserPoolId,
+            Filter: `email = "${email.replace(/"/g, "")}"`,
+            Limit: 1,
+        }));
+        return response.Users?.[0]?.Username ?? null;
+    }
+    catch (error) {
+        console.warn(`Unable to resolve Cognito username for ${email}; continuing with available username candidates.`, error);
+        return null;
+    }
+}
+async function verifyWithSingleUsername(username, password) {
     try {
         await getCognitoClient().send(new client_cognito_identity_provider_1.AdminInitiateAuthCommand({
             UserPoolId: env_1.default.cognitoUserPoolId,
@@ -66,10 +80,11 @@ async function verifyCurrentAdminPassword(username, password) {
                 PASSWORD: password,
             },
         }));
+        return true;
     }
     catch (error) {
         if (error?.name === "NotAuthorizedException" || error?.name === "UserNotFoundException") {
-            throw new AppError("Invalid password", 401);
+            return false;
         }
         if (error?.name === "InvalidParameterException") {
             try {
@@ -81,17 +96,33 @@ async function verifyCurrentAdminPassword(username, password) {
                         PASSWORD: password,
                     },
                 }));
-                return;
+                return true;
             }
             catch (fallbackError) {
                 if (fallbackError?.name === "NotAuthorizedException" || fallbackError?.name === "UserNotFoundException" || fallbackError?.name === "InvalidParameterException") {
-                    throw new AppError("Invalid password", 401);
+                    return false;
                 }
                 throw fallbackError;
             }
         }
         throw error;
     }
+}
+async function verifyCurrentAdminPassword(user, password) {
+    const resolvedUsername = await resolveCognitoUsernameByEmail(user.email);
+    const usernameCandidates = [
+        user.cognitoUsername,
+        resolvedUsername,
+        user.email,
+        user.cognitoSub,
+    ].filter((value, index, all) => Boolean(value && all.indexOf(value) === index));
+    for (const username of usernameCandidates) {
+        const verified = await verifyWithSingleUsername(username, password);
+        if (verified) {
+            return;
+        }
+    }
+    throw new AppError("Invalid password", 401);
 }
 async function getVenues(req, res, next) {
     const client = await getPool().connect();
@@ -349,7 +380,7 @@ async function deleteVenue(req, res, next) {
         if (!parsedBody.success) {
             throw new AppError(`Invalid venue payload: ${parsedBody.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join(", ")}`, 400);
         }
-        await verifyCurrentAdminPassword(req.user.cognitoUsername ?? req.user.email, parsedBody.data.password);
+        await verifyCurrentAdminPassword(req.user, parsedBody.data.password);
         const { id } = req.params;
         const venueId = Array.isArray(id) ? id[0] : id;
         const existingVenue = await client.query(`SELECT id, name FROM "Venue" WHERE id = $1`, [venueId]);

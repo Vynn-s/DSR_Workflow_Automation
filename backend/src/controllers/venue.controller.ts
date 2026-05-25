@@ -103,33 +103,52 @@ export async function getVenues(req: Request, res: Response, next: NextFunction)
 		);
 
 		if (req.user.role === "ADMIN" || req.user.role === "PARISH_PRIEST") {
-			const allVenuesResult = await client.query(
-				`SELECT id, name, description, capacity, status, "createdAt", "updatedAt" FROM "Venue" ORDER BY name ASC`,
+			const venueRowsResult = await client.query(
+				`SELECT
+					v.id,
+					v.name,
+					v.description,
+					v.capacity,
+					v.status,
+					v."createdAt",
+					v."updatedAt",
+					vm.id AS venue_ministry_id,
+					vm."venueId" AS venue_ministry_venue_id,
+					vm."ministryId" AS venue_ministry_ministry_id,
+					m.id AS ministry_id,
+					m.name AS ministry_name
+				 FROM "Venue" v
+				 LEFT JOIN "VenueMinistry" vm ON vm."venueId" = v.id
+				 LEFT JOIN "Ministry" m ON m.id = vm."ministryId"
+				 ORDER BY v.name ASC, vm.id ASC NULLS LAST`,
 			);
 
-			const venues = await Promise.all(
-				allVenuesResult.rows.map(async (venue) => {
-					const ministriesResult = await client.query(
-						`SELECT vm.id, vm."venueId", vm."ministryId", m.id as ministry_id, m.name as ministry_name 
-						 FROM "VenueMinistry" vm
-						 LEFT JOIN "Ministry" m ON vm."ministryId" = m.id
-						 WHERE vm."venueId" = $1`,
-						[venue.id]
-					);
+			const venueMap = new Map<string, any>();
+			for (const row of venueRowsResult.rows) {
+				if (!venueMap.has(row.id)) {
+					venueMap.set(row.id, {
+						id: row.id,
+						name: row.name,
+						description: row.description,
+						capacity: row.capacity,
+						status: row.status,
+						createdAt: row.createdAt,
+						updatedAt: row.updatedAt,
+						authorizedMinistries: [],
+					});
+				}
 
-					return {
-						...venue,
-						authorizedMinistries: ministriesResult.rows.map(row => ({
-							id: row.id,
-							venueId: row.venueId,
-							ministryId: row.ministryId,
-							ministry: row.ministry_id ? { id: row.ministry_id, name: row.ministry_name } : null,
-						})),
-					};
-				})
-			);
+				if (row.venue_ministry_id) {
+					venueMap.get(row.id).authorizedMinistries.push({
+						id: row.venue_ministry_id,
+						venueId: row.venue_ministry_venue_id,
+						ministryId: row.venue_ministry_ministry_id,
+						ministry: row.ministry_id ? { id: row.ministry_id, name: row.ministry_name } : null,
+					});
+				}
+			}
 
-			return res.json({ venues });
+			return res.json({ venues: Array.from(venueMap.values()) });
 		}
 
 		const ministryId = ministryResult.rows[0]?.ministryId as string | undefined;
@@ -138,38 +157,52 @@ export async function getVenues(req: Request, res: Response, next: NextFunction)
 			return res.json({ venues: [] });
 		}
 
-		const venueResult = await client.query(
-			`SELECT DISTINCT v.*
+		const venueRowsResult = await client.query(
+			`SELECT
+				v.id,
+				v.name,
+				v.description,
+				v.capacity,
+				v.status,
+				v."createdAt",
+				v."updatedAt",
+				vm.id AS venue_ministry_id,
+				vm."venueId" AS venue_ministry_venue_id,
+				vm."ministryId" AS venue_ministry_ministry_id,
+				m.id AS ministry_id,
+				m.name AS ministry_name
 			 FROM "Venue" v
 			 INNER JOIN "VenueMinistry" vm ON vm."venueId" = v.id
+			 LEFT JOIN "Ministry" m ON m.id = vm."ministryId"
 			 WHERE vm."ministryId" = $1
-			 ORDER BY v.name ASC`,
+			 ORDER BY v.name ASC, vm.id ASC`,
 			[ministryId],
 		);
-		
-		// For each venue, get authorized ministries
-		const venues = await Promise.all(
-			venueResult.rows.map(async (venue) => {
-				const ministriesResult = await client.query(
-					`SELECT vm.id, vm."venueId", vm."ministryId", m.id as ministry_id, m.name as ministry_name 
-					 FROM "VenueMinistry" vm
-					 LEFT JOIN "Ministry" m ON vm."ministryId" = m.id
-					 WHERE vm."venueId" = $1`,
-					[venue.id]
-				);
-				
-				return {
-					...venue,
-					authorizedMinistries: ministriesResult.rows.map(row => ({
-						id: row.id,
-						venueId: row.venueId,
-						ministryId: row.ministryId,
-						ministry: row.ministry_id ? { id: row.ministry_id, name: row.ministry_name } : null,
-					})),
-				};
-			})
-		);
-		return res.json({ venues });
+
+		const venueMap = new Map<string, any>();
+		for (const row of venueRowsResult.rows) {
+			if (!venueMap.has(row.id)) {
+				venueMap.set(row.id, {
+					id: row.id,
+					name: row.name,
+					description: row.description,
+					capacity: row.capacity,
+					status: row.status,
+					createdAt: row.createdAt,
+					updatedAt: row.updatedAt,
+					authorizedMinistries: [],
+				});
+			}
+
+			venueMap.get(row.id).authorizedMinistries.push({
+				id: row.venue_ministry_id,
+				venueId: row.venue_ministry_venue_id,
+				ministryId: row.venue_ministry_ministry_id,
+				ministry: row.ministry_id ? { id: row.ministry_id, name: row.ministry_name } : null,
+			});
+		}
+
+		return res.json({ venues: Array.from(venueMap.values()) });
 	} catch (error) {
 		console.error("getVenues error:", error);
 		return next(error);

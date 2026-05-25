@@ -208,6 +208,23 @@ function parseTimeForPicker(timeStr: string | undefined, fallback: TimePickerVal
   };
 }
 
+function getAllowedHours(period: "AM" | "PM") {
+  return period === "AM"
+    ? [6, 7, 8, 9, 10, 11]
+    : [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+}
+
+function normalizePickerValues(values: TimePickerValues): TimePickerValues {
+  const allowedHours = getAllowedHours(values.period);
+  const hour = allowedHours.includes(values.hour) ? values.hour : allowedHours[0];
+
+  return {
+    ...values,
+    hour,
+    minute: Math.max(0, Math.min(55, Math.round(values.minute / 5) * 5)),
+  };
+}
+
 const formatBytes = (bytes: number) => {
   if (bytes < 1024) {
     return `${bytes} B`;
@@ -423,12 +440,12 @@ export function BookingRequestForm() {
     new Date(today.getFullYear(), today.getMonth(), 1);
 
   const openStartTimePicker = () => {
-    setStartTimeValues(parseTimeForPicker(formData.startTime, defaultStartTimeValues));
+    setStartTimeValues(normalizePickerValues(parseTimeForPicker(formData.startTime, defaultStartTimeValues)));
     setShowStartTimePicker(true);
   };
 
   const openEndTimePicker = () => {
-    setEndTimeValues(parseTimeForPicker(formData.endTime, defaultEndTimeValues));
+    setEndTimeValues(normalizePickerValues(parseTimeForPicker(formData.endTime, defaultEndTimeValues)));
     setShowEndTimePicker(true);
   };
 
@@ -1132,9 +1149,12 @@ export function BookingRequestForm() {
                 <div>
                   <p className="text-xs font-bold text-slate-600 text-center mb-2">Hour</p>
                   <ScrollPicker
-                    items={Array.from({ length: 12 }, (_, i) => i + 1)}
-                    selectedIndex={startTimeValues.hour - 1}
-                    onChange={(index) => setStartTimeValues((prev) => ({ ...prev, hour: index + 1 }))}
+                    items={getAllowedHours(startTimeValues.period)}
+                    selectedIndex={Math.max(0, getAllowedHours(startTimeValues.period).indexOf(startTimeValues.hour))}
+                    onChange={(index) => setStartTimeValues((prev) => normalizePickerValues({
+                      ...prev,
+                      hour: getAllowedHours(prev.period)[index],
+                    }))}
                   />
                 </div>
 
@@ -1152,7 +1172,7 @@ export function BookingRequestForm() {
                   <ScrollPicker
                     items={["AM", "PM"]}
                     selectedIndex={startTimeValues.period === "AM" ? 0 : 1}
-                    onChange={(index) => setStartTimeValues((prev) => ({ ...prev, period: index === 0 ? "AM" : "PM" }))}
+                    onChange={(index) => setStartTimeValues((prev) => normalizePickerValues({ ...prev, period: index === 0 ? "AM" : "PM" }))}
                   />
                 </div>
               </div>
@@ -1200,9 +1220,12 @@ export function BookingRequestForm() {
                 <div>
                   <p className="text-xs font-bold text-slate-600 text-center mb-2">Hour</p>
                   <ScrollPicker
-                    items={Array.from({ length: 12 }, (_, i) => i + 1)}
-                    selectedIndex={endTimeValues.hour - 1}
-                    onChange={(index) => setEndTimeValues((prev) => ({ ...prev, hour: index + 1 }))}
+                    items={getAllowedHours(endTimeValues.period)}
+                    selectedIndex={Math.max(0, getAllowedHours(endTimeValues.period).indexOf(endTimeValues.hour))}
+                    onChange={(index) => setEndTimeValues((prev) => normalizePickerValues({
+                      ...prev,
+                      hour: getAllowedHours(prev.period)[index],
+                    }))}
                   />
                 </div>
 
@@ -1220,7 +1243,7 @@ export function BookingRequestForm() {
                   <ScrollPicker
                     items={["AM", "PM"]}
                     selectedIndex={endTimeValues.period === "AM" ? 0 : 1}
-                    onChange={(index) => setEndTimeValues((prev) => ({ ...prev, period: index === 0 ? "AM" : "PM" }))}
+                    onChange={(index) => setEndTimeValues((prev) => normalizePickerValues({ ...prev, period: index === 0 ? "AM" : "PM" }))}
                   />
                 </div>
               </div>

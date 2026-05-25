@@ -44,7 +44,7 @@ function getCognitoClient(): CognitoIdentityProviderClient {
 	return cognitoClient;
 }
 
-async function verifyCurrentAdminPassword(email: string, password: string) {
+async function verifyCurrentAdminPassword(username: string, password: string) {
 	try {
 		await getCognitoClient().send(
 			new AdminInitiateAuthCommand({
@@ -52,7 +52,7 @@ async function verifyCurrentAdminPassword(email: string, password: string) {
 				ClientId: config.cognitoClientId,
 				AuthFlow: "ADMIN_USER_PASSWORD_AUTH",
 				AuthParameters: {
-					USERNAME: email,
+					USERNAME: username,
 					PASSWORD: password,
 				},
 			}),
@@ -69,7 +69,7 @@ async function verifyCurrentAdminPassword(email: string, password: string) {
 						ClientId: config.cognitoClientId,
 						AuthFlow: "USER_PASSWORD_AUTH",
 						AuthParameters: {
-							USERNAME: email,
+							USERNAME: username,
 							PASSWORD: password,
 						},
 					}),
@@ -414,7 +414,7 @@ export async function deleteVenue(req: Request, res: Response, next: NextFunctio
 			);
 		}
 
-		await verifyCurrentAdminPassword(req.user.email, parsedBody.data.password);
+		await verifyCurrentAdminPassword(req.user.cognitoUsername ?? req.user.email, parsedBody.data.password);
 
 		const { id } = req.params;
 		const venueId = Array.isArray(id) ? id[0] : id;

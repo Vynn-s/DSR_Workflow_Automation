@@ -701,7 +701,15 @@ export function AdminDashboard() {
       closeDeleteVenueModal();
     } catch (error) {
       console.error("Failed to delete venue:", error);
-      setVenueDeleteMessage("Unable to delete venue right now.");
+      const apiMessage =
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message === "string"
+          ? (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message
+          : null;
+
+      setVenueDeleteMessage(apiMessage ?? "Unable to delete venue right now.");
       setVenueDeleteMessageType("error");
     } finally {
       setDeletingVenueId(null);

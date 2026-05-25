@@ -79,6 +79,7 @@ export async function authenticate(
 
 		const sub = payload.sub;
 		const email = typeof payload.email === "string" ? payload.email : "";
+		const cognitoUsername = typeof payload["cognito:username"] === "string" ? payload["cognito:username"] : email;
 
 		if (!sub || !email) {
 			console.error("Token verified but missing required claims:", { sub, email, payload });
@@ -108,6 +109,7 @@ export async function authenticate(
 			id: userId,
 			email,
 			role,
+			cognitoUsername,
 		};
 
 		return next();

@@ -55,14 +55,14 @@ function getCognitoClient() {
     cognitoClient = new client_cognito_identity_provider_1.CognitoIdentityProviderClient({ region: env_1.default.awsRegion });
     return cognitoClient;
 }
-async function verifyCurrentAdminPassword(email, password) {
+async function verifyCurrentAdminPassword(username, password) {
     try {
         await getCognitoClient().send(new client_cognito_identity_provider_1.AdminInitiateAuthCommand({
             UserPoolId: env_1.default.cognitoUserPoolId,
             ClientId: env_1.default.cognitoClientId,
             AuthFlow: "ADMIN_USER_PASSWORD_AUTH",
             AuthParameters: {
-                USERNAME: email,
+                USERNAME: username,
                 PASSWORD: password,
             },
         }));
@@ -77,7 +77,7 @@ async function verifyCurrentAdminPassword(email, password) {
                     ClientId: env_1.default.cognitoClientId,
                     AuthFlow: "USER_PASSWORD_AUTH",
                     AuthParameters: {
-                        USERNAME: email,
+                        USERNAME: username,
                         PASSWORD: password,
                     },
                 }));
@@ -349,7 +349,7 @@ async function deleteVenue(req, res, next) {
         if (!parsedBody.success) {
             throw new AppError(`Invalid venue payload: ${parsedBody.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join(", ")}`, 400);
         }
-        await verifyCurrentAdminPassword(req.user.email, parsedBody.data.password);
+        await verifyCurrentAdminPassword(req.user.cognitoUsername ?? req.user.email, parsedBody.data.password);
         const { id } = req.params;
         const venueId = Array.isArray(id) ? id[0] : id;
         const existingVenue = await client.query(`SELECT id, name FROM "Venue" WHERE id = $1`, [venueId]);

@@ -407,19 +407,21 @@ async function updateAdminUserRole(req, res, next) {
         }
         const user = userResult.rows[0];
         const nextRole = parsedBody.data.role;
-        if (user.role !== nextRole) {
-            await syncCognitoRole(user.email, nextRole);
-        }
         try {
             await client.query(`UPDATE "User"
 				 SET role = $1, "updatedAt" = NOW()
 				 WHERE id = $2`, [nextRole, user.id]);
         }
         catch (error) {
-            if (user.role !== nextRole) {
-                await syncCognitoRole(user.email, user.role);
-            }
             throw error;
+        }
+        if (user.role !== nextRole) {
+            try {
+                await syncCognitoRole(user.email, nextRole);
+            }
+            catch (error) {
+                console.warn(`Unable to sync Cognito role for ${user.email}; database role was updated successfully.`, error);
+            }
         }
         const updatedResult = await client.query(`SELECT
 				u.id,

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, Send, Paperclip, Save, AlertCircle, Info, MapPin, Users, FileText, Shield, CheckCircle2, XCircle, Calendar as CalendarIcon, Clock, X, ChevronLeft, ChevronRight } from "lucide-react";
 import api from "../../lib/api";
@@ -241,6 +241,7 @@ const formatBytes = (bytes: number) => {
 export function BookingRequestForm() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isMountedRef = useRef(true);
   const today = new Date();
   const todayDateString = today.toISOString().slice(0, 10);
   const [formData, setFormData] = useState({
@@ -275,34 +276,65 @@ export function BookingRequestForm() {
   const startTimeButtonRef = useRef<HTMLButtonElement>(null);
   const endTimeButtonRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadVenues = async () => {
+  const loadVenues = useCallback(async (mode: "initial" | "refresh" = "initial") => {
+    if (mode === "initial") {
       setIsLoadingVenues(true);
+    }
 
-      try {
-        const data = await api.get<{ venues: VenueApi[] }>("/venues");
-        if (isMounted) {
-          setVenues(data.venues ?? []);
-        }
-      } catch {
-        if (isMounted) {
-          setVenues([]);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingVenues(false);
-        }
+    try {
+      const data = await api.get<{ venues: VenueApi[] }>("/venues");
+
+      if (!isMountedRef.current) {
+        return;
       }
-    };
+
+      const liveVenues = data.venues ?? [];
+      setVenues(liveVenues);
+      setFormData((current) => {
+        if (!current.venue || liveVenues.some((venue) => venue.id === current.venue)) {
+          return current;
+        }
+
+        return {
+          ...current,
+          venue: liveVenues[0]?.id ?? "",
+        };
+      });
+    } catch {
+      if (isMountedRef.current) {
+        setVenues([]);
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoadingVenues(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
 
     void loadVenues();
 
-    return () => {
-      isMounted = false;
+    const handleRefresh = () => {
+      void loadVenues("refresh");
     };
-  }, []);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void loadVenues("refresh");
+      }
+    };
+
+    window.addEventListener("focus", handleRefresh);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      isMountedRef.current = false;
+      window.removeEventListener("focus", handleRefresh);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [loadVenues]);
 
   useEffect(() => {
     const selectedVenue = venues.find((venue) => venue.id === formData.venue);

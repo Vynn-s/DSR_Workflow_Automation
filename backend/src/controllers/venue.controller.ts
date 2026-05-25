@@ -172,9 +172,9 @@ export async function getVenues(req: Request, res: Response, next: NextFunction)
 				m.id AS ministry_id,
 				m.name AS ministry_name
 			 FROM "Venue" v
-			 INNER JOIN "VenueMinistry" vm ON vm."venueId" = v.id
+			 LEFT JOIN "VenueMinistry" vm ON vm."venueId" = v.id
 			 LEFT JOIN "Ministry" m ON m.id = vm."ministryId"
-			 WHERE vm."ministryId" = $1
+			 WHERE vm."ministryId" = $1 OR vm.id IS NULL
 			 ORDER BY v.name ASC, vm.id ASC`,
 			[ministryId],
 		);

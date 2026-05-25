@@ -68,13 +68,15 @@ export function checkMinistryAuthorization(
 	ministryId: string,
 	authorizedMinistryIds: string[],
 ): RuleResult {
-	const passed = authorizedMinistryIds.includes(ministryId);
+	const passed = authorizedMinistryIds.length === 0 || authorizedMinistryIds.includes(ministryId);
 
 	return buildResult(
 		"checkMinistryAuthorization",
 		passed,
 		passed
-			? `Ministry ${ministryId} is authorized for this venue.`
+			? authorizedMinistryIds.length === 0
+				? "No ministry restrictions configured for this venue."
+				: `Ministry ${ministryId} is authorized for this venue.`
 			: `Ministry ${ministryId} is not authorized for this venue.`,
 	);
 }

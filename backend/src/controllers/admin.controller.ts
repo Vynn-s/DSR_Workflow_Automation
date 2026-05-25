@@ -533,10 +533,6 @@ export async function updateAdminUserRole(req: Request, res: Response, next: Nex
 		const user = userResult.rows[0] as { id: string; email: string; role: AdminUserRole };
 		const nextRole = parsedBody.data.role;
 
-		if (user.role !== nextRole) {
-			await syncCognitoRole(user.email, nextRole);
-		}
-
 		try {
 			await client.query(
 				`UPDATE "User"
@@ -545,10 +541,15 @@ export async function updateAdminUserRole(req: Request, res: Response, next: Nex
 				[nextRole, user.id],
 			);
 		} catch (error) {
-			if (user.role !== nextRole) {
-				await syncCognitoRole(user.email, user.role);
-			}
 			throw error;
+		}
+
+		if (user.role !== nextRole) {
+			try {
+				await syncCognitoRole(user.email, nextRole);
+			} catch (error) {
+				console.warn(`Unable to sync Cognito role for ${user.email}; database role was updated successfully.`, error);
+			}
 		}
 
 		const updatedResult = await client.query(

@@ -162,10 +162,10 @@ async function getVenues(req, res, next) {
 				vm."ministryId" AS venue_ministry_ministry_id,
 				m.id AS ministry_id,
 				m.name AS ministry_name
-			 FROM "Venue" v
-			 INNER JOIN "VenueMinistry" vm ON vm."venueId" = v.id
+             FROM "Venue" v
+             LEFT JOIN "VenueMinistry" vm ON vm."venueId" = v.id
 			 LEFT JOIN "Ministry" m ON m.id = vm."ministryId"
-			 WHERE vm."ministryId" = $1
+             WHERE vm."ministryId" = $1 OR vm.id IS NULL
 			 ORDER BY v.name ASC, vm.id ASC`, [ministryId]);
         const venueMap = new Map();
         for (const row of venueRowsResult.rows) {

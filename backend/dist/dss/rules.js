@@ -48,9 +48,11 @@ function checkCapacity(attendees, venueCapacity) {
         : `Capacity check failed: ${attendees} attendee(s) exceeds venue capacity ${venueCapacity}.`);
 }
 function checkMinistryAuthorization(ministryId, authorizedMinistryIds) {
-    const passed = authorizedMinistryIds.includes(ministryId);
+    const passed = authorizedMinistryIds.length === 0 || authorizedMinistryIds.includes(ministryId);
     return buildResult("checkMinistryAuthorization", passed, passed
-        ? `Ministry ${ministryId} is authorized for this venue.`
+        ? authorizedMinistryIds.length === 0
+            ? "No ministry restrictions configured for this venue."
+            : `Ministry ${ministryId} is authorized for this venue.`
         : `Ministry ${ministryId} is not authorized for this venue.`);
 }
 function checkNoConflict(hasConflict) {

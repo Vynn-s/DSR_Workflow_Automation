@@ -23,6 +23,10 @@ This backend is already Dockerized, so moving it to Render is mostly a matter of
    - `AWS_REGION`
    - `FRONTEND_URL` = `https://dsr-workflow-automation-frontend.vercel.app`
    - `NODE_ENV` = `production`
+   - `AWS_ACCESS_KEY_ID` = AWS IAM access key that can delete Cognito users
+   - `AWS_SECRET_ACCESS_KEY` = matching AWS IAM secret key
+
+   The Cognito credentials are required for admin user deletes to sync from the backend to Cognito. Without them, the database delete will succeed but Cognito will not be updated.
 
 ## After deployment
 

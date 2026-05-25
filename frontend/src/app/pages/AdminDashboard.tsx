@@ -60,6 +60,8 @@ type AuditLogsResponse = {
 
 type AuditStats = {
   totalRequestsThisMonth: number;
+  totalApprovedRequests: number;
+  totalRejectedRequests: number;
   averageApprovalTimeHours: number;
   totalConflictsDetected: number;
   rejectionRate: number;
@@ -509,6 +511,8 @@ export function AdminDashboard() {
   const reportData = useMemo(() => buildReportRows(auditLogs, reportView), [auditLogs, reportView]);
   const insights = useMemo(() => buildInsights(auditStats, auditLogs), [auditStats, auditLogs]);
   const requestsThisMonth = auditStats?.totalRequestsThisMonth ?? 0;
+  const approvedRequestsThisPeriod = auditStats?.totalApprovedRequests ?? 0;
+  const rejectedRequestsThisPeriod = auditStats?.totalRejectedRequests ?? 0;
   const venueStatusCounts = useMemo(() => {
     return venues.reduce(
       (counts, venue) => {
@@ -1117,13 +1121,13 @@ export function AdminDashboard() {
                 <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
                   <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Approved</p>
                   <p className="mt-1.5 text-2xl font-semibold text-slate-900">
-                    {reportData.reduce((sum, row) => sum + row.approved, 0)}
+                    {approvedRequestsThisPeriod}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3">
                   <p className="text-xs font-bold uppercase tracking-wider text-rose-700">Rejected</p>
                   <p className="mt-1.5 text-2xl font-semibold text-slate-900">
-                    {reportData.reduce((sum, row) => sum + row.rejected, 0)}
+                    {rejectedRequestsThisPeriod}
                   </p>
                 </div>
               </div>

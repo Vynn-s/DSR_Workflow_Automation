@@ -365,6 +365,8 @@ export async function getAuditStats(req: Request, res: Response, next: NextFunct
 			)
 			SELECT
 				(SELECT COUNT(*)::int FROM filtered_rows WHERE action = 'REQUEST_CREATED') AS total_requests_this_month,
+				(SELECT COUNT(DISTINCT "requestId")::int FROM filtered_rows WHERE action = 'REQUEST_APPROVED' AND "requestId" IS NOT NULL) AS total_approved_requests,
+				(SELECT COUNT(DISTINCT "requestId")::int FROM filtered_rows WHERE action = 'REQUEST_REJECTED' AND "requestId" IS NOT NULL) AS total_rejected_requests,
 				COALESCE((
 					SELECT AVG(EXTRACT(EPOCH FROM (d.decided_at - c.created_at)) / 3600.0)
 					FROM created_requests c
@@ -407,6 +409,8 @@ export async function getAuditStats(req: Request, res: Response, next: NextFunct
 
 		return res.json({
 			totalRequestsThisMonth: toNumber(summaryRow.total_requests_this_month),
+			totalApprovedRequests: toNumber(summaryRow.total_approved_requests),
+			totalRejectedRequests: toNumber(summaryRow.total_rejected_requests),
 			averageApprovalTimeHours: toNumber(summaryRow.average_approval_time_hours),
 			totalConflictsDetected: toNumber(summaryRow.total_conflicts_detected),
 			rejectionRate: toNumber(summaryRow.rejection_rate),

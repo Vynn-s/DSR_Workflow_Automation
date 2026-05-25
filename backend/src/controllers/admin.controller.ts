@@ -157,6 +157,10 @@ function mapCognitoCreateUserError(error: any): InstanceType<typeof AppError> | 
 }
 
 async function listAllCognitoUsers(): Promise<CognitoUserRecord[]> {
+	if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+		return [];
+	}
+
 	const client = getCognitoClient();
 	const users: CognitoUserRecord[] = [];
 	let paginationToken: string | undefined;

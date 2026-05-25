@@ -62,7 +62,6 @@ export function ScrollPicker({ items, selectedIndex, onChange, className }: Scro
         }}
       >
         <div style={{ height: `${edgePadding}px` }} />
-      ref={containerRef}
         {items.map((item, index) => {
           const isSelected = index === selectedIndex;
 

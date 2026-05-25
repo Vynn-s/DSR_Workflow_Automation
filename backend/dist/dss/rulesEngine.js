@@ -12,8 +12,9 @@ function evaluateRequest(input, venueCapacity, authorizedMinistryIds, hasConflic
         (0, rules_1.checkRequiredSignatures)(input.signatures ?? []),
         (0, rules_1.checkAttachmentSupport)(input.attachmentCount ?? 0),
     ];
-    const allPassed = results.filter((result) => result.required !== false).every((result) => result.passed);
-    const failedRules = results.filter((result) => !result.passed).map((result) => result.ruleName);
+    const blockingResults = results.filter((result) => result.required !== false);
+    const allPassed = blockingResults.every((result) => result.passed);
+    const failedRules = blockingResults.filter((result) => !result.passed).map((result) => result.ruleName);
     const recommendation = allPassed
         ? "All DSS checks passed. Request can proceed."
         : `Request requires review. Failed checks: ${failedRules.join(", ")}.`;

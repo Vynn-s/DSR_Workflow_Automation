@@ -45,8 +45,9 @@ export function evaluateRequest(
 		checkAttachmentSupport(input.attachmentCount ?? 0),
 	];
 
-	const allPassed = results.filter((result) => result.required !== false).every((result) => result.passed);
-	const failedRules = results.filter((result) => !result.passed).map((result) => result.ruleName);
+	const blockingResults = results.filter((result) => result.required !== false);
+	const allPassed = blockingResults.every((result) => result.passed);
+	const failedRules = blockingResults.filter((result) => !result.passed).map((result) => result.ruleName);
 
 	const recommendation = allPassed
 		? "All DSS checks passed. Request can proceed."

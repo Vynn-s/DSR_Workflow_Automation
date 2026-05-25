@@ -103,6 +103,54 @@ const combineDateAndTimeToIso = (dateStr: string, timeStr: string) => {
 };
 
 const MAX_ATTACHMENT_SIZE_BYTES = 5 * 1024 * 1024;
+const BUSINESS_HOURS_OPEN_MINUTES = 6 * 60;
+const BUSINESS_HOURS_CLOSE_MINUTES = 22 * 60;
+const TIME_SLOT_STEP_MINUTES = 5;
+
+const timeSlots = Array.from(
+  { length: ((BUSINESS_HOURS_CLOSE_MINUTES - BUSINESS_HOURS_OPEN_MINUTES) / TIME_SLOT_STEP_MINUTES) + 1 },
+  (_, index) => BUSINESS_HOURS_OPEN_MINUTES + (index * TIME_SLOT_STEP_MINUTES),
+);
+
+function minutesToTimeString(totalMinutes: number) {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function minutesToDisplayTime(totalMinutes: number) {
+  const hours24 = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const period = hours24 >= 12 ? "PM" : "AM";
+  const displayHour = hours24 === 0 ? 12 : hours24 > 12 ? hours24 - 12 : hours24;
+  return `${displayHour}:${String(minutes).padStart(2, "0")} ${period}`;
+}
+
+const timeSlotLabels = timeSlots.map((minutes) => minutesToDisplayTime(minutes));
+
+function timeStringToMinutes(timeStr: string) {
+  const [hours, minutes] = timeStr.split(":").map(Number);
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return null;
+  }
+
+  return (hours * 60) + minutes;
+}
+
+function getTimeSlotIndex(timeStr: string | undefined, fallbackIndex: number) {
+  if (!timeStr) {
+    return fallbackIndex;
+  }
+
+  const minutes = timeStringToMinutes(timeStr);
+  if (minutes === null) {
+    return fallbackIndex;
+  }
+
+  const slotIndex = timeSlots.findIndex((slotMinutes) => slotMinutes === minutes);
+  return slotIndex >= 0 ? slotIndex : fallbackIndex;
+}
 
 const formatBytes = (bytes: number) => {
   if (bytes < 1024) {
@@ -149,8 +197,6 @@ export function BookingRequestForm() {
   // Time picker states
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
-  const [startTimeValues, setStartTimeValues] = useState({ hour: 9, minute: 0, period: 'AM' });
-  const [endTimeValues, setEndTimeValues] = useState({ hour: 5, minute: 0, period: 'PM' });
   const startTimeButtonRef = useRef<HTMLButtonElement>(null);
   const endTimeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -286,36 +332,15 @@ export function BookingRequestForm() {
     setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1));
   };
 
-  // Time picker helper functions
-  const convertTo24Hour = (hour: number, period: string) => {
-    if (period === 'AM') {
-      return hour === 12 ? 0 : hour;
-    } else {
-      return hour === 12 ? 12 : hour + 12;
-    }
-  };
-
-  const applyStartTime = () => {
-    const hour24 = convertTo24Hour(startTimeValues.hour, startTimeValues.period);
-    const timeStr = `${String(hour24).padStart(2, '0')}:${String(startTimeValues.minute).padStart(2, '0')}`;
-    setFormData((prev) => ({ ...prev, startTime: timeStr }));
-    setShowStartTimePicker(false);
-  };
-
-  const applyEndTime = () => {
-    const hour24 = convertTo24Hour(endTimeValues.hour, endTimeValues.period);
-    const timeStr = `${String(hour24).padStart(2, '0')}:${String(endTimeValues.minute).padStart(2, '0')}`;
-    setFormData(prev => ({ ...prev, endTime: timeStr }));
-    setShowEndTimePicker(false);
-  };
-
   const formatDisplayTime = (timeStr: string) => {
     if (!timeStr) return 'Select time';
-    const [hours, minutes] = timeStr.split(':');
-    const hour = parseInt(hours);
-    const period = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return `${displayHour}:${minutes} ${period}`;
+    const minutes = timeStringToMinutes(timeStr);
+
+    if (minutes === null) {
+      return timeStr;
+    }
+
+    return minutesToDisplayTime(minutes);
   };
 
   const formatDisplayDate = (dateStr: string) => {
@@ -339,6 +364,24 @@ export function BookingRequestForm() {
     new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1) <=
     new Date(today.getFullYear(), today.getMonth(), 1);
 
+  const updateStartTime = (index: number) => {
+    const minutes = timeSlots[index];
+    if (typeof minutes !== "number") {
+      return;
+    }
+
+    setFormData((prev) => ({ ...prev, startTime: minutesToTimeString(minutes) }));
+  };
+
+  const updateEndTime = (index: number) => {
+    const minutes = timeSlots[index];
+    if (typeof minutes !== "number") {
+      return;
+    }
+
+    setFormData((prev) => ({ ...prev, endTime: minutesToTimeString(minutes) }));
+  };
+
   const handleSubmit = async (e: React.FormEvent, isDraft: boolean = false) => {
     e.preventDefault();
     
@@ -356,6 +399,16 @@ export function BookingRequestForm() {
     const selectedVenue = venues.find((venue) => venue.id === formData.venue);
     if (!selectedVenue) {
       setSubmitError("Please select a valid venue");
+      return;
+    }
+
+    if (dssChecking) {
+      setSubmitError("Please wait for the DSS check to finish before submitting.");
+      return;
+    }
+
+    if (!canProceed) {
+      setSubmitError("This request cannot be submitted yet because one or more DSS checks are failing.");
       return;
     }
 
@@ -778,11 +831,11 @@ export function BookingRequestForm() {
               <div className="flex gap-3 pt-6 border-t border-slate-200">
                 <button
                   type="submit"
-                  disabled={isSubmitting || !canProceed}
+                  disabled={isSubmitting || dssChecking || !canProceed}
                   className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-900/20 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <Send className="w-4 h-4" />
-                  {isSubmitting ? "Submitting..." : "Submit Request"}
+                  {isSubmitting ? "Submitting..." : dssChecking ? "Checking DSS..." : "Submit Request"}
                 </button>
                 <button
                   type="button"
@@ -991,6 +1044,7 @@ export function BookingRequestForm() {
             <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-4 flex items-center justify-between rounded-t-2xl">
               <h3 className="font-semibold text-white">Start Time</h3>
               <button
+                type="button"
                 onClick={() => setShowStartTimePicker(false)}
                 className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
               >
@@ -1000,46 +1054,24 @@ export function BookingRequestForm() {
 
             {/* Time Picker */}
             <div className="p-6">
-              <div className="grid grid-cols-3 gap-4">
-                {/* Hour Picker */}
-                <div>
-                  <p className="text-xs font-bold text-slate-600 text-center mb-2">Hour</p>
-                  <ScrollPicker
-                    items={Array.from({ length: 12 }, (_, i) => i + 1)}
-                    selectedIndex={startTimeValues.hour - 1}
-                    onChange={(index) => setStartTimeValues(prev => ({ ...prev, hour: index + 1 }))}
-                  />
-                </div>
-
-                {/* Minute Picker */}
-                <div>
-                  <p className="text-xs font-bold text-slate-600 text-center mb-2">Minute</p>
-                  <ScrollPicker
-                    items={Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'))}
-                    selectedIndex={startTimeValues.minute / 5}
-                    onChange={(index) => setStartTimeValues(prev => ({ ...prev, minute: index * 5 }))}
-                  />
-                </div>
-
-                {/* Period Picker */}
-                <div>
-                  <p className="text-xs font-bold text-slate-600 text-center mb-2">Period</p>
-                  <ScrollPicker
-                    items={['AM', 'PM']}
-                    selectedIndex={startTimeValues.period === 'AM' ? 0 : 1}
-                    onChange={(index) => setStartTimeValues(prev => ({ ...prev, period: index === 0 ? 'AM' : 'PM' }))}
-                  />
-                </div>
+              <div>
+                <p className="text-xs font-bold text-slate-600 text-center mb-2">Scroll to select a time</p>
+                <ScrollPicker
+                  items={timeSlotLabels}
+                  selectedIndex={getTimeSlotIndex(formData.startTime, getTimeSlotIndex("09:00", 36))}
+                  onChange={updateStartTime}
+                />
               </div>
             </div>
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
               <button
-                onClick={applyStartTime}
+                type="button"
+                onClick={() => setShowStartTimePicker(false)}
                 className="w-full px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition-all shadow-lg font-medium"
               >
-                Confirm
+                Done
               </button>
             </div>
           </div>
@@ -1060,6 +1092,7 @@ export function BookingRequestForm() {
             <div className="bg-gradient-to-r from-rose-600 to-rose-700 px-6 py-4 flex items-center justify-between rounded-t-2xl">
               <h3 className="font-semibold text-white">End Time</h3>
               <button
+                type="button"
                 onClick={() => setShowEndTimePicker(false)}
                 className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
               >
@@ -1069,46 +1102,24 @@ export function BookingRequestForm() {
 
             {/* Time Picker */}
             <div className="p-6">
-              <div className="grid grid-cols-3 gap-4">
-                {/* Hour Picker */}
-                <div>
-                  <p className="text-xs font-bold text-slate-600 text-center mb-2">Hour</p>
-                  <ScrollPicker
-                    items={Array.from({ length: 12 }, (_, i) => i + 1)}
-                    selectedIndex={endTimeValues.hour - 1}
-                    onChange={(index) => setEndTimeValues(prev => ({ ...prev, hour: index + 1 }))}
-                  />
-                </div>
-
-                {/* Minute Picker */}
-                <div>
-                  <p className="text-xs font-bold text-slate-600 text-center mb-2">Minute</p>
-                  <ScrollPicker
-                    items={Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'))}
-                    selectedIndex={endTimeValues.minute / 5}
-                    onChange={(index) => setEndTimeValues(prev => ({ ...prev, minute: index * 5 }))}
-                  />
-                </div>
-
-                {/* Period Picker */}
-                <div>
-                  <p className="text-xs font-bold text-slate-600 text-center mb-2">Period</p>
-                  <ScrollPicker
-                    items={['AM', 'PM']}
-                    selectedIndex={endTimeValues.period === 'AM' ? 0 : 1}
-                    onChange={(index) => setEndTimeValues(prev => ({ ...prev, period: index === 0 ? 'AM' : 'PM' }))}
-                  />
-                </div>
+              <div>
+                <p className="text-xs font-bold text-slate-600 text-center mb-2">Scroll to select a time</p>
+                <ScrollPicker
+                  items={timeSlotLabels}
+                  selectedIndex={getTimeSlotIndex(formData.endTime, getTimeSlotIndex("05:00", 60))}
+                  onChange={updateEndTime}
+                />
               </div>
             </div>
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
               <button
-                onClick={applyEndTime}
+                type="button"
+                onClick={() => setShowEndTimePicker(false)}
                 className="w-full px-6 py-3 bg-gradient-to-r from-rose-600 to-rose-700 text-white rounded-xl hover:from-rose-700 hover:to-rose-800 transition-all shadow-lg font-medium"
               >
-                Confirm
+                Done
               </button>
             </div>
           </div>

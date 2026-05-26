@@ -3,6 +3,7 @@ import { CheckCircle, XCircle, FileText, User, Calendar as CalendarIcon, Papercl
 import { formatRequestId } from "../../lib/requestId";
 import { fetchVenues, type LiveVenue } from "../../lib/venues";
 import api from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
 
 interface Attachment {
   id: string;
@@ -203,6 +204,8 @@ export function ApproverDashboard() {
   const [dssLoading, setDssLoading] = useState(false);
   const [dssError, setDssError] = useState<string | null>(null);
 
+  const { isLoading: authLoading } = useAuth();
+
   const handleDownloadAttachment = (attachment: Attachment) => {
     const link = document.createElement("a");
     link.href = attachment.dataUrl;
@@ -213,6 +216,7 @@ export function ApproverDashboard() {
   };
 
   useEffect(() => {
+    if (authLoading) return;
     let isMounted = true;
 
     async function loadRequests() {
@@ -331,7 +335,7 @@ export function ApproverDashboard() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [authLoading]);
 
   useEffect(() => {
     let isMounted = true;

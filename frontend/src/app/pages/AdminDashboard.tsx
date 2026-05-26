@@ -171,17 +171,27 @@ function getReportWindow(view: ReportView) {
   return { dateFrom: start.toISOString(), dateTo: end.toISOString() };
 }
 
-function getActionBucket(action: string): "requests" | "approved" | "rejected" {
+function getActionBucket(action: string): "requests" | "approved" | "rejected" | null {
+  // Only map explicit request lifecycle actions. Ignore unrelated audit events.
   if (action === "REQUEST_CREATED") {
     return "requests";
   }
   if (action === "REQUEST_APPROVED") {
     return "approved";
   }
-  return "rejected";
+  if (action === "REQUEST_REJECTED") {
+    return "rejected";
+  }
+
+  return null;
+}
+
+function isVisibleAuditAction(action: string): boolean {
+  return action !== "DSS_EVALUATION";
 }
 
 function buildReportRows(logs: AuditLogItem[], view: ReportView): ChartRow[] {
+  const visibleLogs = logs.filter((log) => isVisibleAuditAction(log.action));
   const buckets =
     view === "weekly"
       ? Array.from({ length: 7 }, (_, index) => {
@@ -222,13 +232,15 @@ function buildReportRows(logs: AuditLogItem[], view: ReportView): ChartRow[] {
   return buckets.map((bucket) => {
     const counts = { requests: 0, approved: 0, rejected: 0 };
 
-    for (const log of logs) {
+    for (const log of visibleLogs) {
       const createdAt = new Date(log.createdAt);
       if (createdAt < bucket.start || createdAt >= bucket.end) {
         continue;
       }
 
       const mappedBucket = getActionBucket(log.action);
+      if (!mappedBucket) continue;
+
       counts[mappedBucket] += 1;
     }
 
@@ -502,14 +514,33 @@ export function AdminDashboard() {
 
     void loadDashboard();
 
+    const refreshOnFocus = () => {
+      if (document.visibilityState === "visible") {
+        void loadDashboard();
+      }
+    };
+
+    const refreshInterval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void loadDashboard();
+      }
+    }, 30000);
+
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnFocus);
+
     return () => {
       isMounted = false;
+      window.clearInterval(refreshInterval);
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshOnFocus);
     };
   }, [isAuthLoading, reportView]);
 
   const activityUsers = useMemo(() => adminUsers, [adminUsers]);
-  const reportData = useMemo(() => buildReportRows(auditLogs, reportView), [auditLogs, reportView]);
-  const insights = useMemo(() => buildInsights(auditStats, auditLogs), [auditStats, auditLogs]);
+  const visibleAuditLogs = useMemo(() => auditLogs.filter((log) => isVisibleAuditAction(log.action)), [auditLogs]);
+  const reportData = useMemo(() => buildReportRows(visibleAuditLogs, reportView), [visibleAuditLogs, reportView]);
+  const insights = useMemo(() => buildInsights(auditStats, visibleAuditLogs), [auditStats, visibleAuditLogs]);
   const requestsThisMonth = auditStats?.totalRequestsThisMonth ?? 0;
   const approvedRequestsThisPeriod = auditStats?.totalApprovedRequests ?? 0;
   const rejectedRequestsThisPeriod = auditStats?.totalRejectedRequests ?? 0;

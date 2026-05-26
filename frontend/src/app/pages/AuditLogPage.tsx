@@ -74,6 +74,8 @@ type AuditLogsResponse = {
 
 type AuditStats = {
   totalRequestsThisMonth: number;
+  totalApprovedRequests: number;
+  totalRejectedRequests: number;
   averageApprovalTimeHours: number;
   totalConflictsDetected: number;
   rejectionRate: number;
@@ -120,6 +122,10 @@ function formatAction(action: string): string {
     default:
       return action.replaceAll("_", " ");
   }
+}
+
+function isVisibleAuditAction(action: string): boolean {
+  return action !== "DSS_EVALUATION";
 }
 
 function getString(value: unknown): string | undefined {
@@ -294,8 +300,12 @@ export function AuditLogPage() {
       }
 
       if (logsResult.status === "fulfilled") {
+        const visibleEntries = (logsResult.value.data.items ?? [])
+          .filter((item) => isVisibleAuditAction(item.action))
+          .map(mapAuditEntry);
+
         setAuditTotal(logsResult.value.data.total ?? 0);
-        setAuditLogs((logsResult.value.data.items ?? []).map(mapAuditEntry));
+        setAuditLogs(visibleEntries);
       } else {
         console.error("Failed to load audit logs:", logsResult.reason);
         setAuditTotal(0);
@@ -315,8 +325,26 @@ export function AuditLogPage() {
 
     void loadAuditData();
 
+    const refreshOnFocus = () => {
+      if (document.visibilityState === "visible") {
+        void loadAuditData();
+      }
+    };
+
+    const refreshInterval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void loadAuditData();
+      }
+    }, 30000);
+
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnFocus);
+
     return () => {
       mounted = false;
+      window.clearInterval(refreshInterval);
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshOnFocus);
     };
   }, [filterAction, filterDate, filterRole]);
 
@@ -381,7 +409,6 @@ export function AuditLogPage() {
               <option value="REQUEST_APPROVED">Approved Request</option>
               <option value="REQUEST_REJECTED">Rejected Request</option>
               <option value="REQUEST_REVISION_REQUESTED">Requested Revision</option>
-              <option value="DSS_EVALUATION">DSS Evaluation</option>
             </select>
           </div>
 
@@ -544,7 +571,7 @@ export function AuditLogPage() {
           </div>
           <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-6 hover:shadow-xl transition-shadow">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Approvals Made</p>
-            <p className="text-3xl font-semibold text-slate-900">{approvalsMade}</p>
+            <p className="text-3xl font-semibold text-slate-900">{auditStats?.totalApprovedRequests ?? approvalsMade}</p>
           </div>
           <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-6 hover:shadow-xl transition-shadow">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Average Turnaround</p>
@@ -566,7 +593,12 @@ export function AuditLogPage() {
                     <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
                       <div
                         className="h-full rounded-full bg-blue-500"
-                        style={{ width: `${Math.max(8, (ministry.total / Math.max(1, auditStats.totalRequestsThisMonth)) * 100)}%` }}
+                        style={{
+                          width:
+                            ministry.total > 0
+                              ? `${Math.max(8, (ministry.total / Math.max(1, auditStats.totalRequestsThisMonth)) * 100)}%`
+                              : "0%",
+                        }}
                       />
                     </div>
                   </div>
@@ -588,7 +620,7 @@ export function AuditLogPage() {
                     <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
                       <div
                         className="h-full rounded-full bg-emerald-500"
-                        style={{ width: `${Math.max(8, Math.min(100, week.total * 12))}%` }}
+                        style={{ width: `${week.total > 0 ? Math.max(8, Math.min(100, week.total * 12)) : 0}%` }}
                       />
                     </div>
                   </div>

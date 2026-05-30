@@ -81,6 +81,15 @@ type AdminUsersResponse = {
   users: AdminUserRow[];
 };
 
+type MinistryOption = {
+  id: string;
+  name: string;
+};
+
+type MinistriesResponse = {
+  ministries: MinistryOption[];
+};
+
 type CreateAdminUserResponse = {
   user: AdminUserRow;
   temporaryPassword: string;
@@ -383,6 +392,7 @@ export function AdminDashboard() {
   const [usersTab, setUsersTab] = useState<"activity" | "manage">("activity");
   const [venues, setVenues] = useState<LiveVenue[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([]);
+  const [ministries, setMinistries] = useState<MinistryOption[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [auditStats, setAuditStats] = useState<AuditStats | null>(null);
   const [venuesLoading, setVenuesLoading] = useState(true);
@@ -421,6 +431,7 @@ export function AdminDashboard() {
     email: "",
     name: "",
     role: "REQUESTER" as UserRoleOption,
+    ministryId: "",
     temporaryPassword: "",
   });
   const [creatingUser, setCreatingUser] = useState(false);
@@ -450,9 +461,10 @@ export function AdminDashboard() {
 
       const window = getReportWindow(reportView);
 
-      const [liveVenuesResult, adminUsersResult, auditStatsResult, auditLogsResult] = await Promise.allSettled([
+      const [liveVenuesResult, adminUsersResult, ministriesResult, auditStatsResult, auditLogsResult] = await Promise.allSettled([
         fetchVenues(),
         api.get<AdminUsersResponse>("/admin/users"),
+        api.get<MinistriesResponse>("/admin/ministries"),
         api.get<AuditStats>("/audit/stats", { params: window }),
         fetchAuditLogs(window),
       ]);
@@ -487,6 +499,13 @@ export function AdminDashboard() {
         console.error("Failed to load admin users:", adminUsersResult.reason);
         setAdminUsers([]);
         setAdminUsersError("Unable to load admin users right now.");
+      }
+
+      if (ministriesResult.status === "fulfilled") {
+        setMinistries(ministriesResult.value.ministries ?? []);
+      } else {
+        console.error("Failed to load ministries:", ministriesResult.reason);
+        setMinistries([]);
       }
 
       if (auditStatsResult.status === "fulfilled") {
@@ -751,6 +770,7 @@ export function AdminDashboard() {
         email: newUserDraft.email.trim(),
         name: newUserDraft.name.trim(),
         role: newUserDraft.role,
+        ministryId: newUserDraft.ministryId.trim() || null,
         temporaryPassword: newUserDraft.temporaryPassword.trim() || undefined,
       });
 
@@ -760,6 +780,7 @@ export function AdminDashboard() {
         email: "",
         name: "",
         role: "REQUESTER",
+        ministryId: "",
         temporaryPassword: "",
       });
       setUserCreateMessage(
@@ -1310,6 +1331,22 @@ export function AdminDashboard() {
                     <option value="REQUESTER">Requester</option>
                     <option value="PARISH_SECRETARY">Parish Secretary</option>
                     <option value="ADMIN">Administrator</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">Ministry</label>
+                  <select
+                    value={newUserDraft.ministryId}
+                    onChange={(e) => setNewUserDraft((current) => ({ ...current, ministryId: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                  >
+                    <option value="">Unassigned</option>
+                    {ministries.map((ministry) => (
+                      <option key={ministry.id} value={ministry.id}>
+                        {ministry.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

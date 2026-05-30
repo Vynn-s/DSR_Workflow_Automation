@@ -6,6 +6,7 @@ const {
 	createAdminUser,
 	updateAdminUserRole,
 	deleteAdminUser,
+	getMinistries,
 } = require("../controllers/admin.controller") as typeof import("../controllers/admin.controller");
 
 const adminRoutes = Router();
@@ -15,6 +16,7 @@ adminRoutes.use(requireRole([Role.ADMIN, Role.PARISH_PRIEST]));
 
 adminRoutes.get("/users", listAdminUsers);
 adminRoutes.post("/users", createAdminUser);
+adminRoutes.get("/ministries", getMinistries);
 adminRoutes.patch("/users/:id/role", updateAdminUserRole);
 adminRoutes.delete("/users/:id", deleteAdminUser);
 

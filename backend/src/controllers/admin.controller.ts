@@ -47,6 +47,11 @@ type CognitoUserRecord = {
 	role: AdminUserRole;
 };
 
+type MinistryRecord = {
+	id: string;
+	name: string;
+};
+
 type CognitoGroupRole = Exclude<AdminUserRole, "ADMIN">;
 
 let cognitoClient: CognitoIdentityProviderClient | null = null;
@@ -154,6 +159,28 @@ function mapCognitoCreateUserError(error: any): InstanceType<typeof AppError> | 
 	}
 
 	return null;
+}
+
+async function listMinistries(): Promise<MinistryRecord[]> {
+	const result = await pool.query(
+		`SELECT id, name
+		 FROM "Ministry"
+		 ORDER BY name ASC`,
+	);
+
+	return result.rows.map((row) => ({
+		id: row.id,
+		name: row.name,
+	}));
+}
+
+export async function getMinistries(req: Request, res: Response, next: NextFunction) {
+	try {
+		const ministries = await listMinistries();
+		return res.json({ ministries });
+	} catch (error) {
+		return next(error);
+	}
 }
 
 async function listAllCognitoUsers(): Promise<CognitoUserRecord[]> {

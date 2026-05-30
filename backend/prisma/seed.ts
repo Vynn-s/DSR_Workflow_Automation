@@ -19,16 +19,51 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const testMinistry = await prisma.ministry.upsert({
-    where: { name: "Parish Ministry" },
-    update: {
-      description: "Primary parish ministry used for venue access",
+  const ministrySeedData = [
+    {
+      name: "Knights of the Altar Servers",
+      description: "Ministry for altar service coordination and liturgical support.",
     },
-    create: {
+    {
+      name: "Parish Youth Apostolate",
+      description: "Ministry for youth formation, activities, and outreach.",
+    },
+    {
+      name: "Confraternity of the Our Lady of Lourdes",
+      description: "Devotional ministry for prayer gatherings and Marian activities.",
+    },
+    {
+      name: "Music Ministry",
+      description: "Ministry for choir practice, music rehearsals, and liturgical music coordination.",
+    },
+    {
+      name: "Eucharistic Ministers of Holy Communion",
+      description: "Ministry for Eucharistic service and sacred liturgical assignments.",
+    },
+    {
+      name: "Catholic Lay Apologists",
+      description: "Ministry for catechetical talks, apologetics, and faith formation sessions.",
+    },
+    {
+      name: "Catechists",
+      description: "Ministry for catechesis, formation classes, and teaching sessions.",
+    },
+    {
       name: "Parish Ministry",
-      description: "Primary parish ministry used for venue access",
+      description: "Legacy ministry used for existing venue access records.",
     },
-  });
+  ];
+
+  const ministries = [];
+  for (const ministry of ministrySeedData) {
+    const createdMinistry = await prisma.ministry.upsert({
+      where: { name: ministry.name },
+      update: { description: ministry.description },
+      create: ministry,
+    });
+
+    ministries.push(createdMinistry);
+  }
 
   const venues = [
     {
@@ -96,19 +131,21 @@ async function main() {
     });
 
     await prisma.venueMinistry.upsert({
-      where: {
-        venueId_ministryId: {
-          venueId: createdVenue.id,
-          ministryId: testMinistry.id,
+    for (const ministry of ministries) {
+      await prisma.venueMinistry.upsert({
+        where: {
+          venueId_ministryId: {
+            venueId: createdVenue.id,
+            ministryId: ministry.id,
+          },
         },
-      },
-      update: {},
-      create: {
-        venueId: createdVenue.id,
-        ministryId: testMinistry.id,
-      },
-    });
-  }
+        update: {},
+        create: {
+          venueId: createdVenue.id,
+          ministryId: ministry.id,
+        },
+      });
+    }
 
   await prisma.venue.updateMany({
     where: {

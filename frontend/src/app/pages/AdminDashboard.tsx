@@ -564,19 +564,6 @@ export function AdminDashboard() {
   }, [adminUsers]);
   const selectedVenue = venues.find((venue) => venue.id === selectedVenueId) ?? null;
 
-  useEffect(() => {
-    if (!selectedVenue) {
-      return;
-    }
-
-    setVenueDraft({
-      name: selectedVenue.name,
-      description: selectedVenue.description ?? "",
-      capacity: String(selectedVenue.capacity),
-      status: selectedVenue.status,
-    });
-  }, [selectedVenue]);
-
   const startEditingVenue = (venue: LiveVenue) => {
     setSelectedVenueId(venue.id);
     setVenueDraft({
@@ -616,6 +603,7 @@ export function AdminDashboard() {
       setVenues((current) => current.map((venue) => (venue.id === selectedVenueId ? updatedVenue.venue : venue)));
       setVenueSaveMessage(`Venue updated successfully at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`);
       setVenueSaveMessageType("success");
+      closeVenueModal();
     } catch (error) {
       console.error("Failed to save venue:", error);
       setVenueSaveMessage("Unable to save venue changes right now.");

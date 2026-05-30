@@ -722,7 +722,7 @@ export function AuditLogPage() {
 
                     {selectedEntry.fullDetails.requestEventName && (
                       <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Event</p>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Specific Event</p>
                         <p className="text-slate-900">{selectedEntry.fullDetails.requestEventName}</p>
                       </div>
                     )}

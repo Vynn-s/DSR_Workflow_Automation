@@ -320,7 +320,7 @@ export function RequesterDashboard() {
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Venue</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Date</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Time</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Purpose</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Specific Event</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-4 text-center text-xs font-bold text-slate-700 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -385,7 +385,7 @@ export function RequesterDashboard() {
                     <p className="font-semibold text-slate-900 text-base">{selectedRequest.time}</p>
                   </div>
                   <div>
-                    <p className="text-slate-600 font-medium mb-1">Purpose</p>
+                    <p className="text-slate-600 font-medium mb-1">Specific Event</p>
                     <p className="font-semibold text-slate-900 text-base">{selectedRequest.purpose}</p>
                   </div>
                 </div>

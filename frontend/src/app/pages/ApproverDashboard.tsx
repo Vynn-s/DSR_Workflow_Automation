@@ -838,7 +838,7 @@ export function ApproverDashboard() {
                 </div>
 
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Purpose</p>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Specific Event</p>
                   <p className="text-sm text-slate-900">
                     {selectedRequest.purpose}
                   </p>

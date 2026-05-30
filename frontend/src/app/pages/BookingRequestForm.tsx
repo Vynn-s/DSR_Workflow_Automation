@@ -59,6 +59,17 @@ const attendeeRangeOptions = [
   { label: "301-500", value: 500 },
 ];
 
+const specificEventOptions = [
+  "N/A",
+  "Seminar/ Formation",
+  "Symposiums",
+  "Practicum/ Music Practice",
+  "Meeting",
+  "Holding Area",
+  "Dining Area (Chapels Not Allowed)",
+  "Preparation Room (Chapels Not Allowed)",
+];
+
 const defaultAttendeeRange = attendeeRangeOptions[0].value.toString();
 
 const buildVenueInfo = (venue: VenueApi): VenueInfo => {
@@ -826,18 +837,26 @@ export function BookingRequestForm() {
                   htmlFor="purpose"
                   className="block text-sm font-semibold text-slate-700 mb-2"
                 >
-                  Purpose / Event Description <span className="text-rose-500">*</span>
+                  Specific Event <span className="text-rose-500">*</span>
                 </label>
-                <textarea
+                <select
                   id="purpose"
                   name="purpose"
                   value={formData.purpose}
                   onChange={handleInputChange}
-                  rows={4}
                   className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all resize-none"
-                  placeholder="Describe the purpose of your booking request"
                   required
-                />
+                >
+                  <option value="">Select a specific event</option>
+                  {specificEventOptions.map((eventName) => (
+                    <option key={eventName} value={eventName}>
+                      {eventName}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-xs text-slate-500">
+                  Choose the closest event type for this request.
+                </p>
               </div>
 
               {/* Optional Attachment */}

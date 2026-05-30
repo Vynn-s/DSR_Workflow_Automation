@@ -48,6 +48,7 @@ interface BookingRecommendationResponse {
   monthLabel: string;
   monthName: string;
   totalRequests: number;
+  seasonalContext?: string[];
   topVenues: Array<{ name: string; total: number }>;
   topMinistries: Array<{ name: string; total: number }>;
   topPurposes: Array<{ name: string; total: number }>;
@@ -902,6 +903,21 @@ export function BookingRequestForm() {
                       ) : bookingRecommendations ? (
                         <div className="space-y-3 text-sm text-blue-900">
                           <p>{bookingRecommendations.monthLabel} currently has {bookingRecommendations.totalRequests} live booking{bookingRecommendations.totalRequests === 1 ? "" : "s"}.</p>
+                          {bookingRecommendations.seasonalContext && bookingRecommendations.seasonalContext.length > 0 && (
+                            <div className="rounded-lg border border-blue-200 bg-white/70 p-3">
+                              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700 mb-2">
+                                Church seasonal context for {bookingRecommendations.monthName}
+                              </p>
+                              <ul className="space-y-1.5">
+                                {bookingRecommendations.seasonalContext.map((note) => (
+                                  <li key={note} className="flex items-start gap-2">
+                                    <span className="mt-1.5 w-1.5 h-1.5 bg-blue-500 rounded-full flex-shrink-0" />
+                                    <span>{note}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                           <ul className="space-y-1.5">
                             {bookingRecommendations.recommendations.map((message, index) => (
                               <li key={`${index}-${message}`} className="flex items-start gap-2">

@@ -56,6 +56,31 @@ function formatCountList(entries: Array<{ name: string; total: number }>) {
 	return entries.map((entry) => `${entry.name} (${entry.total})`);
 }
 
+function getSeasonalContext(monthName: string): string[] {
+	const seasonalNotes: Record<string, string[]> = {
+		January: [
+			"Feast of the Santo Nino",
+			"Jesus Nazareno",
+			"Lector Recruitment",
+			"Bible Month",
+			"Bible Symposiums",
+		],
+		February: [],
+		March: ["Lent Preparations", "Meetings", "Practices"],
+		April: ["Holy Week", "Meetings", "Practices", "Gatherings", "Recollections", "Lectures", "Confessions"],
+		May: ["Month of Ministry Recruitment", "Heavy Meetings and Practices"],
+		June: ["Cathedral Fiesta Celebrations", "Meetings", "Practices"],
+		July: ["Regular Schedules of Ministry Meetings"],
+		August: ["Regular Schedules of Ministry Meetings"],
+		September: ["Vocation Month"],
+		October: ["Month of the Holy Rosary"],
+		November: ["Advent Preparations"],
+		December: ["Advent Recollections", "Confessions", "Christmas Celebrations", "Utilization of Facilities for Holding Areas", "Preparation rooms", "Meetings", "Practices"],
+	};
+
+	return seasonalNotes[monthName] ?? [];
+}
+
 export async function evaluateRequest(
 	req: Request,
 	res: Response,
@@ -253,6 +278,7 @@ export async function getBookingRecommendations(
 		const { start, end } = getMonthWindow(date);
 		const monthLabel = date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 		const monthName = date.toLocaleDateString("en-US", { month: "long" });
+		const seasonalContext = getSeasonalContext(monthName);
 
 		const [venuesResult, ministriesResult, purposesResult, selectedVenueResult, selectedMinistryResult] = await Promise.all([
 			client.query(
@@ -359,6 +385,7 @@ export async function getBookingRecommendations(
 			monthLabel,
 			monthName,
 			totalRequests,
+			seasonalContext,
 			topVenues,
 			topMinistries,
 			topPurposes,

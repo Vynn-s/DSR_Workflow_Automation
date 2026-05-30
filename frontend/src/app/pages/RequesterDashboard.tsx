@@ -163,14 +163,14 @@ export function RequesterDashboard() {
     {
       id: 1,
       type: "approved",
-      message: "Your request REQ-001 for Main Chapel has been approved",
+      message: "Your request REQ-001 for Mezzanine Hall A has been approved",
       date: "2026-01-29",
       read: false,
     },
     {
       id: 2,
       type: "rejected",
-      message: "Your request REQ-003 for Multipurpose Room has been rejected",
+      message: "Your request REQ-003 for Meeting Room 1 has been rejected",
       date: "2026-01-26",
       read: false,
     },

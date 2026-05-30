@@ -63,7 +63,7 @@ function convertToBookedSlot(request: ApiResponse['requests'][0]): BookedSlot {
   };
 }
 export function AdminVenueAvailability() {
-  const [selectedVenue, setSelectedVenue] = useState("Main Chapel");
+  const [selectedVenue, setSelectedVenue] = useState("Mezzanine Hall A");
   const [venues, setVenues] = useState<string[]>([]);
   const [bookingsByVenue, setBookingsByVenue] = useState<Record<string, BookedSlot[]>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -110,7 +110,7 @@ export function AdminVenueAvailability() {
         });
         
         const sortedVenues = Array.from(venueSet).sort();
-        setVenues(sortedVenues.length > 0 ? sortedVenues : ["Main Chapel", "Parish Hall", "Multipurpose Room", "Chapel Garden", "Conference Room", "Youth Center"]);
+        setVenues(sortedVenues.length > 0 ? sortedVenues : ["Mezzanine Hall A", "Mezzanine Hall B", "Mezzanine Hall (Whole A & B)", "Socio Hall", "Auditorium", "Meeting Room 1", "Meeting Room 2", "Parish Rectory", "Blessed Sacrament Chapel", "Chapel of the Saints"]);
         setBookingsByVenue(grouped);
         
         // Ensure selected venue exists
@@ -120,7 +120,7 @@ export function AdminVenueAvailability() {
       } catch (err) {
         console.error("Failed to load availability:", err);
         setError("Unable to load venue availability. Please try again later.");
-        setVenues(["Main Chapel", "Parish Hall", "Multipurpose Room", "Chapel Garden", "Conference Room", "Youth Center"]);
+        setVenues(["Mezzanine Hall A", "Mezzanine Hall B", "Mezzanine Hall (Whole A & B)", "Socio Hall", "Auditorium", "Meeting Room 1", "Meeting Room 2", "Parish Rectory", "Blessed Sacrament Chapel", "Chapel of the Saints"]);
         setBookingsByVenue({});
       } finally {
         setIsLoading(false);

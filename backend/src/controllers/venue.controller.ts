@@ -162,6 +162,7 @@ export async function getVenues(req: Request, res: Response, next: NextFunction)
 				 FROM "Venue" v
 				 LEFT JOIN "VenueMinistry" vm ON vm."venueId" = v.id
 				 LEFT JOIN "Ministry" m ON m.id = vm."ministryId"
+				 WHERE v.status = 'ACTIVE'
 				 ORDER BY v.name ASC, vm.id ASC NULLS LAST`,
 			);
 
@@ -216,7 +217,7 @@ export async function getVenues(req: Request, res: Response, next: NextFunction)
 			 FROM "Venue" v
 			 LEFT JOIN "VenueMinistry" vm ON vm."venueId" = v.id
 			 LEFT JOIN "Ministry" m ON m.id = vm."ministryId"
-			 WHERE vm."ministryId" = $1 OR vm.id IS NULL
+			 WHERE v.status = 'ACTIVE' AND (vm."ministryId" = $1 OR vm.id IS NULL)
 			 ORDER BY v.name ASC, vm.id ASC`,
 			[ministryId],
 		);

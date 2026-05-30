@@ -292,7 +292,7 @@ function getTopVenueName(logs: AuditLogItem[]): string {
   }
 
   const topVenue = Array.from(counts.entries()).sort((left, right) => right[1] - left[1])[0];
-  return topVenue?.[0] ?? "Main Chapel";
+  return topVenue?.[0] ?? "Mezzanine Hall A";
 }
 
 function getBusiestDay(logs: AuditLogItem[]): string {

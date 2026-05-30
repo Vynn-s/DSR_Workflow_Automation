@@ -19,7 +19,7 @@ const mockNotifications: Notification[] = [
     type: "approved",
     requestId: "REQ-001",
     message: "Your booking request has been approved",
-    details: "Your request for Main Chapel on February 15, 2026 has been approved. All requirements were met.",
+    details: "Your request for Mezzanine Hall A on February 15, 2026 has been approved. All requirements were met.",
     date: "2026-01-29",
     time: "02:20 PM",
     read: false
@@ -29,7 +29,7 @@ const mockNotifications: Notification[] = [
     type: "rejected",
     requestId: "REQ-003",
     message: "Your booking request has been rejected",
-    details: "Your request for Multipurpose Room has been rejected. Reason: Venue already booked for another event during this time slot.",
+    details: "Your request for Meeting Room 1 has been rejected. Reason: Venue already booked for another event during this time slot.",
     date: "2026-01-26",
     time: "09:15 AM",
     read: false
@@ -39,7 +39,7 @@ const mockNotifications: Notification[] = [
     type: "review",
     requestId: "REQ-002",
     message: "Your request is now under review",
-    details: "Your booking request for Parish Hall is being reviewed by the approval team.",
+    details: "Your booking request for Socio Hall is being reviewed by the approval team.",
     date: "2026-02-01",
     time: "02:45 PM",
     read: true
@@ -59,7 +59,7 @@ const mockNotifications: Notification[] = [
     type: "review",
     requestId: "REQ-004",
     message: "Your request has been submitted",
-    details: "Your booking request for Chapel Garden has been successfully submitted and is awaiting review.",
+    details: "Your booking request for Blessed Sacrament Chapel has been successfully submitted and is awaiting review.",
     date: "2026-02-02",
     time: "10:15 AM",
     read: true

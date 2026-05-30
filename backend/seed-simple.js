@@ -4,7 +4,7 @@ const crypto = require("crypto");
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: true,
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : { rejectUnauthorized: false },
 });
 
 function generateId() {
@@ -34,19 +34,29 @@ async function getOrCreateVenue(client, name, description, capacity) {
 async function seed() {
   const client = await pool.connect();
   try {
-    const ministryId = generateId();
-    await client.query(
-      `INSERT INTO "Ministry" (id, name, description, "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, NOW(), NOW())
-       ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description, "updatedAt" = NOW()`,
-      [ministryId, "Parish Ministry", "Primary parish ministry used for venue access"]
-    );
+    const ministrySeedData = [
+      { name: "Knights of the Altar Servers", description: "Ministry for altar service coordination and liturgical support." },
+      { name: "Parish Youth Apostolate", description: "Ministry for youth formation, activities, and outreach." },
+      { name: "Confraternity of the Our Lady of Lourdes", description: "Devotional ministry for prayer gatherings and Marian activities." },
+      { name: "Music Ministry", description: "Ministry for choir practice, music rehearsals, and liturgical music coordination." },
+      { name: "Eucharistic Ministers of Holy Communion", description: "Ministry for Eucharistic service and sacred liturgical assignments." },
+      { name: "Catholic Lay Apologists", description: "Ministry for catechetical talks, apologetics, and faith formation sessions." },
+      { name: "Catechists", description: "Ministry for catechesis, formation classes, and teaching sessions." },
+      { name: "Parish Ministry", description: "Legacy ministry used for existing venue access records." },
+    ];
 
-    const ministryResult = await client.query(
-      `SELECT id FROM "Ministry" WHERE name = $1`,
-      ["Parish Ministry"]
-    );
-    const actualMinistryId = ministryResult.rows[0].id;
+    for (const m of ministrySeedData) {
+      const id = generateId();
+      await client.query(
+        `INSERT INTO "Ministry" (id, name, description, "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, NOW(), NOW())
+         ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description, "updatedAt" = NOW()`,
+        [id, m.name, m.description]
+      );
+    }
+
+    const ministriesResult = await client.query(`SELECT id, name FROM "Ministry"`);
+    const ministryMap = new Map(ministriesResult.rows.map((r) => [r.name, r.id]));
 
     const venues = [
       {
@@ -84,12 +94,14 @@ async function seed() {
     for (const venue of venues) {
       const venueId = await getOrCreateVenue(client, venue.name, venue.description, venue.capacity);
 
-      await client.query(
-        `INSERT INTO "VenueMinistry" (id, "venueId", "ministryId")
-         VALUES ($1, $2, $3)
-         ON CONFLICT ("venueId", "ministryId") DO NOTHING`,
-        [generateId(), venueId, actualMinistryId]
-      );
+      for (const mid of ministryMap.values()) {
+        await client.query(
+          `INSERT INTO "VenueMinistry" (id, "venueId", "ministryId")
+           VALUES ($1, $2, $3)
+           ON CONFLICT ("venueId", "ministryId") DO NOTHING`,
+          [generateId(), venueId, mid]
+        );
+      }
     }
 
     console.log("Seeding completed successfully.");

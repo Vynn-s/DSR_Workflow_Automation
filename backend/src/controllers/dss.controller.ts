@@ -26,6 +26,12 @@ const evaluateRequestSchema = z.object({
 	})).optional(),
 });
 
+const recommendationQuerySchema = z.object({
+	date: z.coerce.date(),
+	venueId: z.string().min(1).optional(),
+	ministryId: z.string().min(1).optional(),
+});
+
 const conflictQuerySchema = z.object({
 	venueId: z.string().min(1),
 	date: z.coerce.date(),
@@ -38,6 +44,16 @@ function combineDateAndTime(date: Date, time: string): Date {
 	const combined = new Date(date);
 	combined.setHours(hours, minutes, 0, 0);
 	return combined;
+}
+
+function getMonthWindow(date: Date) {
+	const start = new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
+	const end = new Date(date.getFullYear(), date.getMonth() + 1, 1, 0, 0, 0, 0);
+	return { start, end };
+}
+
+function formatCountList(entries: Array<{ name: string; total: number }>) {
+	return entries.map((entry) => `${entry.name} (${entry.total})`);
 }
 
 export async function evaluateRequest(
@@ -220,7 +236,176 @@ export async function checkConflicts(
 	}
 }
 
+export async function getBookingRecommendations(
+	req: Request,
+	res: Response,
+	next: NextFunction,
+) {
+	const client = await pool.connect();
+	try {
+		const parsed = recommendationQuerySchema.safeParse(req.query);
+
+		if (!parsed.success) {
+			throw new AppError("Invalid recommendation query parameters", 400);
+		}
+
+		const { date, venueId, ministryId } = parsed.data;
+		const { start, end } = getMonthWindow(date);
+		const monthLabel = date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+		const monthName = date.toLocaleDateString("en-US", { month: "long" });
+
+		const [venuesResult, ministriesResult, purposesResult, selectedVenueResult, selectedMinistryResult] = await Promise.all([
+			client.query(
+				`SELECT v.name, COUNT(*)::int AS total
+				 FROM "VenueRequest" vr
+				 INNER JOIN "Venue" v ON v.id = vr."venueId"
+				 WHERE vr."startDateTime" >= $1
+				   AND vr."startDateTime" < $2
+				   AND vr.status <> 'REJECTED'
+				 GROUP BY v.name
+				 ORDER BY total DESC, v.name ASC
+				 LIMIT 3`,
+				[start, end],
+			),
+			client.query(
+				`SELECT COALESCE(m.name, 'Unassigned') AS name, COUNT(*)::int AS total
+				 FROM "VenueRequest" vr
+				 LEFT JOIN "Ministry" m ON m.id = vr."ministryId"
+				 WHERE vr."startDateTime" >= $1
+				   AND vr."startDateTime" < $2
+				   AND vr.status <> 'REJECTED'
+				 GROUP BY COALESCE(m.name, 'Unassigned')
+				 ORDER BY total DESC, name ASC
+				 LIMIT 3`,
+				[start, end],
+			),
+			client.query(
+				`SELECT COALESCE(NULLIF(BTRIM(vr.purpose), ''), NULLIF(BTRIM(vr."eventName"), ''), 'Unspecified') AS name, COUNT(*)::int AS total
+				 FROM "VenueRequest" vr
+				 WHERE vr."startDateTime" >= $1
+				   AND vr."startDateTime" < $2
+				   AND vr.status <> 'REJECTED'
+				 GROUP BY COALESCE(NULLIF(BTRIM(vr.purpose), ''), NULLIF(BTRIM(vr."eventName"), ''), 'Unspecified')
+				 ORDER BY total DESC, name ASC
+				 LIMIT 3`,
+				[start, end],
+			),
+			venueId
+				? client.query(
+					`SELECT COUNT(*)::int AS total
+					 FROM "VenueRequest"
+					 WHERE "venueId" = $1
+					   AND "startDateTime" >= $2
+					   AND "startDateTime" < $3
+					   AND status <> 'REJECTED'`,
+					[venueId, start, end],
+				)
+				: Promise.resolve({ rows: [] as Array<{ total: number }> }),
+			ministryId
+				? client.query(
+					`SELECT COUNT(*)::int AS total
+					 FROM "VenueRequest"
+					 WHERE "ministryId" = $1
+					   AND "startDateTime" >= $2
+					   AND "startDateTime" < $3
+					   AND status <> 'REJECTED'`,
+					[ministryId, start, end],
+				)
+				: Promise.resolve({ rows: [] as Array<{ total: number }> }),
+		]);
+
+		const totalRequestsResult = await client.query(
+			`SELECT COUNT(*)::int AS total
+			 FROM "VenueRequest"
+			 WHERE "startDateTime" >= $1
+			   AND "startDateTime" < $2
+			   AND status <> 'REJECTED'`,
+			[start, end],
+		);
+
+		const topVenues = venuesResult.rows.map((row) => ({ name: row.name as string, total: row.total as number }));
+		const topMinistries = ministriesResult.rows.map((row) => ({ name: row.name as string, total: row.total as number }));
+		const topPurposes = purposesResult.rows.map((row) => ({ name: row.name as string, total: row.total as number }));
+		const totalRequests = totalRequestsResult.rows[0]?.total ?? 0;
+
+		const recommendations: string[] = [];
+		recommendations.push(
+			totalRequests > 0
+				? `${monthLabel} already has ${totalRequests} live booking${totalRequests === 1 ? "" : "s"}.`
+				: `No live bookings were found for ${monthLabel} yet.`,
+		);
+
+		if (topVenues.length > 0) {
+			recommendations.push(`Most active venues this month: ${formatCountList(topVenues).join(", ")}.`);
+		}
+
+		if (topMinistries.length > 0) {
+			recommendations.push(`Most active ministries this month: ${formatCountList(topMinistries).join(", ")}.`);
+		}
+
+		if (topPurposes.length > 0) {
+			recommendations.push(`Common live activities this month: ${formatCountList(topPurposes).join(", ")}.`);
+		}
+
+		if (selectedVenueResult.rows[0]?.total) {
+			recommendations.push(`The selected venue has ${selectedVenueResult.rows[0].total} booking${selectedVenueResult.rows[0].total === 1 ? "" : "s"} in ${monthLabel}.`);
+		}
+
+		if (selectedMinistryResult.rows[0]?.total) {
+			recommendations.push(`The selected ministry has ${selectedMinistryResult.rows[0].total} booking${selectedMinistryResult.rows[0].total === 1 ? "" : "s"} in ${monthLabel}.`);
+		}
+
+		return res.json({
+			monthLabel,
+			monthName,
+			totalRequests,
+			topVenues,
+			topMinistries,
+			topPurposes,
+			recommendations,
+		});
+	} catch (error) {
+		if (error instanceof AppError) {
+			return next(error);
+		}
+
+		return next(new AppError("Failed to build booking recommendations", 500));
+	} finally {
+		client.release();
+	}
+}
+
+export async function getPriests(
+	req: Request,
+	res: Response,
+	next: NextFunction,
+) {
+	const client = await pool.connect();
+	try {
+		const result = await client.query(
+			`SELECT id, name, email
+			 FROM "User"
+			 WHERE role = 'PARISH_PRIEST'
+			 ORDER BY name ASC, email ASC`,
+		);
+
+		return res.json({
+			priests: result.rows.map((row) => ({
+				id: row.id,
+				name: row.name,
+				email: row.email,
+			})),
+		});
+	} catch (error) {
+		return next(error);
+	} finally {
+		client.release();
+	}
+}
+
 export default {
 	evaluateRequest,
 	checkConflicts,
+	getBookingRecommendations,
+	getPriests,
 };

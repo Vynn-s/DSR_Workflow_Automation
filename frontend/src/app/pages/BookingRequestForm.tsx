@@ -44,6 +44,16 @@ interface DssRuleResult {
   message: string;
 }
 
+interface BookingRecommendationResponse {
+  monthLabel: string;
+  monthName: string;
+  totalRequests: number;
+  topVenues: Array<{ name: string; total: number }>;
+  topMinistries: Array<{ name: string; total: number }>;
+  topPurposes: Array<{ name: string; total: number }>;
+  recommendations: string[];
+}
+
 interface VenueInfo {
   name: string;
   capacity: number;
@@ -273,6 +283,8 @@ export function BookingRequestForm() {
   const [dssResults, setDssResults] = useState<DssRuleResult[]>([]);
   const [dssChecking, setDssChecking] = useState(false);
   const [canProceed, setCanProceed] = useState(false);
+  const [bookingRecommendations, setBookingRecommendations] = useState<BookingRecommendationResponse | null>(null);
+  const [bookingRecommendationsLoading, setBookingRecommendationsLoading] = useState(false);
 
   // Calendar modal state
   const [showCalendar, setShowCalendar] = useState(false);
@@ -420,6 +432,51 @@ export function BookingRequestForm() {
       isMounted = false;
     };
   }, [formData.venue, formData.date, formData.startTime, formData.endTime, formData.attendees, attachment, signatures, user?.ministryId, venues]);
+
+  useEffect(() => {
+    if (!formData.date) {
+      setBookingRecommendations(null);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadRecommendations = async () => {
+      setBookingRecommendationsLoading(true);
+
+      try {
+        const params: Record<string, string> = { date: formData.date };
+
+        if (formData.venue) {
+          params.venueId = formData.venue;
+        }
+
+        if (user?.ministryId) {
+          params.ministryId = user.ministryId;
+        }
+
+        const response = await api.get<BookingRecommendationResponse>("/dss/recommendations", { params });
+
+        if (isMounted) {
+          setBookingRecommendations(response);
+        }
+      } catch {
+        if (isMounted) {
+          setBookingRecommendations(null);
+        }
+      } finally {
+        if (isMounted) {
+          setBookingRecommendationsLoading(false);
+        }
+      }
+    };
+
+    void loadRecommendations();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [formData.date, formData.venue, user?.ministryId]);
 
   // Calendar helper functions
   const getDaysInMonth = (date: Date) => {
@@ -826,6 +883,35 @@ export function BookingRequestForm() {
                       <p className="text-xs text-amber-700 mt-3">
                         These DSS results determine whether the request can be submitted.
                       </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Live Booking Guidance */}
+              {(bookingRecommendationsLoading || bookingRecommendations) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="text-sm font-semibold text-blue-900 mb-2">
+                        Live Booking Guidance
+                      </h4>
+                      {bookingRecommendationsLoading ? (
+                        <p className="text-sm text-blue-800">Reading live booking patterns from the database...</p>
+                      ) : bookingRecommendations ? (
+                        <div className="space-y-3 text-sm text-blue-900">
+                          <p>{bookingRecommendations.monthLabel} currently has {bookingRecommendations.totalRequests} live booking{bookingRecommendations.totalRequests === 1 ? "" : "s"}.</p>
+                          <ul className="space-y-1.5">
+                            {bookingRecommendations.recommendations.map((message, index) => (
+                              <li key={`${index}-${message}`} className="flex items-start gap-2">
+                                <span className="mt-1.5 w-1.5 h-1.5 bg-blue-600 rounded-full flex-shrink-0" />
+                                <span>{message}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>

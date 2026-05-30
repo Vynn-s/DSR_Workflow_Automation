@@ -120,10 +120,16 @@ type DSSInsights = {
     time: string;
     venue: string;
   };
+  busiestWindow: string;
   efficiency: {
     avgApprovalTime: string;
     approvalRate: string;
     trend: string;
+  };
+  bookingPatterns: {
+    topEventType: string;
+    topMinistry: string;
+    topVenue: string;
   };
   recommendations: string[];
   risks: string[];
@@ -197,6 +203,53 @@ function getActionBucket(action: string): "requests" | "approved" | "rejected" |
 
 function isVisibleAuditAction(action: string): boolean {
   return action !== "DSS_EVALUATION";
+}
+
+function getRequestLabel(log: AuditLogItem): string | null {
+  const eventName = log.venueRequest?.eventName?.trim();
+  if (eventName) {
+    return eventName;
+  }
+
+  const purpose = log.venueRequest?.purpose?.trim();
+  return purpose || null;
+}
+
+function getTopCountLabel<T>(items: T[], getLabel: (item: T) => string | null | undefined, fallback: string): { label: string; total: number } {
+  const counts = new Map<string, number>();
+
+  for (const item of items) {
+    const label = getLabel(item)?.trim();
+    if (!label) {
+      continue;
+    }
+
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+
+  const top = Array.from(counts.entries()).sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))[0];
+  return top ? { label: top[0], total: top[1] } : { label: fallback, total: 0 };
+}
+
+function getPeakBookingWindow(logs: AuditLogItem[]) {
+  const counts = new Map<string, number>();
+
+  for (const log of logs) {
+    const requestStart = log.venueRequest?.startDateTime;
+    if (!requestStart) {
+      continue;
+    }
+
+    const date = new Date(requestStart);
+    const day = date.toLocaleDateString("en-US", { weekday: "long" });
+    const hour = date.getHours();
+    const hourLabel = `${hour % 12 === 0 ? 12 : hour % 12}:00 ${hour >= 12 ? "PM" : "AM"}`;
+    const window = `${day} • ${hourLabel}`;
+    counts.set(window, (counts.get(window) ?? 0) + 1);
+  }
+
+  const top = Array.from(counts.entries()).sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))[0];
+  return top?.[0] ?? "No bookings yet";
 }
 
 function buildReportRows(logs: AuditLogItem[], view: ReportView): ChartRow[] {
@@ -289,19 +342,7 @@ async function fetchAuditLogs(window?: { dateFrom: string; dateTo: string }): Pr
 }
 
 function getTopVenueName(logs: AuditLogItem[]): string {
-  const counts = new Map<string, number>();
-
-  for (const log of logs) {
-    const venueName = log.venueRequest?.venue?.name;
-    if (!venueName) {
-      continue;
-    }
-
-    counts.set(venueName, (counts.get(venueName) ?? 0) + 1);
-  }
-
-  const topVenue = Array.from(counts.entries()).sort((left, right) => right[1] - left[1])[0];
-  return topVenue?.[0] ?? "Mezzanine Hall A";
+  return getTopCountLabel(logs, (log) => log.venueRequest?.venue?.name ?? null, "Mezzanine Hall A").label;
 }
 
 function getBusiestDay(logs: AuditLogItem[]): string {
@@ -335,7 +376,7 @@ function getBusiestTimeWindow(logs: AuditLogItem[]): string {
     counts.set(hour, (counts.get(hour) ?? 0) + 1);
   }
 
-  const busiestHour = Array.from(counts.entries()).sort((left, right) => right[1] - left[1])[0]?.[0] ?? 10;
+  const busiestHour = Array.from(counts.entries()).sort((left, right) => right[1] - left[1] || left[0] - right[0])[0]?.[0] ?? 10;
   const startHour = busiestHour % 12 === 0 ? 12 : busiestHour % 12;
   const suffix = busiestHour >= 12 ? "PM" : "AM";
   const nextHour = (busiestHour + 1) % 24;
@@ -348,23 +389,34 @@ function buildInsights(stats: AuditStats | null, logs: AuditLogItem[]): DSSInsig
   const topVenue = getTopVenueName(logs);
   const busiestDay = getBusiestDay(logs);
   const busiestTime = getBusiestTimeWindow(logs);
+  const peakWindow = getPeakBookingWindow(logs);
+  const topEventType = getTopCountLabel(logs, getRequestLabel, "No event data available");
+  const topMinistry = getTopCountLabel(logs, (log) => log.venueRequest?.ministry?.name ?? null, "No ministry data available");
+  const topVenueCount = getTopCountLabel(logs, (log) => log.venueRequest?.venue?.name ?? null, "No venue data available");
   const approvalRate = stats ? Math.max(0, 100 - stats.rejectionRate) : 0;
-  const topMinistry = stats?.requestsByMinistry?.[0];
+  const topMinistryStat = stats?.requestsByMinistry?.[0];
 
   const recommendations = [
-    stats && stats.averageApprovalTimeHours > 6
-      ? `Average approval time is ${stats.averageApprovalTimeHours.toFixed(1)} hours. Consider redistributing approvals.`
-      : "Approval turnaround is within the normal operating window.",
-    topMinistry
-      ? `${topMinistry.ministryName} has the highest request volume (${topMinistry.total} requests).`
-      : "Request volume is currently distributed across ministries.",
-    `Busiest venue: ${topVenue}. Consider keeping a closer watch on its booking cadence.`,
+    peakWindow !== "No bookings yet"
+      ? `Peak booking demand is concentrated on ${peakWindow}. Watch staffing and approvals around that window.`
+      : "No live booking pattern data is available yet.",
+    topEventType.total > 0
+      ? `Most frequently booked event type: ${topEventType.label} (${topEventType.total} requests).`
+      : "No event type trends are available yet.",
+    topVenueCount.total > 0
+      ? `Most booked venue: ${topVenueCount.label} (${topVenueCount.total} requests).`
+      : `Busiest venue observed: ${topVenue}.`,
+    topMinistry.total > 0
+      ? `Most active ministry in the logs: ${topMinistry.label} (${topMinistry.total} requests).`
+      : topMinistryStat
+        ? `${topMinistryStat.ministryName} has the highest request volume (${topMinistryStat.total} requests).`
+        : "Ministry demand is currently distributed across the live records.",
   ];
 
   const risks = [
     stats && stats.totalConflictsDetected > 0
-      ? `${stats.totalConflictsDetected} scheduling conflict(s) detected in the current dataset.`
-      : "No scheduling conflicts detected in the current dataset.",
+      ? `${stats.totalConflictsDetected} scheduling conflict(s) detected in the live dataset.`
+      : "No scheduling conflicts detected in the live dataset.",
     stats && stats.rejectionRate > 20
       ? `Rejection rate is ${stats.rejectionRate.toFixed(1)}%. Review request quality and venue allocation rules.`
       : "Rejection rate remains within a manageable range.",
@@ -376,10 +428,16 @@ function buildInsights(stats: AuditStats | null, logs: AuditLogItem[]): DSSInsig
       time: busiestTime,
       venue: topVenue,
     },
+    busiestWindow: peakWindow,
     efficiency: {
       avgApprovalTime: stats ? `${stats.averageApprovalTimeHours.toFixed(1)} hours` : "N/A",
       approvalRate: `${approvalRate.toFixed(0)}%`,
       trend: stats && stats.averageApprovalTimeHours <= 6 && stats.rejectionRate < 20 ? "improving" : "under review",
+    },
+    bookingPatterns: {
+      topEventType: topEventType.total > 0 ? `${topEventType.label} (${topEventType.total})` : "No event data available",
+      topMinistry: topMinistry.total > 0 ? `${topMinistry.label} (${topMinistry.total})` : topMinistryStat ? `${topMinistryStat.ministryName} (${topMinistryStat.total})` : "No ministry data available",
+      topVenue: topVenueCount.total > 0 ? `${topVenueCount.label} (${topVenueCount.total})` : topVenue,
     },
     recommendations,
     risks,
@@ -928,14 +986,14 @@ export function AdminDashboard() {
             </div>
             <div className="flex-1">
               <h3 className="font-semibold text-slate-900 text-2xl mb-4">
-                Decision Support System - System Insights
+                Decision Support System - Booking Insights
               </h3>
 
               <div className="grid grid-cols-3 gap-5 mb-6">
                 <div className="bg-white rounded-xl p-5 border-2 border-indigo-200 shadow-lg shadow-indigo-900/10">
                   <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                     <TrendingUp className="w-4 h-4" />
-                    Peak Demand
+                    Peak Request Demand
                   </p>
                   <p className="text-sm text-slate-900 mb-1.5 font-medium">
                     <span className="font-bold">{insights.peakDemand.day}</span> • {insights.peakDemand.time}
@@ -946,7 +1004,7 @@ export function AdminDashboard() {
                 <div className="bg-white rounded-xl p-5 border-2 border-indigo-200 shadow-lg shadow-indigo-900/10">
                   <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                     <Clock className="w-4 h-4" />
-                    System Efficiency
+                    Approval Flow
                   </p>
                   <p className="text-sm text-slate-900 mb-1.5 font-medium">
                     Approval: <span className="font-bold">{insights.efficiency.avgApprovalTime}</span>
@@ -955,7 +1013,7 @@ export function AdminDashboard() {
                 </div>
 
                 <div className="bg-white rounded-xl p-5 border-2 border-indigo-200 shadow-lg shadow-indigo-900/10">
-                  <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-3">System Status</p>
+                  <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-3">Booking Pressure</p>
                   <div className="flex items-center gap-2 mb-1.5">
                     {insights.efficiency.trend === "improving" ? (
                       <CheckCircle2 className="w-5 h-5 text-emerald-600" />
@@ -963,10 +1021,29 @@ export function AdminDashboard() {
                       <AlertTriangle className="w-5 h-5 text-amber-600" />
                     )}
                     <span className="text-sm font-bold text-slate-900">
-                      {insights.efficiency.trend === "improving" ? "All Systems Operational" : "Review Recommended"}
+                      {insights.efficiency.trend === "improving" ? "Flow Looks Healthy" : "Review Booking Pressure"}
                     </span>
                   </div>
                   <p className="text-xs text-slate-600 font-medium">Trend: {insights.efficiency.trend}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-3 mb-6">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Top Event Type</p>
+                  <p className="text-sm font-semibold text-slate-900">{insights.bookingPatterns.topEventType}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Top Ministry</p>
+                  <p className="text-sm font-semibold text-slate-900">{insights.bookingPatterns.topMinistry}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Top Venue</p>
+                  <p className="text-sm font-semibold text-slate-900">{insights.bookingPatterns.topVenue}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Busiest Window</p>
+                  <p className="text-sm font-semibold text-slate-900">{insights.busiestWindow}</p>
                 </div>
               </div>
 
@@ -974,7 +1051,7 @@ export function AdminDashboard() {
                 <div>
                   <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    Recommendations
+                    Operational Notes
                   </h4>
                   <ul className="space-y-1.5">
                     {insights.recommendations.map((rec, index) => (
@@ -989,7 +1066,7 @@ export function AdminDashboard() {
                 <div>
                   <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-1">
                     <AlertTriangle className="w-3.5 h-3.5" />
-                    Attention Required
+                    Watch List
                   </h4>
                   <ul className="space-y-1.5">
                     {insights.risks.map((risk, index) => (

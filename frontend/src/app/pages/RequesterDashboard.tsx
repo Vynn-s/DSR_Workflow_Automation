@@ -18,7 +18,15 @@ interface Request {
     completed?: string;
   };
   approverRemarks?: string;
+  approvedById?: string | null;
+  approvedByName?: string | null;
 }
+
+type PriestOption = {
+  id: string;
+  name: string;
+  email: string;
+};
 
 type ApiRequest = {
   id: string;
@@ -36,6 +44,11 @@ type ApiRequest = {
   approvalActions?: Array<{
     remarks?: string | null;
     createdAt: string;
+    approver?: {
+      id: string;
+      name: string;
+      email: string;
+    };
   }>;
 };
 
@@ -86,6 +99,8 @@ async function fetchLiveRequests() {
       ? formatDateTime(request.updatedAt)
       : undefined;
 
+    const latestApprovalAction = [...(request.approvalActions ?? [])].reverse().find((action) => action.approver);
+
     return {
       id: request.id,
       venue: request.venue.name,
@@ -100,6 +115,8 @@ async function fetchLiveRequests() {
         completed,
       },
       approverRemarks: [...(request.approvalActions ?? [])].reverse().find((action) => Boolean(action.remarks))?.remarks ?? undefined,
+      approvedById: latestApprovalAction?.approver?.id ?? null,
+      approvedByName: latestApprovalAction?.approver?.name ?? null,
     } satisfies Request;
   });
 }
@@ -110,6 +127,7 @@ export function RequesterDashboard() {
   const [requests, setRequests] = useState<Request[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [priests, setPriests] = useState<PriestOption[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -138,6 +156,23 @@ export function RequesterDashboard() {
     }
 
     void loadRequests();
+
+    async function loadPriests() {
+      try {
+        const response = await api.get<{ priests: PriestOption[] }>("/dss/priests");
+
+        if (isMounted) {
+          setPriests(response.priests ?? []);
+        }
+      } catch (error) {
+        console.error("Failed to load priest list:", error);
+        if (isMounted) {
+          setPriests([]);
+        }
+      }
+    }
+
+    void loadPriests();
 
     const handleWindowFocus = () => {
       void loadRequests();
@@ -276,6 +311,21 @@ export function RequesterDashboard() {
           to="/requester/new-request"
           className="inline-flex items-center gap-2.5 px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-xl shadow-blue-900/30 hover:shadow-2xl hover:shadow-blue-900/40 font-medium text-lg hover:-translate-y-0.5 transform"
         >
+                <div>
+                  <p className="text-slate-600 font-medium mb-1">Approved By</p>
+                  <select
+                    disabled
+                    value={selectedRequest.approvedById ?? ""}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+                  >
+                    <option value="">{selectedRequest.approvedByName ?? "Not yet approved"}</option>
+                    {priests.map((priest) => (
+                      <option key={priest.id} value={priest.id}>
+                        {priest.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
           <Plus className="w-5 h-5" />
           Submit New Booking Request
         </Link>

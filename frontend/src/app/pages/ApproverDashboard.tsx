@@ -58,6 +58,8 @@ interface Request {
   attachments?: Attachment[];
   signatures?: Signature[];
   dssRecommendation?: DSSRecommendation;
+  approvedById?: string | null;
+  approvedByName?: string | null;
 }
 
 type ApiApprovalQueueItem = {
@@ -85,6 +87,7 @@ type ApiApprovalQueueItem = {
     remarks?: string | null;
     createdAt: string;
     approver: {
+      id: string;
       name: string;
       email: string;
     };
@@ -203,6 +206,7 @@ export function ApproverDashboard() {
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
   const [dssLoading, setDssLoading] = useState(false);
   const [dssError, setDssError] = useState<string | null>(null);
+  const [priests, setPriests] = useState<Array<{ id: string; name: string; email: string }>>([]);
 
   const { isLoading: authLoading } = useAuth();
 
@@ -242,6 +246,8 @@ export function ApproverDashboard() {
           submittedDate: formatDateTime(request.createdAt),
           attachments: request.attachments ?? [],
           signatures: request.signatures ?? [],
+          approvedById: [...(request.approvalActions ?? [])].reverse().find((action) => action.approver)?.approver?.id ?? null,
+          approvedByName: [...(request.approvalActions ?? [])].reverse().find((action) => action.approver)?.approver?.name ?? null,
         } satisfies Request));
 
         if (isMounted) {
@@ -331,6 +337,22 @@ export function ApproverDashboard() {
     void loadRequests();
     void loadVenues();
     void loadArchive();
+
+    async function loadPriests() {
+      try {
+        const response = await api.get<{ priests: Array<{ id: string; name: string; email: string }> }>("/dss/priests");
+        if (isMounted) {
+          setPriests(response.priests ?? []);
+        }
+      } catch (error) {
+        console.error("Failed to load priest list for approver dashboard:", error);
+        if (isMounted) {
+          setPriests([]);
+        }
+      }
+    }
+
+    void loadPriests();
 
     return () => {
       isMounted = false;
@@ -849,6 +871,22 @@ export function ApproverDashboard() {
                   <p className="text-sm text-slate-900">
                     {selectedRequest.requester}
                   </p>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Approved By</p>
+                  <select
+                    disabled
+                    value={selectedRequest.approvedById ?? ""}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+                  >
+                    <option value="">{selectedRequest.approvedByName ?? "Not yet approved"}</option>
+                    {priests.map((priest) => (
+                      <option key={priest.id} value={priest.id}>
+                        {priest.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>

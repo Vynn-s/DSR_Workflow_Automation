@@ -315,10 +315,10 @@ export function RequesterDashboard() {
                   <p className="text-slate-600 font-medium mb-1">Approved By</p>
                   <select
                     disabled
-                    value={selectedRequest.approvedById ?? ""}
+                    value={selectedRequest?.approvedById ?? ""}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
                   >
-                    <option value="">{selectedRequest.approvedByName ?? "Not yet approved"}</option>
+                    <option value="">{selectedRequest?.approvedByName ?? "Not yet approved"}</option>
                     {priests.map((priest) => (
                       <option key={priest.id} value={priest.id}>
                         {priest.name}

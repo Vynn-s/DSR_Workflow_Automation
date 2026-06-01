@@ -10,6 +10,8 @@ interface Signature {
   signatory: string;
   required: boolean;
   status: "pending" | "signed";
+  priestId?: string;
+  priestName?: string;
   signedDate?: string;
 }
 
@@ -63,6 +65,13 @@ interface VenueInfo {
   requiredSignatures: Signature[];
 }
 
+const priestSignatureOptions = [
+  { id: "priest-sample-1", name: "Fr. Adrian Santos" },
+  { id: "priest-sample-2", name: "Fr. Miguel Reyes" },
+  { id: "priest-sample-3", name: "Fr. Joseph dela Cruz" },
+  { id: "priest-sample-4", name: "Fr. Paul Garcia" },
+];
+
 const attendeeRangeOptions = [
   { label: "1-50", value: 50 },
   { label: "51-150", value: 150 },
@@ -112,6 +121,8 @@ const buildVenueInfo = (venue: VenueApi): VenueInfo => {
             signatory: "Parish Secretary Approval",
             required: true,
             status: "pending" as const,
+            priestId: priestSignatureOptions[0].id,
+            priestName: priestSignatureOptions[0].name,
           },
         ],
   };
@@ -714,6 +725,20 @@ export function BookingRequestForm() {
     setSignatures(updated);
   };
 
+  const handlePriestSelection = (index: number, priestId: string) => {
+    const selectedPriest = priestSignatureOptions.find((option) => option.id === priestId);
+
+    setSignatures((current) => {
+      const updated = [...current];
+      updated[index] = {
+        ...updated[index],
+        priestId,
+        priestName: selectedPriest?.name ?? "",
+      };
+      return updated;
+    });
+  };
+
   const canSaveDraft = formData.venue || formData.date || formData.purpose;
   const calendarYear = calendarDate.getFullYear();
   const calendarMonthIndex = calendarDate.getMonth();
@@ -1032,6 +1057,28 @@ export function BookingRequestForm() {
                                   Signed on {signature.signedDate}
                                 </p>
                               )}
+                              <div className="mt-3">
+                                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                                  Priest Signatory
+                                </label>
+                                <select
+                                  value={signature.priestId ?? ""}
+                                  onChange={(event) => handlePriestSelection(index, event.target.value)}
+                                  className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                                >
+                                  <option value="">Select priest</option>
+                                  {priestSignatureOptions.map((priest) => (
+                                    <option key={priest.id} value={priest.id}>
+                                      {priest.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                {signature.priestName && (
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    Assigned to {signature.priestName}
+                                  </p>
+                                )}
+                              </div>
                             </div>
                             <div className="flex items-center gap-2">
                               {signature.status === "signed" ? (

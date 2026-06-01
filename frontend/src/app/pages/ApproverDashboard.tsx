@@ -19,6 +19,8 @@ interface Signature {
   signatory: string;
   status: "signed" | "pending";
   required?: boolean;
+  priestId?: string;
+  priestName?: string;
   signedDate?: string;
 }
 
@@ -979,6 +981,11 @@ export function ApproverDashboard() {
                                 <p className="text-xs text-slate-600">
                                   {signature.role}
                                 </p>
+                                {signature.priestName && (
+                                  <p className="text-xs text-slate-500 mt-1">
+                                    Priest Signatory: {signature.priestName}
+                                  </p>
+                                )}
                               </div>
                             </div>
                             <div className="text-right">

@@ -31,6 +31,8 @@ const createRequestSchema = z.object({
 		signatory: z.string().trim(),
 		required: z.boolean(),
 		status: z.enum(["pending", "signed"]),
+		priestId: z.string().trim().optional(),
+		priestName: z.string().trim().optional(),
 		signedDate: z.string().trim().optional(),
 	})).optional(),
 });
@@ -74,6 +76,8 @@ function sanitizeCreateRequestInput(input: z.infer<typeof createRequestSchema>) 
 			...signature,
 			role: signature.role.trim(),
 			signatory: signature.signatory.trim(),
+			priestId: signature.priestId?.trim(),
+			priestName: signature.priestName?.trim(),
 			signedDate: signature.signedDate?.trim(),
 		})) ?? [],
 	};

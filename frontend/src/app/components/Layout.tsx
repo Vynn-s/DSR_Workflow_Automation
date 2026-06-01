@@ -1,5 +1,5 @@
 import { Outlet, Link, useNavigate } from "react-router";
-import { LogOut, LayoutDashboard, Calendar, FileText, Users, BarChart3 } from "lucide-react";
+import { LogOut, LayoutDashboard, Calendar, FileText, Users, BarChart3, Church } from "lucide-react";
 
 interface LayoutProps {
   role: "requester" | "approver" | "admin";
@@ -18,13 +18,21 @@ export function Layout({ role }: LayoutProps) {
       <header className="bg-white/80 backdrop-blur-sm border-b border-slate-200/60 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-5">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-semibold text-slate-900 tracking-tight">
-                San Pedro Cathedral
-              </h1>
-              <p className="text-sm text-slate-600 mt-0.5">
-                Venue & Facilities Management
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 flex-shrink-0">
+                <img src="/logo.png" alt="San Pedro Cathedral Logo" className="w-10 h-10 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                <div className="-mt-10">
+                  <Church className="w-10 h-10 text-slate-900" />
+                </div>
+              </div>
+              <div>
+                <h1 className="text-xl font-semibold text-slate-900 tracking-tight">
+                  San Pedro Cathedral
+                </h1>
+                <p className="text-sm text-slate-600 mt-0.5">
+                  Venue & Facilities Management
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="px-4 py-2 bg-slate-100 rounded-lg">

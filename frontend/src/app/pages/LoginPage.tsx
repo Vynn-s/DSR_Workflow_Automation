@@ -57,9 +57,13 @@ export function LoginPage() {
         <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full">
           {/* Logo & Title */}
           <div>
-            <div className="flex items-center gap-3 mb-8">
-              <div className="p-3 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
-                <Church className="w-8 h-8 text-white" />
+              <div className="flex items-center gap-3 mb-8">
+              <div className="p-0 bg-white/0 rounded-xl border border-white/0">
+                {/* Logo component will render /logo.png if present, otherwise fallback icon */}
+                <img src="/logo.png" alt="San Pedro Cathedral Logo" className="w-8 h-8 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                <div className="-mt-8">
+                  <Church className="w-8 h-8 text-white" />
+                </div>
               </div>
               <div>
                 <h1 className="text-2xl font-semibold tracking-tight">

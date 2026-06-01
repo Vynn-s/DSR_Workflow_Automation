@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, Send, Paperclip, Save, AlertCircle, Info, MapPin, Users, FileText, Shield, CheckCircle2, XCircle, Calendar as CalendarIcon, Clock, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Send, Paperclip, Save, AlertCircle, Info, MapPin, Users, FileText, Shield, CheckCircle2, XCircle, Calendar as CalendarIcon, Clock, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 import api from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 import { ScrollPicker } from "../components/ScrollPicker";
@@ -297,6 +297,10 @@ export function BookingRequestForm() {
   const [canProceed, setCanProceed] = useState(false);
   const [bookingRecommendations, setBookingRecommendations] = useState<BookingRecommendationResponse | null>(null);
   const [bookingRecommendationsLoading, setBookingRecommendationsLoading] = useState(false);
+  const [dssCollapsed, setDssCollapsed] = useState(false);
+  const [recsCollapsed, setRecsCollapsed] = useState(false);
+  const [dssPinned, setDssPinned] = useState(false);
+  const [recsPinned, setRecsPinned] = useState(false);
 
   // Calendar modal state
   const [showCalendar, setShowCalendar] = useState(false);
@@ -767,6 +771,108 @@ export function BookingRequestForm() {
         <div className="col-span-2">
           <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-8">
             <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
+              {/* DSS Results (moved to top) */}
+              {(dssChecking || dssResults.length > 0) && (
+                <div className={`${dssPinned ? 'sticky top-24 z-30' : ''} bg-amber-50 border border-amber-200 rounded-lg p-0`}>
+                  <div className="flex items-center justify-end gap-2 p-2">
+                    <button type="button" aria-label="Toggle DSS pin" onClick={() => setDssPinned((v) => !v)} className={`px-2 py-1 rounded-md text-sm ${dssPinned ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}>
+                      <MapPin className="w-4 h-4" />
+                    </button>
+                    <button type="button" aria-label="Toggle DSS collapse" onClick={() => setDssCollapsed((v) => !v)} className="px-2 py-1 rounded-md text-sm text-slate-600 hover:bg-slate-100">
+                      {dssCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {!dssCollapsed && (
+                    <div className="p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <h4 className="text-sm font-semibold text-amber-900 mb-2">
+                            Availability Notices
+                          </h4>
+                          {dssChecking ? (
+                            <p className="text-sm text-amber-800">Checking availability and workflow rules...</p>
+                          ) : (
+                            <ul className="space-y-2">
+                              {dssResults.map((result, index) => (
+                                <li key={`${result.ruleName}-${index}`} className="text-sm flex items-start gap-2">
+                                  {result.passed ? (
+                                    <CheckCircle2 className="mt-0.5 w-4 h-4 text-emerald-600 flex-shrink-0" />
+                                  ) : (
+                                    <XCircle className="mt-0.5 w-4 h-4 text-rose-600 flex-shrink-0" />
+                                  )}
+                                  <span className={result.passed ? "text-emerald-800" : "text-rose-800"}>
+                                    {result.message}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          <p className="text-xs text-amber-700 mt-3">
+                            These DSS results determine whether the request can be submitted.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Live Booking Guidance (moved to top) */}
+              {(bookingRecommendationsLoading || bookingRecommendations) && (
+                <div className={`${recsPinned ? 'sticky top-24 z-30' : ''} bg-blue-50 border border-blue-200 rounded-lg p-0`}>
+                  <div className="flex items-center justify-end gap-2 p-2">
+                    <button type="button" aria-label="Toggle guidance pin" onClick={() => setRecsPinned((v) => !v)} className={`px-2 py-1 rounded-md text-sm ${recsPinned ? 'bg-blue-100 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}>
+                      <MapPin className="w-4 h-4" />
+                    </button>
+                    <button type="button" aria-label="Toggle guidance collapse" onClick={() => setRecsCollapsed((v) => !v)} className="px-2 py-1 rounded-md text-sm text-slate-600 hover:bg-slate-100">
+                      {recsCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {!recsCollapsed && (
+                    <div className="p-4">
+                      <div className="flex items-start gap-3">
+                        <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <h4 className="text-sm font-semibold text-blue-900 mb-2">
+                            Live Booking Guidance
+                          </h4>
+                          {bookingRecommendationsLoading ? (
+                            <p className="text-sm text-blue-800">Reading live booking patterns from the database...</p>
+                          ) : bookingRecommendations ? (
+                            <div className="space-y-3 text-sm text-blue-900">
+                              <p>{bookingRecommendations.monthLabel} currently has {bookingRecommendations.totalRequests} live booking{bookingRecommendations.totalRequests === 1 ? "" : "s"}.</p>
+                              {bookingRecommendations.seasonalContext && bookingRecommendations.seasonalContext.length > 0 && (
+                                <div className="rounded-lg border border-blue-200 bg-white/70 p-3">
+                                  <p className="text-xs font-semibold uppercase tracking-wider text-blue-700 mb-2">
+                                    Church seasonal context for {bookingRecommendations.monthName}
+                                  </p>
+                                  <ul className="space-y-1.5">
+                                    {bookingRecommendations.seasonalContext.map((note) => (
+                                      <li key={note} className="flex items-start gap-2">
+                                        <span className="mt-1.5 w-1.5 h-1.5 bg-blue-500 rounded-full flex-shrink-0" />
+                                        <span>{note}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              <ul className="space-y-1.5">
+                                {bookingRecommendations.recommendations.map((message, index) => (
+                                  <li key={`${index}-${message}`} className="flex items-start gap-2">
+                                    <span className="mt-1.5 w-1.5 h-1.5 bg-blue-600 rounded-full flex-shrink-0" />
+                                    <span>{message}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               {/* Venue Selection */}
               <div>
                 <label
@@ -879,84 +985,7 @@ export function BookingRequestForm() {
                 </div>
               </div>
 
-              {/* DSS Results */}
-              {(dssChecking || dssResults.length > 0) && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <h4 className="text-sm font-semibold text-amber-900 mb-2">
-                        Availability Notices
-                      </h4>
-                      {dssChecking ? (
-                        <p className="text-sm text-amber-800">Checking availability and workflow rules...</p>
-                      ) : (
-                        <ul className="space-y-2">
-                          {dssResults.map((result, index) => (
-                            <li key={`${result.ruleName}-${index}`} className="text-sm flex items-start gap-2">
-                              {result.passed ? (
-                                <CheckCircle2 className="mt-0.5 w-4 h-4 text-emerald-600 flex-shrink-0" />
-                              ) : (
-                                <XCircle className="mt-0.5 w-4 h-4 text-rose-600 flex-shrink-0" />
-                              )}
-                              <span className={result.passed ? "text-emerald-800" : "text-rose-800"}>
-                                {result.message}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      <p className="text-xs text-amber-700 mt-3">
-                        These DSS results determine whether the request can be submitted.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Live Booking Guidance */}
-              {(bookingRecommendationsLoading || bookingRecommendations) && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <h4 className="text-sm font-semibold text-blue-900 mb-2">
-                        Live Booking Guidance
-                      </h4>
-                      {bookingRecommendationsLoading ? (
-                        <p className="text-sm text-blue-800">Reading live booking patterns from the database...</p>
-                      ) : bookingRecommendations ? (
-                        <div className="space-y-3 text-sm text-blue-900">
-                          <p>{bookingRecommendations.monthLabel} currently has {bookingRecommendations.totalRequests} live booking{bookingRecommendations.totalRequests === 1 ? "" : "s"}.</p>
-                          {bookingRecommendations.seasonalContext && bookingRecommendations.seasonalContext.length > 0 && (
-                            <div className="rounded-lg border border-blue-200 bg-white/70 p-3">
-                              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700 mb-2">
-                                Church seasonal context for {bookingRecommendations.monthName}
-                              </p>
-                              <ul className="space-y-1.5">
-                                {bookingRecommendations.seasonalContext.map((note) => (
-                                  <li key={note} className="flex items-start gap-2">
-                                    <span className="mt-1.5 w-1.5 h-1.5 bg-blue-500 rounded-full flex-shrink-0" />
-                                    <span>{note}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                          <ul className="space-y-1.5">
-                            {bookingRecommendations.recommendations.map((message, index) => (
-                              <li key={`${index}-${message}`} className="flex items-start gap-2">
-                                <span className="mt-1.5 w-1.5 h-1.5 bg-blue-600 rounded-full flex-shrink-0" />
-                                <span>{message}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              )}
+              
 
               {/* Purpose/Description */}
               <div>

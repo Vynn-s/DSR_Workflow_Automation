@@ -59,11 +59,8 @@ export function LoginPage() {
           <div>
               <div className="flex items-center gap-3 mb-8">
               <div className="p-0 bg-white/0 rounded-xl border border-white/0">
-                {/* Logo component will render /logo.png if present, otherwise fallback icon */}
+                {/* Logo image — will hide itself if not available */}
                 <img src="/logo.png" alt="San Pedro Cathedral Logo" className="w-8 h-8 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                <div className="-mt-8">
-                  <Church className="w-8 h-8 text-white" />
-                </div>
               </div>
               <div>
                 <h1 className="text-2xl font-semibold tracking-tight">
@@ -140,8 +137,8 @@ export function LoginPage() {
           {/* Mobile Header */}
           <div className="lg:hidden text-center mb-10">
             <div className="flex items-center justify-center gap-3 mb-3">
-              <div className="p-2 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg">
-                <Church className="w-6 h-6 text-white" />
+              <div className="p-0 rounded-lg">
+                <img src="/logo.png" alt="San Pedro Cathedral Logo" className="w-6 h-6 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
               </div>
               <h1 className="text-xl font-semibold text-slate-900">
                 San Pedro Cathedral

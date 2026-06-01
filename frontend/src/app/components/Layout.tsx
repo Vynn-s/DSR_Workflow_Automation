@@ -1,5 +1,5 @@
 import { Outlet, Link, useNavigate } from "react-router";
-import { LogOut, LayoutDashboard, Calendar, FileText, Users, BarChart3, Church } from "lucide-react";
+import { LogOut, LayoutDashboard, Calendar, FileText, Users, BarChart3 } from "lucide-react";
 
 interface LayoutProps {
   role: "requester" | "approver" | "admin";
@@ -21,9 +21,6 @@ export function Layout({ role }: LayoutProps) {
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 flex-shrink-0">
                 <img src="/logo.png" alt="San Pedro Cathedral Logo" className="w-10 h-10 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                <div className="-mt-10">
-                  <Church className="w-10 h-10 text-slate-900" />
-                </div>
               </div>
               <div>
                 <h1 className="text-xl font-semibold text-slate-900 tracking-tight">

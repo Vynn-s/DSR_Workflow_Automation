@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { Plus, Clock, CheckCircle2, XCircle, Eye, X, FileEdit, Bell } from "lucide-react";
+import { Plus, Clock, CheckCircle2, XCircle, FileEdit, Bell, Search } from "lucide-react";
 import api from "../../lib/api";
 import { formatRequestId } from "../../lib/requestId";
 
@@ -130,6 +130,8 @@ export function RequesterDashboard() {
   const [requests, setRequests] = useState<Request[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
 
   useEffect(() => {
     let isMounted = true;
@@ -208,17 +210,17 @@ export function RequesterDashboard() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Approved":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200";
+        return "bg-[#00A859]/10 text-[#00A859] border-[#00A859]/20";
       case "Rejected":
-        return "bg-rose-50 text-rose-700 border-rose-200";
+        return "bg-red-500/10 text-red-400 border-red-500/20";
       case "Pending":
-        return "bg-amber-50 text-amber-700 border-amber-200";
+        return "bg-[#C99700]/10 text-amber-300 border-[#C99700]/20";
       case "Under Review":
-        return "bg-blue-50 text-blue-700 border-blue-200";
+        return "bg-[#0F3B8C]/20 text-blue-300 border-[#0F3B8C]/30";
       case "Draft":
-        return "bg-slate-100 text-slate-700 border-slate-200";
+        return "bg-zinc-800 text-zinc-300 border-zinc-700";
       default:
-        return "bg-slate-100 text-slate-700 border-slate-200";
+        return "bg-zinc-800 text-zinc-300 border-zinc-700";
     }
   };
 
@@ -239,49 +241,73 @@ export function RequesterDashboard() {
   };
 
   const hasRequests = requests.length > 0;
+  const stats = {
+    all: requests.length,
+    pending: requests.filter((request) => request.status === "Pending" || request.status === "Under Review").length,
+    approved: requests.filter((request) => request.status === "Approved").length,
+    rejected: requests.filter((request) => request.status === "Rejected").length,
+    completed: requests.filter((request) => request.status === "Approved" || request.status === "Rejected").length,
+  };
+  const filteredRequests = requests.filter((request) => {
+    const matchesSearch = [formatRequestId(request.id), request.venue, request.date, request.time, request.purpose, request.status]
+      .join(" ")
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "All" || request.status === statusFilter || (statusFilter === "Completed" && (request.status === "Approved" || request.status === "Rejected"));
+
+    return matchesSearch && matchesStatus;
+  });
+  const detailRequest = selectedRequest ?? filteredRequests[0] ?? requests[0] ?? null;
 
   return (
-    <div>
-      <div className="mb-10 flex items-start justify-between">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-4xl font-semibold text-slate-900 mb-3 tracking-tight">Dashboard</h1>
-          <p className="text-lg text-slate-600">View your booking requests and submit new venue reservations</p>
+          <h1 className="text-2xl font-black text-white tracking-tight">DSR Workflow Automation Board</h1>
+          <p className="text-xs text-zinc-400">Dashboard summary, DSR records, workflow status, and live parish DSS guidance.</p>
         </div>
 
-        <div className="relative">
+        <div className="relative flex items-center gap-3">
+          <Link
+            to="/requester/new-request"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#00A859] text-white hover:bg-emerald-600 transition-colors shadow-md font-bold text-xs"
+          >
+            <Plus className="w-4 h-4" />
+            New DSR Request
+          </Link>
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-3.5 bg-white border-2 border-slate-200 rounded-xl hover:bg-slate-50 hover:border-blue-300 transition-all shadow-sm hover:shadow-md"
+            className="relative p-3 bg-zinc-950/60 border border-zinc-900 rounded-xl hover:bg-zinc-900 transition-all"
           >
-            <Bell className="w-5 h-5 text-slate-700" />
+            <Bell className="w-4 h-4 text-zinc-400" />
             {unreadCount > 0 && (
-              <span className="absolute -top-2 -right-2 min-w-6 h-6 px-1.5 bg-gradient-to-br from-rose-500 to-rose-600 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg shadow-rose-500/50">
+              <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1.5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center">
                 {unreadCount}
               </span>
             )}
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 top-full mt-3 w-96 bg-white border border-slate-200 rounded-2xl shadow-2xl shadow-slate-900/20 z-50 overflow-hidden">
-              <div className="px-5 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 border-b border-blue-500">
-                <h3 className="font-semibold text-white text-lg">Notifications</h3>
-                <p className="text-sm text-blue-100 mt-0.5">{unreadCount} unread</p>
+            <div className="absolute right-0 top-full mt-3 w-96 bg-[#121214] border border-zinc-800 rounded-2xl shadow-2xl z-50 overflow-hidden">
+              <div className="px-5 py-4 bg-zinc-950 border-b border-zinc-900">
+                <h3 className="font-black text-white text-sm">Notifications</h3>
+                <p className="text-xs text-zinc-400 mt-0.5">{unreadCount} unread</p>
               </div>
               <div className="max-h-96 overflow-y-auto">
                 {notifications.map((notif) => (
                   <div
                     key={notif.id}
-                    className={`p-4 border-b border-slate-100 hover:bg-slate-50 transition-colors ${!notif.read ? "bg-blue-50 border-l-4 border-l-blue-500" : ""}`}
+                    className={`p-4 border-b border-zinc-900 hover:bg-zinc-900 transition-colors ${!notif.read ? "bg-[#0F3B8C]/10 border-l-4 border-l-[#0F3B8C]" : ""}`}
                   >
-                    <p className="text-sm text-slate-900 mb-1.5 leading-relaxed">{notif.message}</p>
-                    <p className="text-xs text-slate-500">{notif.date}</p>
+                    <p className="text-xs text-zinc-200 mb-1.5 leading-relaxed font-semibold">{notif.message}</p>
+                    <p className="text-[10px] text-zinc-500">{notif.date}</p>
                   </div>
                 ))}
               </div>
-              <div className="p-4 text-center bg-slate-50 border-t border-slate-200">
+              <div className="p-4 text-center bg-zinc-950 border-t border-zinc-900">
                 <button
                   onClick={() => setShowNotifications(false)}
-                  className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+                  className="text-xs font-bold text-zinc-400 hover:text-white transition-colors"
                 >
                   Close
                 </button>
@@ -291,215 +317,160 @@ export function RequesterDashboard() {
         </div>
       </div>
 
-      <div className="mb-8">
-        <Link
-          to="/requester/new-request"
-          className="inline-flex items-center gap-2.5 px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-xl shadow-blue-900/30 hover:shadow-2xl hover:shadow-blue-900/40 font-medium text-lg hover:-translate-y-0.5 transform"
-        >
-          <Plus className="w-5 h-5" />
-          Submit New Booking Request
-        </Link>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {[
+          ["All", "All", stats.all, "text-[#00A859]"],
+          ["Pending", "Pending", stats.pending, "text-amber-300"],
+          ["Approved", "Approved", stats.approved, "text-[#00A859]"],
+          ["Rejected", "Rejected", stats.rejected, "text-red-500"],
+          ["Completed", "Completed", stats.completed, "text-blue-500"],
+        ].map(([tab, label, value, color]) => (
+          <button
+            key={tab}
+            onClick={() => setStatusFilter(String(tab))}
+            className={`text-left p-4 rounded-2xl border bg-zinc-950/60 backdrop-blur-md border-zinc-900 transition-all ${statusFilter === tab ? "ring-2 ring-[#0F3B8C]/50 border-[#0F3B8C]" : ""}`}
+          >
+            <span className="text-[10px] font-bold uppercase tracking-wider block text-zinc-400">{label}</span>
+            <span className={`mt-2 text-2xl font-black block ${color}`}>{value}</span>
+          </button>
+        ))}
       </div>
 
       {isLoading ? (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10 p-10 text-center text-slate-600">Loading your submitted requests...</div>
+        <div className="bg-zinc-950/60 border border-zinc-900 rounded-3xl p-10 text-center text-zinc-400">Loading your submitted requests...</div>
       ) : loadError ? (
-        <div className="bg-white border border-rose-200 rounded-2xl shadow-xl shadow-slate-900/10 p-10 text-center">
-          <p className="font-semibold text-rose-700">{loadError}</p>
-          <p className="text-sm text-slate-500 mt-2">If you just submitted a request, refresh after a few seconds.</p>
+        <div className="bg-zinc-950/60 border border-red-500/20 rounded-3xl p-10 text-center">
+          <p className="font-semibold text-red-400">{loadError}</p>
+          <p className="text-sm text-zinc-500 mt-2">If you just submitted a request, refresh after a few seconds.</p>
         </div>
       ) : !hasRequests ? (
-        <div className="bg-white border-2 border-dashed border-slate-300 rounded-2xl shadow-xl shadow-slate-900/10 p-16 text-center">
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-blue-100 via-indigo-100 to-blue-100 rounded-full mb-6 shadow-lg shadow-blue-900/10">
-            <FileEdit className="w-12 h-12 text-blue-600" />
+        <div className="bg-zinc-950/60 border-2 border-dashed border-zinc-800 rounded-3xl p-16 text-center">
+          <div className="inline-flex items-center justify-center w-24 h-24 bg-[#0F3B8C]/20 rounded-full mb-6">
+            <FileEdit className="w-12 h-12 text-blue-300" />
           </div>
-          <h3 className="text-2xl font-semibold text-slate-900 mb-3">No Requests Yet</h3>
-          <p className="text-slate-600 mb-8 max-w-md mx-auto text-lg leading-relaxed">
+          <h3 className="text-2xl font-black text-white mb-3">No Requests Yet</h3>
+          <p className="text-zinc-400 mb-8 max-w-md mx-auto text-sm leading-relaxed">
             You haven't submitted any booking requests yet. Start by submitting a new request for your venue or facility needs.
           </p>
           <Link
             to="/requester/new-request"
-            className="inline-flex items-center gap-2.5 px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-xl shadow-blue-900/30 font-medium text-lg"
+            className="inline-flex items-center gap-2.5 px-6 py-3 bg-[#00A859] text-white rounded-xl hover:bg-emerald-600 transition-colors font-bold text-xs"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4" />
             Submit New Booking Request
           </Link>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10 overflow-hidden">
-          <div className="px-8 py-6 bg-gradient-to-r from-slate-50 to-blue-50/30 border-b border-slate-200">
-            <h2 className="font-semibold text-slate-900 text-xl">My Requests</h2>
-            <p className="text-sm text-slate-600 mt-1">Track the status of your venue bookings</p>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-7 rounded-3xl border border-zinc-900 bg-zinc-950/60 backdrop-blur-md p-5 space-y-4">
+            <div>
+              <h2 className="text-lg font-black text-white">My Request Center</h2>
+              <p className="text-xs text-zinc-400">Track your DSR submissions and workflow status.</p>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-3 w-4 h-4 text-zinc-500" />
+              <input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search reference, venue, date, status, purpose..."
+                className="w-full bg-[#18181b] border border-zinc-800 rounded-xl pl-9 pr-4 py-2.5 text-xs text-zinc-200 placeholder:text-zinc-600 outline-none font-semibold focus:border-zinc-600"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {["All", "Pending", "Under Review", "Approved", "Rejected", "Completed"].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setStatusFilter(tab)}
+                  className={`px-3 py-1.5 rounded-full text-[10px] font-black border ${statusFilter === tab ? "bg-[#0F3B8C] text-white border-[#0F3B8C]" : "border-zinc-800 text-zinc-400 hover:text-white"}`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            <div className="divide-y divide-zinc-900 max-h-[560px] overflow-y-auto pr-1">
+              {filteredRequests.length === 0 ? (
+                <div className="py-12 text-center text-zinc-500 space-y-2">
+                  <div className="text-3xl">DSR</div>
+                  <h3 className="text-xs font-bold">No DSR records found</h3>
+                  <p className="text-[10px] max-w-[260px] mx-auto">Try changing the search or status filter.</p>
+                </div>
+              ) : filteredRequests.map((request) => (
+                <div
+                  key={request.id}
+                  onClick={() => setSelectedRequest(request)}
+                  className={`p-3.5 rounded-2xl cursor-pointer transition-all flex items-start justify-between gap-4 border ${detailRequest?.id === request.id ? "bg-zinc-900 border-zinc-750 shadow-md" : "border-transparent hover:bg-zinc-900/40"}`}
+                >
+                  <div className="space-y-1.5 min-w-0">
+                    <span className="text-[9px] font-mono font-bold text-zinc-500">{formatRequestId(request.id)}</span>
+                    <h3 className="text-xs font-extrabold truncate text-white">{request.venue}</h3>
+                    <p className="text-[11px] truncate text-zinc-400">{request.purpose}</p>
+                    <p className="text-[10px] text-zinc-500">{request.date} • {request.time}</p>
+                  </div>
+                  <span className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black rounded-full border ${getStatusColor(request.status)}`}>
+                    {getStatusIcon(request.status)}
+                    {request.status}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-slate-100 to-slate-50 border-b-2 border-slate-200">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Request ID</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Venue</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Time</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Specific Event</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-center text-xs font-bold text-slate-700 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {requests.map((request) => (
-                  <tr key={request.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-5 text-sm font-semibold text-slate-900">{formatRequestId(request.id)}</td>
-                    <td className="px-6 py-5 text-sm font-medium text-slate-900">{request.venue}</td>
-                    <td className="px-6 py-5 text-sm text-slate-700">{request.date}</td>
-                    <td className="px-6 py-5 text-sm text-slate-700">{request.time}</td>
-                    <td className="px-6 py-5 text-sm text-slate-700">{request.purpose}</td>
-                    <td className="px-6 py-5">
-                      <span className={`inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-full border ${getStatusColor(request.status)}`}>
-                        {getStatusIcon(request.status)}
-                        {request.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-5 text-center">
-                      <button
-                        onClick={() => setSelectedRequest(request)}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-all"
-                      >
-                        <Eye className="w-4 h-4" />
-                        View Timeline
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {selectedRequest && selectedRequest.timeline && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-6">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden border border-slate-200">
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6 flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-white text-xl">Request Status Timeline</h3>
-                <p className="text-sm text-blue-100 mt-1">{formatRequestId(selectedRequest.id)}</p>
-              </div>
-              <button onClick={() => setSelectedRequest(null)} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
-                <X className="w-6 h-6 text-white" />
-              </button>
-            </div>
-
-            <div className="p-8">
-              <div className="mb-8 p-6 bg-gradient-to-br from-slate-50 to-blue-50/30 border border-slate-200 rounded-xl">
-                <div className="grid grid-cols-2 gap-6 text-sm">
-                  <div>
-                    <p className="text-slate-600 font-medium mb-1">Venue</p>
-                    <p className="font-semibold text-slate-900 text-base">{selectedRequest.venue}</p>
+          <div className="lg:col-span-5 rounded-3xl border border-zinc-900 bg-zinc-950/60 backdrop-blur-md p-5 space-y-5">
+            {detailRequest ? (
+              <>
+                <div className="pb-3 border-b border-zinc-900">
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-[9px] font-mono text-zinc-500 font-bold">{formatRequestId(detailRequest.id)}</span>
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black rounded-full border ${getStatusColor(detailRequest.status)}`}>
+                      {getStatusIcon(detailRequest.status)}
+                      {detailRequest.status}
+                    </span>
                   </div>
-                  <div>
-                    <p className="text-slate-600 font-medium mb-1">Date</p>
-                    <p className="font-semibold text-slate-900 text-base">{selectedRequest.date}</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-600 font-medium mb-1">Time</p>
-                    <p className="font-semibold text-slate-900 text-base">{selectedRequest.time}</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-600 font-medium mb-1">Specific Event</p>
-                    <p className="font-semibold text-slate-900 text-base">{selectedRequest.purpose}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <div className="flex gap-5">
-                  <div className="flex flex-col items-center">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/40">
-                      <CheckCircle2 className="w-6 h-6 text-white" />
-                    </div>
-                    {(selectedRequest.timeline.underReview || selectedRequest.timeline.completed) && (
-                      <div className="w-1 h-16 bg-gradient-to-b from-blue-400 to-blue-200 mt-3 rounded-full" />
-                    )}
-                  </div>
-                  <div className="flex-1 pb-4">
-                    <h4 className="font-semibold text-slate-900 text-lg">Submitted</h4>
-                    <p className="text-sm text-slate-600 font-medium mt-1">{selectedRequest.timeline.submitted}</p>
-                    <p className="text-xs text-slate-500 mt-2">Request has been submitted for review</p>
-                  </div>
+                  <h3 className="text-sm font-black mt-2 leading-snug text-white">{detailRequest.purpose}</h3>
+                  <p className="text-[11px] mt-1 text-zinc-400">{detailRequest.venue}</p>
                 </div>
 
-                <div className="flex gap-5">
-                  <div className="flex flex-col items-center">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg ${selectedRequest.timeline.underReview ? "bg-gradient-to-br from-blue-500 to-blue-600 shadow-blue-500/40" : "bg-slate-200 shadow-slate-300/40"}`}>
-                      <Clock className={`w-6 h-6 ${selectedRequest.timeline.underReview ? "text-white" : "text-slate-400"}`} />
-                    </div>
-                    {selectedRequest.timeline.completed && (
-                      <div className="w-1 h-16 bg-gradient-to-b from-blue-400 to-blue-200 mt-3 rounded-full" />
-                    )}
-                  </div>
-                  <div className="flex-1 pb-4">
-                    <h4 className={`font-semibold text-lg ${selectedRequest.timeline.underReview ? "text-slate-900" : "text-slate-400"}`}>
-                      Under Review
-                    </h4>
-                    {selectedRequest.timeline.underReview ? (
-                      <>
-                        <p className="text-sm text-slate-600 font-medium mt-1">{selectedRequest.timeline.underReview}</p>
-                        <p className="text-xs text-slate-500 mt-2">Being reviewed by approver</p>
-                      </>
-                    ) : (
-                      <p className="text-sm text-slate-400 mt-1">Awaiting review</p>
-                    )}
-                  </div>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div><span className="text-[10px] font-bold uppercase block text-zinc-500">Date</span><p className="font-semibold text-zinc-200">{detailRequest.date}</p></div>
+                  <div><span className="text-[10px] font-bold uppercase block text-zinc-500">Time</span><p className="font-semibold text-zinc-200">{detailRequest.time}</p></div>
+                  <div><span className="text-[10px] font-bold uppercase block text-zinc-500">Submitted</span><p className="font-semibold text-zinc-200">{detailRequest.submittedDate}</p></div>
+                  <div><span className="text-[10px] font-bold uppercase block text-zinc-500">Approver</span><p className="font-semibold text-zinc-200">{detailRequest.approvedByName ?? detailRequest.approvedById ?? "Pending"}</p></div>
                 </div>
 
-                <div className="flex gap-5">
-                  <div className="flex flex-col items-center">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg ${selectedRequest.timeline.completed ? selectedRequest.status === "Approved" ? "bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/40" : "bg-gradient-to-br from-rose-500 to-rose-600 shadow-rose-500/40" : "bg-slate-200 shadow-slate-300/40"}`}>
-                      {selectedRequest.timeline.completed ? (
-                        selectedRequest.status === "Approved" ? <CheckCircle2 className="w-6 h-6 text-white" /> : <XCircle className="w-6 h-6 text-white" />
-                      ) : (
-                        <Clock className="w-6 h-6 text-slate-400" />
-                      )}
-                    </div>
+                {detailRequest.approverRemarks && (
+                  <div className="p-4 bg-[#18181b] border border-zinc-800 rounded-2xl">
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">Approver Remarks</p>
+                    <p className="text-xs text-zinc-300 leading-relaxed">{detailRequest.approverRemarks}</p>
                   </div>
-                  <div className="flex-1">
-                    <h4 className={`font-semibold text-lg ${selectedRequest.timeline.completed ? "text-slate-900" : "text-slate-400"}`}>
-                      {selectedRequest.status === "Approved" ? "Approved" : selectedRequest.status === "Rejected" ? "Rejected" : "Decision Pending"}
-                    </h4>
-                    {selectedRequest.timeline.completed ? (
-                      <>
-                        <p className="text-sm text-slate-600 font-medium mt-1">{selectedRequest.timeline.completed}</p>
-                        {(selectedRequest.approvedByName || selectedRequest.approvedById) && (
-                          <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Approved By:</p>
-                            <p className="text-sm text-slate-900 leading-relaxed">
-                              {selectedRequest.approvedByName ?? selectedRequest.approvedById}
-                            </p>
+                )}
+
+                {detailRequest.timeline && (
+                  <div className="space-y-4 pt-2">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Audit Trail Timeline</h4>
+                    {[
+                      ["Submitted", detailRequest.timeline.submitted, "Request has been submitted for review", true],
+                      ["Under Review", detailRequest.timeline.underReview, "Being reviewed by approver", Boolean(detailRequest.timeline.underReview)],
+                      [detailRequest.status === "Approved" ? "Approved" : detailRequest.status === "Rejected" ? "Rejected" : "Decision Pending", detailRequest.timeline.completed, "Final workflow decision", Boolean(detailRequest.timeline.completed)],
+                    ].map(([title, date, body, active], index) => (
+                      <div key={String(title)} className="flex gap-4">
+                        <div className="flex flex-col items-center">
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center ${active ? "bg-[#0F3B8C] text-white" : "bg-zinc-900 text-zinc-600"}`}>
+                            {index === 2 && detailRequest.status === "Rejected" ? <XCircle className="w-4 h-4" /> : active ? <CheckCircle2 className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
                           </div>
-                        )}
-                        {selectedRequest.approverRemarks && (
-                          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                            <p className="text-xs font-bold text-blue-900 uppercase tracking-wider mb-2">Approver Remarks:</p>
-                            <p className="text-sm text-slate-900 leading-relaxed">{selectedRequest.approverRemarks}</p>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-sm text-slate-400 mt-1">Awaiting decision</p>
-                    )}
+                          {index < 2 && <div className="w-px h-10 bg-zinc-800 mt-2" />}
+                        </div>
+                        <div className="flex-1 pb-2">
+                          <p className={`text-xs font-black ${active ? "text-white" : "text-zinc-500"}`}>{title}</p>
+                          <p className="text-[11px] text-zinc-400 mt-1">{date || "Awaiting update"}</p>
+                          <p className="text-[10px] text-zinc-500 mt-1">{body}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="border-t border-slate-200 px-8 py-5 bg-slate-50">
-              <button
-                onClick={() => setSelectedRequest(null)}
-                className="w-full px-6 py-3.5 bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-xl hover:from-slate-900 hover:to-black transition-all shadow-lg shadow-slate-900/30 font-medium"
-              >
-                Close Timeline
-              </button>
-            </div>
+                )}
+              </>
+            ) : (
+              <div className="py-12 text-center text-zinc-500 text-xs font-semibold">Select a DSR record to view details.</div>
+            )}
           </div>
         </div>
       )}

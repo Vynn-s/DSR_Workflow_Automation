@@ -356,25 +356,25 @@ export function AuditLogPage() {
     <div>
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-semibold text-slate-900 mb-2 tracking-tight">
+        <h1 className="text-2xl font-black text-white mb-2 tracking-tight">
           Audit Log & Reports
         </h1>
-        <p className="text-slate-600">
+        <p className="text-xs text-zinc-400">
           View system activity and user actions
         </p>
       </div>
 
       {/* Filters */}
-      <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-6 mb-6">
+      <div className="bg-zinc-950/60 backdrop-blur-sm border border-zinc-800 rounded-3xl p-6 mb-6">
         <div className="flex items-center gap-2 mb-4">
-          <Filter className="w-5 h-5 text-slate-600" />
-          <h3 className="font-semibold text-slate-900">Filters</h3>
+          <Filter className="w-5 h-5 text-zinc-500" />
+          <h3 className="font-black text-white">Filters</h3>
         </div>
         <div className="flex gap-4 items-end">
           <div className="flex-1">
             <label
               htmlFor="role-filter"
-              className="block text-sm font-semibold text-slate-700 mb-2"
+              className="block text-[10px] font-black uppercase text-zinc-500 mb-2"
             >
               Filter by Role
             </label>
@@ -382,7 +382,7 @@ export function AuditLogPage() {
               id="role-filter"
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value as RoleFilter)}
-              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+              className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
             >
               <option value="All">All Roles</option>
               <option value="REQUESTER">Requester</option>
@@ -394,7 +394,7 @@ export function AuditLogPage() {
           <div className="flex-1">
             <label
               htmlFor="action-filter"
-              className="block text-sm font-semibold text-slate-700 mb-2"
+              className="block text-[10px] font-black uppercase text-zinc-500 mb-2"
             >
               Filter by Action
             </label>
@@ -402,7 +402,7 @@ export function AuditLogPage() {
               id="action-filter"
               value={filterAction}
               onChange={(e) => setFilterAction(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+              className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
             >
               <option value="All">All Actions</option>
               <option value="REQUEST_CREATED">Submitted Request</option>
@@ -415,7 +415,7 @@ export function AuditLogPage() {
           <div className="flex-1">
             <label
               htmlFor="date-filter"
-              className="block text-sm font-semibold text-slate-700 mb-2"
+              className="block text-[10px] font-black uppercase text-zinc-500 mb-2"
             >
               Filter by Date
             </label>
@@ -424,7 +424,7 @@ export function AuditLogPage() {
               type="date"
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+              className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
             />
           </div>
 
@@ -434,7 +434,7 @@ export function AuditLogPage() {
               setFilterAction("All");
               setFilterDate("");
             }}
-            className="px-6 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-all"
+            className="px-4 py-2.5 bg-[#0F3B8C] text-white rounded-xl text-xs font-black transition-all"
           >
             Clear Filters
           </button>
@@ -442,79 +442,79 @@ export function AuditLogPage() {
       </div>
 
       {error && (
-        <div className="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           {error}
         </div>
       )}
 
       {/* Audit Log Table */}
-      <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 overflow-hidden mb-8">
-        <div className="px-6 py-5 border-b border-slate-200/60 flex items-center gap-2">
-          <Activity className="w-5 h-5 text-slate-600" />
-          <h2 className="font-semibold text-slate-900 text-lg">
+      <div className="rounded-3xl border border-zinc-800 bg-transparent overflow-hidden mb-8">
+        <div className="px-6 py-5 border-b border-zinc-800 flex items-center gap-2">
+          <Activity className="w-5 h-5 text-zinc-500" />
+          <h2 className="font-black text-white text-lg">
             Activity Log
           </h2>
-          <span className="ml-auto px-3 py-1 bg-slate-100 text-slate-700 text-sm font-medium rounded-full">
+          <span className="ml-auto px-3 py-1 bg-zinc-900 text-zinc-300 text-xs font-black rounded-full">
             {auditTotal} entries
           </span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-slate-50/50 border-b border-slate-200/60">
+            <thead className="bg-zinc-950 border-b border-zinc-800">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-black text-zinc-500 uppercase tracking-wider">
                   Timestamp
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-black text-zinc-500 uppercase tracking-wider">
                   User
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-black text-zinc-500 uppercase tracking-wider">
                   Role
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-black text-zinc-500 uppercase tracking-wider">
                   Action
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-black text-zinc-500 uppercase tracking-wider">
                   Details
                 </th>
-                <th className="px-6 py-4 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                <th className="px-6 py-4 text-center text-[10px] font-black text-zinc-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-zinc-900">
               {!loading && auditLogs.map((entry) => (
-                <tr key={entry.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4 text-sm text-slate-900 whitespace-nowrap font-mono">
+                <tr key={entry.id} className="hover:bg-zinc-900/40 transition-colors">
+                  <td className="px-6 py-4 text-sm text-zinc-300 whitespace-nowrap font-mono">
                     {formatTimeOnly(entry.timestamp)}
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium text-slate-900">
+                  <td className="px-6 py-4 text-sm font-medium text-zinc-200">
                     {entry.user}
                   </td>
                   <td className="px-6 py-4">
                     <span
                       className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full border ${
                         entry.role === "Administrator"
-                          ? "bg-purple-50 text-purple-700 border-purple-200"
+                           ? "bg-purple-500/10 text-purple-300 border-purple-500/20"
                           : entry.role === "Approver"
-                          ? "bg-blue-50 text-blue-700 border-blue-200"
-                          : "bg-slate-50 text-slate-700 border-slate-200"
+                           ? "bg-[#0F3B8C]/20 text-blue-300 border-[#0F3B8C]/30"
+                           : "bg-zinc-900 text-zinc-300 border-zinc-800"
                       }`}
                     >
                       {entry.role}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm font-semibold text-slate-900">
+                  <td className="px-6 py-4 text-sm font-semibold text-zinc-200">
                     {entry.action}
                   </td>
-                  <td className="px-6 py-4 text-sm text-slate-600">
+                  <td className="px-6 py-4 text-sm text-zinc-400">
                     {entry.details}
                   </td>
                   <td className="px-6 py-4 text-center">
                     <button
                       onClick={() => setSelectedEntry(entry)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-[#00A859] hover:bg-zinc-900 rounded-md transition-colors"
                     >
                       <Eye className="w-3.5 h-3.5" />
                       View Details

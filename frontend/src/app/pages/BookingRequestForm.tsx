@@ -744,40 +744,37 @@ export function BookingRequestForm() {
   const calendarMonthIndex = calendarDate.getMonth();
 
   return (
-    <div>
-      {/* Page Header with back button */}
-      <div className="mb-8">
-        <button
-          onClick={() => navigate("/requester")}
-          className="flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-4 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
-        </button>
-        <h1 className="text-3xl font-semibold text-slate-900 mb-2 tracking-tight">
-          New Booking Request
-        </h1>
-        <p className="text-slate-600">
-          Submit a request to reserve a venue or facility
-        </p>
-      </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-3xl border border-zinc-800 bg-[#121214] shadow-2xl">
+        <div className="bg-gradient-to-r from-[#0F3B8C] to-[#00A859] text-white p-5 flex justify-between items-center border-b border-zinc-800">
+          <div>
+            <h1 className="text-xs font-black tracking-widest uppercase flex items-center gap-2">
+              <CalendarIcon className="w-4 h-4 text-amber-300" />
+              DSR Venue Request Form
+            </h1>
+            <p className="text-[10px] text-zinc-200">Required fields, signed-letter upload, DSS validation, and duplicate detection are included.</p>
+          </div>
+          <button onClick={() => navigate("/requester")} className="text-zinc-200 hover:text-white p-1 rounded-full hover:bg-zinc-900">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 p-6">
         {/* Form */}
-        <div className="col-span-2">
-          <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-8">
-            <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
+        <div>
+          <div>
+            <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-4 text-left">
               {/* DSS Results */}
               {(dssChecking || dssResults.length > 0) && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
                   <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <AlertCircle className="w-5 h-5 text-amber-300 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <h4 className="text-sm font-semibold text-amber-900 mb-2">
+                      <h4 className="text-[10px] uppercase font-black text-[#FFD700] mb-2">
                         Availability Notices
                       </h4>
                       {dssChecking ? (
-                        <p className="text-sm text-amber-800">Checking availability and workflow rules...</p>
+                        <p className="text-[11px] text-zinc-400">Checking availability and workflow rules...</p>
                       ) : (
                         <ul className="space-y-2">
                           {dssResults.map((result, index) => (
@@ -787,14 +784,14 @@ export function BookingRequestForm() {
                               ) : (
                                 <XCircle className="mt-0.5 w-4 h-4 text-rose-600 flex-shrink-0" />
                               )}
-                              <span className={result.passed ? "text-emerald-800" : "text-rose-800"}>
+                              <span className={result.passed ? "text-[#00A859]" : "text-red-400"}>
                                 {result.message}
                               </span>
                             </li>
                           ))}
                         </ul>
                       )}
-                      <p className="text-xs text-amber-700 mt-3">
+                       <p className="text-[10px] text-zinc-500 mt-3">
                         These DSS results determine whether the request can be submitted.
                       </p>
                     </div>
@@ -804,27 +801,27 @@ export function BookingRequestForm() {
 
               {/* Live Booking Guidance */}
               {(bookingRecommendationsLoading || bookingRecommendations) && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
                   <div className="flex items-start gap-3">
-                    <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <Info className="w-5 h-5 text-[#00A859] flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <h4 className="text-sm font-semibold text-blue-900 mb-2">
+                      <h4 className="text-[10px] uppercase font-black text-[#FFD700] mb-2">
                         Live Booking Guidance
                       </h4>
                       {bookingRecommendationsLoading ? (
-                        <p className="text-sm text-blue-800">Reading live booking patterns from the database...</p>
+                        <p className="text-[11px] text-zinc-400">Reading live booking patterns from the database...</p>
                       ) : bookingRecommendations ? (
-                        <div className="space-y-3 text-sm text-blue-900">
+                        <div className="space-y-3 text-[11px] text-zinc-400">
                           <p>{bookingRecommendations.monthLabel} currently has {bookingRecommendations.totalRequests} live booking{bookingRecommendations.totalRequests === 1 ? "" : "s"}.</p>
                           {bookingRecommendations.seasonalContext && bookingRecommendations.seasonalContext.length > 0 && (
-                            <div className="rounded-lg border border-blue-200 bg-white/70 p-3">
-                              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700 mb-2">
+                            <div className="rounded-xl border border-zinc-800 bg-[#18181b] p-3">
+                              <p className="text-[10px] font-black uppercase tracking-wider text-[#FFD700] mb-2">
                                 Church seasonal context for {bookingRecommendations.monthName}
                               </p>
                               <ul className="space-y-1.5">
                                 {bookingRecommendations.seasonalContext.map((note) => (
                                   <li key={note} className="flex items-start gap-2">
-                                    <span className="mt-1.5 w-1.5 h-1.5 bg-blue-500 rounded-full flex-shrink-0" />
+                                     <span className="mt-1.5 w-1.5 h-1.5 bg-[#00A859] rounded-full flex-shrink-0" />
                                     <span>{note}</span>
                                   </li>
                                 ))}
@@ -834,7 +831,7 @@ export function BookingRequestForm() {
                           <ul className="space-y-1.5">
                             {bookingRecommendations.recommendations.map((message, index) => (
                               <li key={`${index}-${message}`} className="flex items-start gap-2">
-                                <span className="mt-1.5 w-1.5 h-1.5 bg-blue-600 rounded-full flex-shrink-0" />
+                                 <span className="mt-1.5 w-1.5 h-1.5 bg-[#00A859] rounded-full flex-shrink-0" />
                                 <span>{message}</span>
                               </li>
                             ))}
@@ -849,7 +846,7 @@ export function BookingRequestForm() {
               <div>
                 <label
                   htmlFor="venue"
-                  className="block text-sm font-semibold text-slate-700 mb-2"
+                  className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5"
                 >
                   Venue / Facility <span className="text-rose-500">*</span>
                 </label>
@@ -858,7 +855,7 @@ export function BookingRequestForm() {
                   name="venue"
                   value={formData.venue}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
                   required
                 >
                   <option value="">Select a venue</option>
@@ -880,7 +877,7 @@ export function BookingRequestForm() {
               <div>
                 <label
                   htmlFor="attendees"
-                  className="block text-sm font-semibold text-slate-700 mb-2"
+                  className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5"
                 >
                   Expected Attendees <span className="text-rose-500">*</span>
                 </label>
@@ -889,7 +886,7 @@ export function BookingRequestForm() {
                   name="attendees"
                   value={formData.attendees}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
                   required
                 >
                   {attendeeRangeOptions.map((option) => (
@@ -898,61 +895,61 @@ export function BookingRequestForm() {
                     </option>
                   ))}
                 </select>
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-[10px] text-zinc-500">
                   Choose the range that best matches your expected headcount.
                 </p>
               </div>
 
               {/* Date Picker */}
               <div className="relative">
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">
                   Event Date <span className="text-rose-500">*</span>
                 </label>
                 <button
                   ref={calendarButtonRef}
                   type="button"
                   onClick={() => setShowCalendar(!showCalendar)}
-                  className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-left flex items-center justify-between group"
+                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none text-left flex items-center justify-between group"
                 >
-                  <span className={formData.date ? "text-slate-900 font-medium" : "text-slate-400"}>
+                  <span className={formData.date ? "text-zinc-200 font-medium" : "text-zinc-500"}>
                     {formatDisplayDate(formData.date)}
                   </span>
-                  <CalendarIcon className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                  <CalendarIcon className="w-4 h-4 text-zinc-500 group-hover:text-[#00A859] transition-colors" />
                 </button>
               </div>
 
               {/* Time Range */}
               <div className="grid grid-cols-2 gap-6">
                 <div className="relative">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">
                     Start Time <span className="text-rose-500">*</span>
                   </label>
                   <button
                     ref={startTimeButtonRef}
                     type="button"
                     onClick={openStartTimePicker}
-                    className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-left flex items-center justify-between group"
+                    className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none text-left flex items-center justify-between group"
                   >
-                    <span className={formData.startTime ? "text-slate-900 font-medium" : "text-slate-400"}>
+                    <span className={formData.startTime ? "text-zinc-200 font-medium" : "text-zinc-500"}>
                       {formatDisplayTime(formData.startTime)}
                     </span>
-                    <Clock className="w-5 h-5 text-slate-400 group-hover:text-emerald-600 transition-colors" />
+                    <Clock className="w-4 h-4 text-zinc-500 group-hover:text-[#00A859] transition-colors" />
                   </button>
                 </div>
                 <div className="relative">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">
                     End Time <span className="text-rose-500">*</span>
                   </label>
                   <button
                     ref={endTimeButtonRef}
                     type="button"
                     onClick={openEndTimePicker}
-                    className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl hover:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all text-left flex items-center justify-between group"
+                    className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none text-left flex items-center justify-between group"
                   >
-                    <span className={formData.endTime ? "text-slate-900 font-medium" : "text-slate-400"}>
+                    <span className={formData.endTime ? "text-zinc-200 font-medium" : "text-zinc-500"}>
                       {formatDisplayTime(formData.endTime)}
                     </span>
-                    <Clock className="w-5 h-5 text-slate-400 group-hover:text-rose-600 transition-colors" />
+                    <Clock className="w-4 h-4 text-zinc-500 group-hover:text-red-400 transition-colors" />
                   </button>
                 </div>
               </div>
@@ -963,7 +960,7 @@ export function BookingRequestForm() {
               <div>
                 <label
                   htmlFor="purpose"
-                  className="block text-sm font-semibold text-slate-700 mb-2"
+                  className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5"
                 >
                   Specific Event <span className="text-rose-500">*</span>
                 </label>
@@ -972,7 +969,7 @@ export function BookingRequestForm() {
                   name="purpose"
                   value={formData.purpose}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all resize-none"
+                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none resize-none"
                   required
                 >
                   <option value="">Select a specific event</option>
@@ -982,7 +979,7 @@ export function BookingRequestForm() {
                     </option>
                   ))}
                 </select>
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-[10px] text-zinc-500">
                   Choose the closest event type for this request.
                 </p>
               </div>
@@ -991,24 +988,24 @@ export function BookingRequestForm() {
               <div>
                 <label
                   htmlFor="attachment"
-                  className="block text-sm font-semibold text-slate-700 mb-2"
+                  className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5"
                 >
-                  Attachment (Optional)
+                  Signed Request Letter *
                 </label>
-                <div className="relative">
+                <div className={`relative rounded-2xl border p-4 ${attachment ? "bg-[#00A859]/10 border-[#00A859]/30" : "bg-red-500/10 border-red-500/20"}`}>
                   <input
                     id="attachment"
                     name="attachment"
                     type="file"
                     onChange={handleFileChange}
-                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200"
+                    className="block w-full text-[11px] text-zinc-300 file:mr-3 file:rounded-xl file:border-0 file:bg-white file:px-3 file:py-2 file:text-xs file:font-bold file:text-zinc-950 hover:file:bg-zinc-100"
                   />
                 </div>
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-[10px] text-zinc-500">
                   Upload any supporting documents (e.g., event plan, schedule). Maximum size: {formatBytes(MAX_ATTACHMENT_SIZE_BYTES)}.
                 </p>
                 {attachment && (
-                  <div className="mt-3 flex items-center gap-2 text-sm text-slate-700 bg-slate-50 px-4 py-2 rounded-lg">
+                  <div className="mt-3 flex items-center gap-2 text-[10px] font-bold text-[#00A859] bg-[#00A859]/10 px-4 py-2 rounded-xl">
                     <Paperclip className="w-4 h-4" />
                     {attachment.name}
                   </div>
@@ -1019,14 +1016,14 @@ export function BookingRequestForm() {
               {signatures.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-3">
-                    <Shield className="w-5 h-5 text-slate-600" />
-                    <label className="text-sm font-semibold text-slate-700">
+                    <Shield className="w-5 h-5 text-[#00A859]" />
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
                       Required Signatures
                     </label>
                   </div>
                   
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                    <p className="text-xs text-slate-600 mb-4">
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+                    <p className="text-xs text-zinc-400 mb-4">
                       Collect the following signatures before submission. You can still submit without all signatures, but approval may be delayed.
                     </p>
                     
@@ -1036,36 +1033,36 @@ export function BookingRequestForm() {
                           key={index}
                           className={`p-4 border rounded-lg ${
                             signature.status === "signed"
-                              ? "bg-emerald-50 border-emerald-200"
-                              : "bg-white border-slate-200"
+                              ? "bg-[#00A859]/10 border-[#00A859]/20"
+                              : "bg-[#18181b] border-zinc-800"
                           }`}
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
-                                <p className="text-sm font-semibold text-slate-900">
+                                <p className="text-sm font-semibold text-zinc-100">
                                   {signature.signatory}
                                 </p>
                                 {signature.required && (
-                                  <span className="px-2 py-0.5 bg-rose-100 text-rose-700 border border-rose-200 text-xs font-medium rounded-full">
+                                  <span className="px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-medium rounded-full">
                                     Required
                                   </span>
                                 )}
                               </div>
-                              <p className="text-xs text-slate-600">{signature.role}</p>
+                              <p className="text-xs text-zinc-400">{signature.role}</p>
                               {signature.status === "signed" && signature.signedDate && (
-                                <p className="text-xs text-emerald-700 mt-2">
+                                <p className="text-xs text-[#00A859] mt-2">
                                   Signed on {signature.signedDate}
                                 </p>
                               )}
                               <div className="mt-3">
-                                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                                <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">
                                   Priest Signatory
                                 </label>
                                 <select
                                   value={signature.priestId ?? ""}
                                   onChange={(event) => handlePriestSelection(index, event.target.value)}
-                                  className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
                                 >
                                   <option value="">Select priest</option>
                                   {priestSignatureOptions.map((priest) => (
@@ -1075,7 +1072,7 @@ export function BookingRequestForm() {
                                   ))}
                                 </select>
                                 {signature.priestName && (
-                                  <p className="mt-1 text-xs text-slate-500">
+                                  <p className="mt-1 text-xs text-zinc-500">
                                     Assigned to {signature.priestName}
                                   </p>
                                 )}
@@ -1086,7 +1083,7 @@ export function BookingRequestForm() {
                                 <button
                                   type="button"
                                   onClick={() => markSignatureAsPending(index)}
-                                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:bg-zinc-800 rounded-md transition-colors"
                                 >
                                   <XCircle className="w-3.5 h-3.5" />
                                   Undo
@@ -1095,7 +1092,7 @@ export function BookingRequestForm() {
                                 <button
                                   type="button"
                                   onClick={() => markSignatureAsCollected(index)}
-                                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
+                                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-[#00A859] hover:bg-zinc-800 rounded-md transition-colors"
                                 >
                                   <CheckCircle2 className="w-3.5 h-3.5" />
                                   Mark as Collected
@@ -1108,8 +1105,8 @@ export function BookingRequestForm() {
                     </div>
 
                     {/* Signature Summary */}
-                    <div className="mt-4 pt-4 border-t border-slate-300 flex items-center justify-between text-sm">
-                      <span className="text-slate-700">
+                    <div className="mt-4 pt-4 border-t border-zinc-800 flex items-center justify-between text-sm">
+                      <span className="text-zinc-400">
                         {submitError ? (
                           <p className="text-sm text-red-600" role="alert">
                             {submitError}
@@ -1122,11 +1119,11 @@ export function BookingRequestForm() {
               )}
 
               {/* Form Actions */}
-              <div className="flex gap-3 pt-6 border-t border-slate-200">
+              <div className="flex gap-2 justify-end pt-3 border-t border-zinc-900">
                 <button
                   type="submit"
                   disabled={isSubmitting || dssChecking || !canProceed}
-                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-900/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="order-3 flex items-center gap-2 px-5 py-2 rounded-xl bg-white text-zinc-950 font-bold text-xs hover:bg-zinc-100 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <Send className="w-4 h-4" />
                   {isSubmitting ? "Submitting..." : dssChecking ? "Checking DSS..." : "Submit Request"}
@@ -1135,10 +1132,10 @@ export function BookingRequestForm() {
                   type="button"
                   onClick={(e) => handleSubmit(e, true)}
                   disabled={!canSaveDraft}
-                  className={`flex items-center gap-2 px-6 py-3 border border-slate-300 rounded-lg transition-all ${
+                  className={`flex items-center gap-2 px-5 py-2 rounded-xl bg-zinc-800 text-zinc-200 font-bold text-xs hover:bg-zinc-700 transition-all ${
                     canSaveDraft
-                      ? "text-slate-700 hover:bg-slate-50"
-                      : "text-slate-400 bg-slate-50 cursor-not-allowed"
+                      ? ""
+                      : "opacity-50 cursor-not-allowed"
                   }`}
                 >
                   <Save className="w-4 h-4" />
@@ -1147,7 +1144,7 @@ export function BookingRequestForm() {
                 <button
                   type="button"
                   onClick={() => navigate("/requester")}
-                  className="px-6 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-all"
+                  className="px-4 py-2 text-xs font-bold text-zinc-400 hover:text-white transition-all"
                 >
                   Cancel
                 </button>
@@ -1465,6 +1462,7 @@ export function BookingRequestForm() {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }

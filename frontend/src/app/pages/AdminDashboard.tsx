@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Users, Building2, Brain, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock, Edit2, Plus, X, KeyRound, Save, Trash2 } from "lucide-react";
+import { Users, Building2, Brain, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock, Edit2, Plus, X, KeyRound, Save, Trash2, Sparkles } from "lucide-react";
 import api from "../../lib/api";
 import { fetchVenues, type LiveVenue } from "../../lib/venues";
 import { useAuth } from "../../context/AuthContext";
@@ -640,6 +640,10 @@ export function AdminDashboard() {
     );
   }, [adminUsers]);
   const selectedVenue = venues.find((venue) => venue.id === selectedVenueId) ?? null;
+  const pendingQueuePreview = visibleAuditLogs.filter((log) => {
+    const status = log.venueRequest?.status;
+    return status === "PENDING" || status === "SECRETARY_REVIEW" || status === "PRIEST_REVIEW";
+  });
 
   const startEditingVenue = (venue: LiveVenue) => {
     setSelectedVenueId(venue.id);
@@ -963,100 +967,101 @@ export function AdminDashboard() {
 
   return (
     <div>
-      <div className="mb-10">
-        <h1 className="text-4xl font-semibold text-slate-900 mb-3 tracking-tight">
+      <div className="mb-6">
+        <h1 className="text-2xl font-black text-white mb-1 tracking-tight">
           Administrator Dashboard
         </h1>
-        <p className="text-lg text-slate-600">
+        <p className="text-xs text-zinc-400">
           Live request analytics, users, venues, and DSS signals
         </p>
       </div>
 
       {analyticsError && (
-        <div className="mb-8 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">
+        <div className="mb-8 rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm text-red-400">
           {analyticsError}
         </div>
       )}
 
-      <div className="mb-10">
-        <div className="bg-gradient-to-br from-indigo-50 via-blue-100/40 to-indigo-50 border-2 border-indigo-300 rounded-2xl shadow-xl shadow-slate-900/10 p-8">
-          <div className="flex items-start gap-5">
-            <div className="p-4 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl shadow-lg shadow-indigo-500/40">
-              <Brain className="w-8 h-8 text-white" />
+      <div className="mb-10 space-y-6">
+        <div className="rounded-3xl border border-[#0F3B8C]/30 bg-[#0F3B8C]/10 p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-2xl bg-zinc-950/70 border border-zinc-800">
+              <Sparkles className="w-5 h-5 text-[#C99700]" />
             </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-slate-900 text-2xl mb-4">
-                Decision Support System - Booking Insights
-              </h3>
+            <div className="flex-1 space-y-5">
+              <div>
+                <h2 className="text-sm font-black text-white">Decision Support System - Booking Insights</h2>
+                <p className="text-[11px] text-zinc-400 mt-1">Live request demand, approval flow, and booking pressure signals.</p>
+              </div>
 
-              <div className="grid grid-cols-3 gap-5 mb-6">
-                <div className="bg-white rounded-xl p-5 border-2 border-indigo-200 shadow-lg shadow-indigo-900/10">
-                  <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="rounded-2xl p-4 border border-zinc-800 bg-zinc-950/60">
+                  <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-3 flex items-center gap-1.5">
                     <TrendingUp className="w-4 h-4" />
                     Peak Request Demand
                   </p>
-                  <p className="text-sm text-slate-900 mb-1.5 font-medium">
+                  <p className="text-sm text-zinc-100 mb-1.5 font-semibold">
                     <span className="font-bold">{insights.peakDemand.day}</span> • {insights.peakDemand.time}
                   </p>
-                  <p className="text-xs text-slate-600 font-medium">{insights.peakDemand.venue}</p>
+                  <p className="text-xs text-zinc-400 font-medium">{insights.peakDemand.venue}</p>
                 </div>
 
-                <div className="bg-white rounded-xl p-5 border-2 border-indigo-200 shadow-lg shadow-indigo-900/10">
-                  <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <div className="rounded-2xl p-4 border border-zinc-800 bg-zinc-950/60">
+                  <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-3 flex items-center gap-1.5">
                     <Clock className="w-4 h-4" />
                     Approval Flow
                   </p>
-                  <p className="text-sm text-slate-900 mb-1.5 font-medium">
+                  <p className="text-sm text-zinc-100 mb-1.5 font-semibold">
                     Approval: <span className="font-bold">{insights.efficiency.avgApprovalTime}</span>
                   </p>
-                  <p className="text-xs text-slate-600 font-medium">Rate: {insights.efficiency.approvalRate}</p>
+                  <p className="text-xs text-zinc-400 font-medium">Rate: {insights.efficiency.approvalRate}</p>
                 </div>
 
-                <div className="bg-white rounded-xl p-5 border-2 border-indigo-200 shadow-lg shadow-indigo-900/10">
-                  <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-3">Booking Pressure</p>
+                <div className="rounded-2xl p-4 border border-zinc-800 bg-zinc-950/60">
+                  <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-3">Booking Pressure</p>
                   <div className="flex items-center gap-2 mb-1.5">
                     {insights.efficiency.trend === "improving" ? (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                      <CheckCircle2 className="w-5 h-5 text-[#00A859]" />
                     ) : (
-                      <AlertTriangle className="w-5 h-5 text-amber-600" />
+                      <AlertTriangle className="w-5 h-5 text-amber-300" />
                     )}
-                    <span className="text-sm font-bold text-slate-900">
+                    <span className="text-sm font-bold text-zinc-100">
                       {insights.efficiency.trend === "improving" ? "Flow Looks Healthy" : "Review Booking Pressure"}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-600 font-medium">Trend: {insights.efficiency.trend}</p>
+                  <p className="text-xs text-zinc-400 font-medium">Trend: {insights.efficiency.trend}</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 gap-3 mb-6">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Top Event Type</p>
-                  <p className="text-sm font-semibold text-slate-900">{insights.bookingPatterns.topEventType}</p>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+                  <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-1">Top Event Type</p>
+                  <p className="text-sm font-semibold text-zinc-100">{insights.bookingPatterns.topEventType}</p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Top Ministry</p>
-                  <p className="text-sm font-semibold text-slate-900">{insights.bookingPatterns.topMinistry}</p>
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+                  <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-1">Top Ministry</p>
+                  <p className="text-sm font-semibold text-zinc-100">{insights.bookingPatterns.topMinistry}</p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Top Venue</p>
-                  <p className="text-sm font-semibold text-slate-900">{insights.bookingPatterns.topVenue}</p>
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+                  <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-1">Top Venue</p>
+                  <p className="text-sm font-semibold text-zinc-100">{insights.bookingPatterns.topVenue}</p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Busiest Window</p>
-                  <p className="text-sm font-semibold text-slate-900">{insights.busiestWindow}</p>
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+                  <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-1">Busiest Window</p>
+                  <p className="text-sm font-semibold text-zinc-100">{insights.busiestWindow}</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <h4 className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-2 flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     Operational Notes
                   </h4>
                   <ul className="space-y-1.5">
                     {insights.recommendations.map((rec, index) => (
-                      <li key={index} className="text-xs text-slate-700 flex items-start gap-2">
-                        <span className="text-emerald-600 mt-0.5">•</span>
+                      <li key={index} className="text-xs text-zinc-300 flex items-start gap-2">
+                        <span className="text-[#00A859] mt-0.5">•</span>
                         <span>{rec}</span>
                       </li>
                     ))}
@@ -1064,14 +1069,14 @@ export function AdminDashboard() {
                 </div>
 
                 <div>
-                  <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <h4 className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-2 flex items-center gap-1">
                     <AlertTriangle className="w-3.5 h-3.5" />
                     Watch List
                   </h4>
                   <ul className="space-y-1.5">
                     {insights.risks.map((risk, index) => (
-                      <li key={index} className="text-xs text-slate-700 flex items-start gap-2">
-                        <span className="text-amber-600 mt-0.5">•</span>
+                      <li key={index} className="text-xs text-zinc-300 flex items-start gap-2">
+                        <span className="text-amber-300 mt-0.5">•</span>
                         <span>{risk}</span>
                       </li>
                     ))}
@@ -1079,133 +1084,108 @@ export function AdminDashboard() {
                 </div>
               </div>
 
-              <p className="mt-5 text-xs text-slate-500">
-                Live request count this month: <span className="font-semibold text-slate-700">{requestsThisMonth}</span>
+              <p className="text-xs text-zinc-500">
+                Live request count this month: <span className="font-semibold text-zinc-300">{requestsThisMonth}</span>
               </p>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="mb-10">
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10 overflow-hidden">
-          <div className="px-8 py-6 bg-gradient-to-r from-slate-50 to-indigo-50/30 border-b border-slate-200 flex items-center justify-between">
+        <div className="rounded-3xl border border-zinc-900 bg-zinc-950/60 p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-100 rounded-lg">
-                <BarChart3 className="w-6 h-6 text-indigo-600" />
-              </div>
+              <BarChart3 className="w-5 h-5 text-[#00A859]" />
               <div>
-                <h2 className="font-semibold text-slate-900 text-xl">Live Operations Snapshot</h2>
-                <p className="text-sm text-slate-600 mt-0.5">Directly from the venue and user APIs</p>
+                <h2 className="text-sm font-black text-white">Admin Statistics</h2>
+                <p className="text-[11px] text-zinc-400">Approval workload, request trends, and venue demand for the portal.</p>
               </div>
             </div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">No mock data</span>
+            <span className="text-[9px] font-black uppercase px-2 py-1 rounded-full bg-[#0F3B8C]/10 text-blue-300">Live DSR Analytics</span>
           </div>
 
-          <div className="p-8 space-y-6">
-            <div className="grid grid-cols-4 gap-4">
-              <div className="rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Venues</p>
-                <p className="mt-2 text-3xl font-semibold text-slate-900">{venues.length}</p>
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="rounded-2xl border border-zinc-900 bg-zinc-950/60 px-5 py-4">
+                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Venues</p>
+                <p className="mt-2 text-3xl font-black text-[#00A859]">{venues.length}</p>
               </div>
-              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-5 py-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Active</p>
-                <p className="mt-2 text-3xl font-semibold text-slate-900">{venueStatusCounts.ACTIVE}</p>
+              <div className="rounded-2xl border border-zinc-900 bg-zinc-950/60 px-5 py-4">
+                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Active</p>
+                <p className="mt-2 text-3xl font-black text-amber-300">{venueStatusCounts.ACTIVE}</p>
               </div>
-              <div className="rounded-2xl border border-amber-100 bg-amber-50 px-5 py-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Users</p>
-                <p className="mt-2 text-3xl font-semibold text-slate-900">{adminUsers.length}</p>
+              <div className="rounded-2xl border border-zinc-900 bg-zinc-950/60 px-5 py-4">
+                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Users</p>
+                <p className="mt-2 text-3xl font-black text-[#0F3B8C] dark:text-blue-300">{adminUsers.length}</p>
               </div>
-              <div className="rounded-2xl border border-purple-100 bg-purple-50 px-5 py-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-purple-700">Admins</p>
-                <p className="mt-2 text-3xl font-semibold text-slate-900">{userRoleCounts.ADMIN}</p>
+              <div className="rounded-2xl border border-zinc-900 bg-zinc-950/60 px-5 py-4">
+                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Admins</p>
+                <p className="mt-2 text-3xl font-black text-red-500">{userRoleCounts.ADMIN}</p>
               </div>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-2">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <h3 className="text-base font-semibold text-slate-900">Venue status mix</h3>
-                <p className="mt-1 text-sm text-slate-600">Quick read of current venue availability.</p>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              <div className="p-4 rounded-2xl border bg-zinc-900/60 border-zinc-800">
+                <p className="text-[10px] font-black uppercase text-zinc-500 mb-4">Status Distribution</p>
+                {[
+                  ["Active", venueStatusCounts.ACTIVE],
+                  ["Inactive", venueStatusCounts.INACTIVE],
+                  ["Maintenance", venueStatusCounts.MAINTENANCE],
+                  ["Rejected", rejectedRequestsThisPeriod],
+                ].map(([label, value]) => (
+                  <div key={String(label)} className="mb-3">
+                    <div className="flex justify-between text-[10px] font-bold mb-1 text-zinc-300"><span>{label}</span><span>{value}</span></div>
+                    <div className="h-2 rounded-full bg-zinc-800 overflow-hidden"><div className="h-full rounded-full bg-[#00A859]" style={{ width: `${Math.max(8, (Number(value) / Math.max(1, venues.length + rejectedRequestsThisPeriod)) * 100)}%` }} /></div>
+                  </div>
+                ))}
+              </div>
 
-                <div className="mt-4 space-y-3">
-                  {(["ACTIVE", "INACTIVE", "MAINTENANCE"] as LiveVenue["status"][]).map((status) => {
-                    const count = venueStatusCounts[status];
-                    const percent = venues.length > 0 ? (count / venues.length) * 100 : 0;
-                    const label = status === "ACTIVE" ? "Active" : status === "INACTIVE" ? "Inactive" : "Maintenance";
-
-                    return (
-                      <div key={status}>
-                        <div className="mb-1 flex items-center justify-between text-sm">
-                          <span className="font-medium text-slate-700">{label}</span>
-                          <span className="font-semibold text-slate-900">{count}</span>
-                        </div>
-                        <div className="h-3 overflow-hidden rounded-full bg-slate-200">
-                          <div
-                            className={`h-full rounded-full ${
-                              status === "ACTIVE"
-                                ? "bg-emerald-500"
-                                : status === "INACTIVE"
-                                ? "bg-rose-500"
-                                : "bg-blue-500"
-                            }`}
-                            style={{ width: `${percent}%` }}
-                          />
-                        </div>
+              <div className="p-4 rounded-2xl border bg-zinc-900/60 border-zinc-800">
+                <p className="text-[10px] font-black uppercase text-zinc-500 mb-4">Venue Demand</p>
+                <div className="space-y-3">
+                  {auditStats?.requestsByMinistry?.slice(0, 5).map((ministry) => (
+                    <div key={ministry.ministryId} className="grid grid-cols-[1fr_auto] gap-3 items-center">
+                      <div>
+                        <p className="text-[10px] font-bold truncate text-zinc-300">{ministry.ministryName}</p>
+                        <div className="h-2 mt-1 rounded-full bg-zinc-800 overflow-hidden"><div className="h-full rounded-full bg-[#0F3B8C]" style={{ width: `${Math.max(6, (ministry.total / Math.max(1, requestsThisMonth)) * 100)}%` }} /></div>
                       </div>
-                    );
-                  })}
+                      <span className="text-[10px] font-black text-zinc-300">{ministry.total}</span>
+                    </div>
+                  ))}
+                  {(!auditStats?.requestsByMinistry || auditStats.requestsByMinistry.length === 0) && venues.slice(0, 5).map((venue) => (
+                    <div key={venue.id} className="grid grid-cols-[1fr_auto] gap-3 items-center">
+                      <div><p className="text-[10px] font-bold truncate text-zinc-300">{venue.name}</p><div className="h-2 mt-1 rounded-full bg-zinc-800 overflow-hidden"><div className="h-full rounded-full bg-[#0F3B8C]" style={{ width: "12%" }} /></div></div>
+                      <span className="text-[10px] font-black text-zinc-300">0</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <h3 className="text-base font-semibold text-slate-900">User role mix</h3>
-                <p className="mt-1 text-sm text-slate-600">Live Cognito/database users currently loaded.</p>
-
-                <div className="mt-4 space-y-3">
-                  {(["REQUESTER", "PARISH_SECRETARY", "ADMIN"] as UserRoleOption[]).map((role) => {
-                    const count = userRoleCounts[role];
-                    const percent = adminUsers.length > 0 ? (count / adminUsers.length) * 100 : 0;
-
-                    return (
-                      <div key={role}>
-                        <div className="mb-1 flex items-center justify-between text-sm">
-                          <span className="font-medium text-slate-700">{formatRole(role)}</span>
-                          <span className="font-semibold text-slate-900">{count}</span>
-                        </div>
-                        <div className="h-3 overflow-hidden rounded-full bg-slate-200">
-                          <div
-                            className={`h-full rounded-full ${
-                              role === "REQUESTER"
-                                ? "bg-slate-500"
-                                : role === "PARISH_SECRETARY"
-                                ? "bg-emerald-500"
-                                : "bg-purple-500"
-                            }`}
-                            style={{ width: `${percent}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
+              <div className="p-4 rounded-2xl border bg-zinc-900/60 border-zinc-800">
+                <p className="text-[10px] font-black uppercase text-zinc-500 mb-4">System Snapshot</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-xl bg-[#00A859]/10"><p className="text-[9px] uppercase font-black text-[#00A859]">Approval Rate</p><p className="text-xl font-black text-zinc-100">{insights.efficiency.approvalRate}</p></div>
+                  <div className="p-3 rounded-xl bg-[#0F3B8C]/10"><p className="text-[9px] uppercase font-black text-blue-300">Venues</p><p className="text-xl font-black text-zinc-100">{venues.length}</p></div>
+                  <div className="p-3 rounded-xl bg-[#C99700]/10"><p className="text-[9px] uppercase font-black text-amber-300">Ministries</p><p className="text-xl font-black text-zinc-100">{ministries.length}</p></div>
+                  <div className="p-3 rounded-xl bg-red-500/10"><p className="text-[9px] uppercase font-black text-red-500">Conflicts</p><p className="text-xl font-black text-zinc-100">{auditStats?.totalConflictsDetected ?? 0}</p></div>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <div className="flex items-center justify-between gap-4">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-900">Requests by {reportView === "weekly" ? "Week" : reportView === "monthly" ? "Month" : "Year"}</h3>
-                  <p className="mt-1 text-xs text-slate-600">Live approved and rejected request activity from the audit log.</p>
+                  <h3 className="text-sm font-black text-white">Requests by {reportView === "weekly" ? "Week" : reportView === "monthly" ? "Month" : "Year"}</h3>
+                  <p className="mt-1 text-xs text-zinc-400">Live approved and rejected request activity from the audit log.</p>
                 </div>
 
-                <div className="flex gap-2 rounded-xl bg-slate-100 p-1">
+                <div className="flex gap-2 rounded-xl bg-zinc-950 p-1">
                   <button
                     type="button"
                     onClick={() => setReportView("weekly")}
                     className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
                       reportView === "weekly"
-                        ? "bg-white text-indigo-700 shadow-sm"
-                        : "text-slate-600 hover:text-slate-900"
+                        ? "bg-[#0F3B8C] text-white shadow-sm"
+                        : "text-zinc-400 hover:text-white"
                     }`}
                   >
                     Week
@@ -1215,8 +1195,8 @@ export function AdminDashboard() {
                     onClick={() => setReportView("monthly")}
                     className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
                       reportView === "monthly"
-                        ? "bg-white text-indigo-700 shadow-sm"
-                        : "text-slate-600 hover:text-slate-900"
+                        ? "bg-[#0F3B8C] text-white shadow-sm"
+                        : "text-zinc-400 hover:text-white"
                     }`}
                   >
                     Month
@@ -1226,8 +1206,8 @@ export function AdminDashboard() {
                     onClick={() => setReportView("yearly")}
                     className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
                       reportView === "yearly"
-                        ? "bg-white text-indigo-700 shadow-sm"
-                        : "text-slate-600 hover:text-slate-900"
+                        ? "bg-[#0F3B8C] text-white shadow-sm"
+                        : "text-zinc-400 hover:text-white"
                     }`}
                   >
                     Year
@@ -1235,22 +1215,22 @@ export function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Requested</p>
-                  <p className="mt-1.5 text-2xl font-semibold text-slate-900">
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-4 py-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-blue-300">Requested</p>
+                  <p className="mt-1.5 text-2xl font-black text-zinc-100">
                     {reportData.reduce((sum, row) => sum + row.requests, 0)}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Approved</p>
-                  <p className="mt-1.5 text-2xl font-semibold text-slate-900">
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-4 py-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#00A859]">Approved</p>
+                  <p className="mt-1.5 text-2xl font-black text-zinc-100">
                     {approvedRequestsThisPeriod}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-rose-700">Rejected</p>
-                  <p className="mt-1.5 text-2xl font-semibold text-slate-900">
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-4 py-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-red-500">Rejected</p>
+                  <p className="mt-1.5 text-2xl font-black text-zinc-100">
                     {rejectedRequestsThisPeriod}
                   </p>
                 </div>
@@ -1261,17 +1241,17 @@ export function AdminDashboard() {
                   const total = row.requests + row.approved + row.rejected;
 
                   return (
-                    <div key={row.label} className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5">
+                    <div key={row.label} className="rounded-xl border border-zinc-800 bg-zinc-950/60 px-3.5 py-2.5">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-sm font-semibold text-slate-900">{row.label}</p>
-                          <p className="text-[11px] text-slate-500">{total} total request events</p>
+                          <p className="text-sm font-semibold text-zinc-100">{row.label}</p>
+                          <p className="text-[11px] text-zinc-500">{total} total request events</p>
                         </div>
-                        <span className="text-xs font-semibold text-slate-700">
+                        <span className="text-xs font-semibold text-zinc-400">
                           {row.approved} approved • {row.rejected} rejected
                         </span>
                       </div>
-                      <div className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-slate-200">
+                      <div className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-zinc-800">
                         <div className="flex h-full w-full">
                           <div className="bg-blue-500" style={{ width: `${total > 0 ? (row.requests / total) * 100 : 0}%` }} />
                           <div className="bg-emerald-500" style={{ width: `${total > 0 ? (row.approved / total) * 100 : 0}%` }} />
@@ -1283,11 +1263,39 @@ export function AdminDashboard() {
                 })}
 
                 {reportData.length === 0 && (
-                  <p className="text-sm text-slate-500">No request activity found for this period.</p>
+                  <p className="text-sm text-zinc-500">No request activity found for this period.</p>
                 )}
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="rounded-3xl border border-zinc-900 bg-zinc-950/60 p-5">
+          <div className="flex items-center justify-between gap-3 mb-5">
+            <div>
+              <h2 className="text-sm font-black text-white">Pending Approval Queue</h2>
+              <p className="text-[11px] text-zinc-400">Review the next DSRs waiting for assignment or decision.</p>
+            </div>
+            <span className="text-[10px] font-black text-amber-300">{pendingQueuePreview.length} pending</span>
+          </div>
+          {pendingQueuePreview.length === 0 ? (
+            <p className="text-[10px] text-zinc-500">No pending approvals are waiting right now.</p>
+          ) : (
+            <div className="space-y-3">
+              {pendingQueuePreview.slice(0, 4).map((log) => (
+                <div key={log.id} className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black text-zinc-500">{log.venueRequest?.id ?? log.id}</p>
+                      <h3 className="text-sm font-black truncate text-white">{log.venueRequest?.venue?.name ?? "Venue pending"}</h3>
+                      <p className="text-[10px] text-zinc-400">{log.venueRequest?.ministry?.name ?? "Ministry pending"} • {log.venueRequest?.startDateTime ? new Date(log.venueRequest.startDateTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Date pending"}</p>
+                    </div>
+                    <button type="button" className="px-3 py-2 rounded-xl bg-[#00A859] text-white text-[10px] font-black">Review</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

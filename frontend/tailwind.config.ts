@@ -5,6 +5,7 @@ const config = {
   content: [
     './index.html',
     './src/**/*.{js,ts,jsx,tsx}',
+    './src/**/*.{ts,tsx}',
   ],
   theme: {
     extend: {
@@ -41,6 +42,11 @@ const config = {
         card: {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
+        },
+        cathedral: {
+          blue: '#0F3B8C',
+          green: '#00A859',
+          gold: '#C99700',
         },
       },
       borderRadius: {

@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
@@ -41,6 +42,16 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+}
+
+:root {
+  --cathedral-blue: #0F3B8C;
+  --cathedral-green: #00A859;
+  --cathedral-gold: #C99700;
+  --cathedral-dark-background: #030712;
+  --cathedral-dark-card: #121214;
+  --cathedral-dark-card-alt: #18181b;
+  --cathedral-dark-border: #27272a;
 }
 
 .dark {
@@ -128,6 +139,7 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Plus Jakarta Sans', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -194,4 +206,137 @@ html {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+/* Theme bridge for legacy light utility classes in data-heavy admin sections. */
+.dark .bg-white,
+.dark .bg-white\/80,
+.dark .bg-slate-50,
+.dark .bg-slate-100,
+.dark .from-slate-50,
+.dark .to-slate-50,
+.dark .to-blue-50\/30,
+.dark .to-purple-50\/30,
+.dark .to-emerald-50\/30,
+.dark .to-indigo-50\/30 {
+  background-color: #121214 !important;
+  --tw-gradient-from: #121214 var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(18 18 20 / 0) var(--tw-gradient-to-position) !important;
+}
+
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-200\/60,
+.dark .border-slate-300 {
+  border-color: #27272a !important;
+}
+
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #27272a !important;
+}
+
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-slate-700,
+.dark .text-zinc-950,
+.dark .text-black {
+  color: #f4f4f5 !important;
+}
+
+.dark .text-slate-600,
+.dark .text-slate-500,
+.dark .text-slate-400 {
+  color: #a1a1aa !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+select,
+textarea {
+  min-height: 2.5rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
+select:focus,
+textarea:focus {
+  border-color: #0F3B8C;
+  box-shadow: 0 0 0 2px rgb(15 59 140 / 0.25);
+  outline: none;
+}
+
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.dark select,
+.dark textarea {
+  background-color: #18181b;
+  border-color: #27272a;
+  color: #e4e4e7;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #71717a;
+}
+
+html:not(.dark) .bg-zinc-950,
+html:not(.dark) .bg-zinc-950\/60,
+html:not(.dark) .bg-zinc-950\/80,
+html:not(.dark) .bg-zinc-900,
+html:not(.dark) .bg-zinc-900\/60,
+html:not(.dark) .bg-zinc-900\/70,
+html:not(.dark) .bg-zinc-900\/80,
+html:not(.dark) .bg-\[\#121214\],
+html:not(.dark) .bg-\[\#18181b\] {
+  background-color: #ffffff !important;
+}
+
+html:not(.dark) .border-zinc-800,
+html:not(.dark) .border-zinc-900 {
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .text-zinc-100,
+html:not(.dark) .text-zinc-200,
+html:not(.dark) .text-zinc-300 {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .text-zinc-400,
+html:not(.dark) .text-zinc-500 {
+  color: #64748b !important;
+}
+
+html:not(.dark) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+html:not(.dark) select,
+html:not(.dark) textarea {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+html:not(.dark) main :not(button):not(a).text-white,
+html:not(.dark) main h1.text-white,
+html:not(.dark) main h2.text-white,
+html:not(.dark) main h3.text-white,
+html:not(.dark) main h4.text-white {
+  color: #0f172a !important;
+}
+
+html:not(.dark) main :not(button):not(a).border-zinc-800,
+html:not(.dark) main :not(button):not(a).border-zinc-900 {
+  border-color: #e2e8f0 !important;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+button svg,
+a svg {
+  flex-shrink: 0;
 }

@@ -190,7 +190,7 @@ export function VenueAvailability() {
       <div className="flex items-center justify-center p-16">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600 font-medium">Loading venue availability...</p>
+          <p className="text-zinc-400 font-medium">Loading venue availability...</p>
         </div>
       </div>
     );
@@ -199,7 +199,7 @@ export function VenueAvailability() {
   if (error) {
     return (
       <div className="p-10 text-center">
-        <p className="text-rose-700 font-medium">{error}</p>
+        <p className="text-red-400 font-medium">{error}</p>
       </div>
     );
   }
@@ -277,10 +277,10 @@ export function VenueAvailability() {
     <div>
       {/* Page Header */}
       <div className="mb-10">
-        <h1 className="text-4xl font-semibold text-slate-900 mb-3 tracking-tight">
+        <h1 className="text-2xl font-black text-white mb-3 tracking-tight">
           Venue Availability
         </h1>
-        <p className="text-lg text-slate-600">
+        <p className="text-xs text-zinc-400">
           View current bookings and available time slots (Read-only)
         </p>
       </div>
@@ -291,17 +291,17 @@ export function VenueAvailability() {
         <div className="flex-1">
           <label
             htmlFor="venue-select"
-            className="block text-sm font-semibold text-slate-700 mb-2"
+            className="block text-[10px] font-black uppercase text-zinc-500 mb-2"
           >
             Select Venue
           </label>
           <div className="flex items-center gap-3">
-            <MapPin className="w-5 h-5 text-slate-400" />
+            <MapPin className="w-5 h-5 text-zinc-500" />
             <select
               id="venue-select"
               value={selectedVenue || ""}
               onChange={(e) => setSelectedVenue(e.target.value)}
-              className="px-4 py-3 bg-white border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              className="bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
             >
               <option value={ALL_VENUES_VALUE}>All Venues</option>
               {venues.map((venue) => (
@@ -313,10 +313,10 @@ export function VenueAvailability() {
             <button
               onClick={() => void loadAvailability("refresh")}
               disabled={isRefreshing}
-              className="px-4 py-3 bg-white border-2 border-slate-200 rounded-xl hover:bg-slate-50 hover:border-blue-300 transition-all disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+              className="px-4 py-2.5 bg-[#0F3B8C] text-white rounded-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
             >
-              <RefreshCw className={`w-4 h-4 text-slate-600 ${isRefreshing ? "animate-spin" : ""}`} />
-              <span className="text-sm font-semibold text-slate-700">
+              <RefreshCw className={`w-4 h-4 text-white ${isRefreshing ? "animate-spin" : ""}`} />
+              <span className="text-xs font-black text-white">
                 {isRefreshing ? "Refreshing" : "Refresh"}
               </span>
             </button>
@@ -324,13 +324,13 @@ export function VenueAvailability() {
         </div>
 
         {/* View Toggle */}
-        <div className="flex gap-2 bg-slate-100 p-1.5 rounded-xl">
+        <div className="flex gap-2 bg-zinc-950 p-1.5 rounded-xl border border-zinc-800">
           <button
             onClick={() => setViewMode("list")}
             className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 ${
               viewMode === "list"
-                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-900/30"
-                : "text-slate-700 hover:bg-slate-200"
+                ? "bg-[#0F3B8C] text-white"
+                : "text-zinc-400 hover:bg-zinc-900"
             }`}
           >
             <List className="w-4 h-4" />
@@ -340,8 +340,8 @@ export function VenueAvailability() {
             onClick={() => setViewMode("calendar")}
             className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 ${
               viewMode === "calendar"
-                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-900/30"
-                : "text-slate-700 hover:bg-slate-200"
+                ? "bg-[#0F3B8C] text-white"
+                : "text-zinc-400 hover:bg-zinc-900"
             }`}
           >
             <Calendar className="w-4 h-4" />
@@ -352,12 +352,12 @@ export function VenueAvailability() {
 
       {/* List View */}
       {viewMode === "list" && (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10 overflow-hidden">
-          <div className="px-8 py-6 bg-gradient-to-r from-slate-50 to-blue-50/30 border-b border-slate-200">
-            <h2 className="font-semibold text-slate-900 text-xl">
+        <div className="rounded-3xl border border-zinc-800 bg-transparent overflow-hidden">
+          <div className="px-8 py-6 border-b border-zinc-800">
+            <h2 className="font-black text-white text-xl">
               Schedule for {selectedVenue === ALL_VENUES_VALUE ? "All Venues" : selectedVenue}
             </h2>
-            <p className="text-sm text-slate-600 mt-1">
+            <p className="text-xs text-zinc-400 mt-1">
               {selectedVenue === ALL_VENUES_VALUE ? "All bookings across every venue" : "All bookings for this venue"}
             </p>
           </div>
@@ -368,18 +368,18 @@ export function VenueAvailability() {
                 {bookedSlots.map((slot, index) => (
                   <div
                     key={index}
-                    className="border-2 border-slate-200 rounded-xl p-6 bg-gradient-to-br from-slate-50 to-white hover:shadow-lg hover:border-blue-300 transition-all"
+                    className={`rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 transition-all border-l-4 ${slot.status === "Approved" ? "border-l-[#00A859]" : "border-l-[#C99700]"}`}
                   >
                     {/* Header with Request ID and Status */}
-                    <div className="flex items-center justify-between mb-5 pb-4 border-b border-slate-200">
-                      <span className="text-sm font-bold text-slate-600">
+                    <div className="flex items-center justify-between mb-5 pb-4 border-b border-zinc-800">
+                      <span className="text-sm font-bold text-zinc-500">
                         {slot.requestId}
                       </span>
                       <span
                         className={`inline-flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-full ${
                           slot.status === "Approved"
-                            ? "bg-emerald-600 text-white"
-                            : "bg-amber-600 text-white"
+                            ? "bg-[#00A859]/15 text-[#00A859] border border-[#00A859]/20"
+                            : "bg-[#C99700]/15 text-amber-300 border border-[#C99700]/20"
                         }`}
                       >
                         {slot.status === "Approved" && <CheckCircle2 className="w-4 h-4" />}
@@ -390,53 +390,53 @@ export function VenueAvailability() {
 
                     <div className="grid grid-cols-3 gap-6 mb-5">
                       <div>
-                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Date</p>
-                        <p className="text-sm font-bold text-slate-900">
+                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-2">Date</p>
+                        <p className="text-sm font-bold text-zinc-100">
                           {slot.date}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Time</p>
+                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-2">Time</p>
                         <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-slate-500" />
-                          <p className="text-sm font-semibold text-slate-900">
+                          <Clock className="w-4 h-4 text-zinc-500" />
+                          <p className="text-sm font-semibold text-zinc-100">
                             {slot.time}
                           </p>
                         </div>
                       </div>
                       {slot.attendees && (
                         <div>
-                          <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Attendees</p>
-                          <p className="text-sm font-semibold text-slate-900">
+                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-2">Attendees</p>
+                          <p className="text-sm font-semibold text-zinc-100">
                             {slot.attendees} people
                           </p>
                         </div>
                       )}
                     </div>
 
-                    <div className="mb-5 pb-5 border-b border-slate-200">
-                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Purpose</p>
-                      <p className="text-sm text-slate-900 font-medium">{slot.purpose}</p>
+                    <div className="mb-5 pb-5 border-b border-zinc-800">
+                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-2">Purpose</p>
+                      <p className="text-sm text-zinc-100 font-medium">{slot.purpose}</p>
                     </div>
 
                     {selectedVenue === ALL_VENUES_VALUE && (
-                      <div className="mb-5 pb-5 border-b border-slate-200">
-                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Venue</p>
-                        <p className="text-sm text-slate-900 font-medium">{slot.venueName}</p>
+                      <div className="mb-5 pb-5 border-b border-zinc-800">
+                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-2">Venue</p>
+                        <p className="text-sm text-zinc-100 font-medium">{slot.venueName}</p>
                       </div>
                     )}
 
                     {/* Requester and Approver */}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Requested By</p>
-                        <div className="flex items-start gap-2 bg-white p-3 rounded-lg border border-slate-200">
+                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-2">Requested By</p>
+                        <div className="flex items-start gap-2 bg-zinc-950/60 p-3 rounded-lg border border-zinc-800">
                           <User className="w-4 h-4 text-blue-600 mt-0.5" />
                           <div>
-                            <p className="text-sm font-semibold text-slate-900">
+                            <p className="text-sm font-semibold text-zinc-100">
                               {slot.requester}
                             </p>
-                            <p className="text-xs text-slate-600 mt-0.5">
+                            <p className="text-xs text-zinc-400 mt-0.5">
                               {slot.requesterEmail}
                             </p>
                           </div>
@@ -445,15 +445,15 @@ export function VenueAvailability() {
 
                       {slot.status === "Approved" && slot.approver && (
                         <div>
-                          <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Approved By</p>
-                          <div className="flex items-start gap-2 bg-white p-3 rounded-lg border border-emerald-200">
+                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-2">Approved By</p>
+                          <div className="flex items-start gap-2 bg-zinc-950/60 p-3 rounded-lg border border-[#00A859]/20">
                             <UserCheck className="w-4 h-4 text-emerald-600 mt-0.5" />
                             <div>
-                              <p className="text-sm font-semibold text-slate-900">
+                              <p className="text-sm font-semibold text-zinc-100">
                                 {slot.approver}
                               </p>
                               {slot.approvedDate && (
-                                <p className="text-xs text-slate-600 mt-0.5">
+                                  <p className="text-xs text-zinc-400 mt-0.5">
                                   {slot.approvedDate}
                                 </p>
                               )}
@@ -464,9 +464,9 @@ export function VenueAvailability() {
 
                       {slot.status === "Pending" && (
                         <div>
-                          <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Status</p>
-                          <div className="bg-amber-100 border border-amber-300 rounded-lg p-3">
-                            <p className="text-xs text-amber-800 font-medium">
+                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-2">Status</p>
+                          <div className="bg-[#C99700]/10 border border-[#C99700]/20 rounded-lg p-3">
+                            <p className="text-xs text-amber-300 font-medium">
                               Awaiting approval
                             </p>
                           </div>
@@ -510,27 +510,27 @@ export function VenueAvailability() {
 
       {/* Calendar View */}
       {viewMode === "calendar" && (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10 overflow-hidden">
+        <div className="rounded-3xl border border-zinc-800 bg-transparent overflow-hidden">
           {/* Calendar Header */}
-          <div className="px-8 py-6 bg-gradient-to-r from-slate-50 to-blue-50/30 border-b border-slate-200 flex items-center justify-between">
+          <div className="px-8 py-6 border-b border-zinc-800 flex items-center justify-between">
             <div>
-              <h2 className="font-semibold text-slate-900 text-xl">
+              <h2 className="font-black text-white text-xl">
                 {selectedVenue === ALL_VENUES_VALUE ? "All Venues" : selectedVenue} - {currentMonthName} {currentYear}
               </h2>
-              <p className="text-sm text-slate-600 mt-1">Click on a date to see booking details</p>
+              <p className="text-xs text-zinc-400 mt-1">Click on a date to see booking details</p>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={previousMonth}
-                className="p-2.5 bg-white border-2 border-slate-200 rounded-lg hover:bg-slate-50 hover:border-blue-300 transition-all"
+                className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg hover:bg-zinc-800 transition-all"
               >
-                <ChevronLeft className="w-5 h-5 text-slate-700" />
+                <ChevronLeft className="w-5 h-5 text-zinc-300" />
               </button>
               <button
                 onClick={nextMonth}
-                className="p-2.5 bg-white border-2 border-slate-200 rounded-lg hover:bg-slate-50 hover:border-blue-300 transition-all"
+                className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg hover:bg-zinc-800 transition-all"
               >
-                <ChevronRight className="w-5 h-5 text-slate-700" />
+                <ChevronRight className="w-5 h-5 text-zinc-300" />
               </button>
             </div>
           </div>
@@ -539,7 +539,7 @@ export function VenueAvailability() {
             {/* Day Headers */}
             <div className="grid grid-cols-7 gap-2 mb-3">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                <div key={day} className="text-center py-3 font-bold text-sm text-slate-600 uppercase tracking-wider">
+                <div key={day} className="text-center py-3 font-black text-[10px] text-zinc-500 uppercase tracking-wider bg-zinc-950 rounded-xl">
                   {day}
                 </div>
               ))}
@@ -561,19 +561,19 @@ export function VenueAvailability() {
                   <div
                     key={day}
                     onClick={() => hasBookings && setSelectedDayBookings(bookings)}
-                    className={`aspect-square border-2 rounded-xl p-3 transition-all group relative ${
+                    className={`aspect-square rounded-2xl p-3 transition-all group relative border bg-zinc-900/60 ${
                       hasBookings
                         ? hasApproved && hasPending
-                          ? "border-amber-300 bg-gradient-to-br from-emerald-50 to-amber-50 hover:shadow-lg hover:scale-105 cursor-pointer"
+                          ? "border-zinc-800 border-l-4 border-l-[#C99700] cursor-pointer"
                           : hasApproved
-                          ? "border-emerald-300 bg-emerald-50 hover:shadow-lg hover:scale-105 cursor-pointer"
-                          : "border-amber-300 bg-amber-50 hover:shadow-lg hover:scale-105 cursor-pointer"
-                        : "border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50"
+                          ? "border-zinc-800 border-l-4 border-l-[#00A859] cursor-pointer"
+                          : "border-zinc-800 border-l-4 border-l-[#C99700] cursor-pointer"
+                        : "border-zinc-800 hover:bg-zinc-900"
                     }`}
                   >
                     <div className="flex flex-col h-full">
                       <span className={`text-sm font-bold mb-1 ${
-                        hasBookings ? "text-slate-900" : "text-slate-600"
+                         hasBookings ? "text-zinc-100" : "text-zinc-500"
                       }`}>
                         {day}
                       </span>
@@ -587,7 +587,7 @@ export function VenueAvailability() {
                               <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
                             )}
                           </div>
-                          <span className="text-xs font-bold text-slate-700">
+                          <span className="text-xs font-bold text-zinc-300">
                             {bookings.length} event{bookings.length > 1 ? 's' : ''}
                           </span>
                         </div>
@@ -624,20 +624,20 @@ export function VenueAvailability() {
             </div>
 
             {/* Calendar Legend */}
-            <div className="mt-8 pt-6 border-t-2 border-slate-200">
-              <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-4">Legend:</p>
+            <div className="mt-8 pt-6 border-t border-zinc-800">
+              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-4">Legend:</p>
               <div className="flex gap-8 text-sm">
                 <div className="flex items-center gap-2">
                   <span className="w-4 h-4 bg-emerald-50 border-2 border-emerald-300 rounded"></span>
-                  <span className="text-slate-700 font-medium">Approved Booking</span>
+                  <span className="text-zinc-400 font-medium">Approved Booking</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-4 h-4 bg-amber-50 border-2 border-amber-300 rounded"></span>
-                  <span className="text-slate-700 font-medium">Pending Approval</span>
+                  <span className="text-zinc-400 font-medium">Pending Approval</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="w-4 h-4 bg-white border-2 border-slate-200 rounded"></span>
-                  <span className="text-slate-700 font-medium">Available</span>
+                  <span className="w-4 h-4 bg-zinc-900 border-2 border-zinc-800 rounded"></span>
+                  <span className="text-zinc-400 font-medium">Available</span>
                 </div>
               </div>
             </div>

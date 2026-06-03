@@ -959,7 +959,7 @@ export function AdminDashboard() {
   };
 
   const roleStyles: Record<LiveUserRow["role"], string> = {
-    REQUESTER: "bg-slate-100 text-slate-700 border-slate-200",
+    REQUESTER: "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700",
     PARISH_SECRETARY: "bg-emerald-50 text-emerald-700 border-emerald-200",
     PARISH_PRIEST: "bg-blue-50 text-blue-700 border-blue-200",
     ADMIN: "bg-purple-50 text-purple-700 border-purple-200",
@@ -968,10 +968,10 @@ export function AdminDashboard() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-black text-white mb-1 tracking-tight">
+        <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-1 tracking-tight">
           Administrator Dashboard
         </h1>
-        <p className="text-xs text-zinc-400">
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
           Live request analytics, users, venues, and DSS signals
         </p>
       </div>
@@ -985,39 +985,39 @@ export function AdminDashboard() {
       <div className="mb-10 space-y-6">
         <div className="rounded-3xl border border-[#0F3B8C]/30 bg-[#0F3B8C]/10 p-6">
           <div className="flex items-start gap-4">
-            <div className="p-3 rounded-2xl bg-zinc-950/70 border border-zinc-800">
+            <div className="p-3 rounded-2xl bg-zinc-950/70 border border-zinc-200 dark:border-zinc-800">
               <Sparkles className="w-5 h-5 text-[#C99700]" />
             </div>
             <div className="flex-1 space-y-5">
               <div>
-                <h2 className="text-sm font-black text-white">Decision Support System - Booking Insights</h2>
-                <p className="text-[11px] text-zinc-400 mt-1">Live request demand, approval flow, and booking pressure signals.</p>
+                <h2 className="text-sm font-black text-zinc-900 dark:text-zinc-100">Decision Support System - Booking Insights</h2>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">Live request demand, approval flow, and booking pressure signals.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="rounded-2xl p-4 border border-zinc-800 bg-zinc-950/60">
+                <div className="rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60">
                   <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-3 flex items-center gap-1.5">
                     <TrendingUp className="w-4 h-4" />
                     Peak Request Demand
                   </p>
-                  <p className="text-sm text-zinc-100 mb-1.5 font-semibold">
+                  <p className="text-sm text-zinc-900 dark:text-zinc-100 mb-1.5 font-semibold">
                     <span className="font-bold">{insights.peakDemand.day}</span> • {insights.peakDemand.time}
                   </p>
-                  <p className="text-xs text-zinc-400 font-medium">{insights.peakDemand.venue}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">{insights.peakDemand.venue}</p>
                 </div>
 
-                <div className="rounded-2xl p-4 border border-zinc-800 bg-zinc-950/60">
+                <div className="rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60">
                   <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-3 flex items-center gap-1.5">
                     <Clock className="w-4 h-4" />
                     Approval Flow
                   </p>
-                  <p className="text-sm text-zinc-100 mb-1.5 font-semibold">
+                  <p className="text-sm text-zinc-900 dark:text-zinc-100 mb-1.5 font-semibold">
                     Approval: <span className="font-bold">{insights.efficiency.avgApprovalTime}</span>
                   </p>
-                  <p className="text-xs text-zinc-400 font-medium">Rate: {insights.efficiency.approvalRate}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Rate: {insights.efficiency.approvalRate}</p>
                 </div>
 
-                <div className="rounded-2xl p-4 border border-zinc-800 bg-zinc-950/60">
+                <div className="rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60">
                   <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-3">Booking Pressure</p>
                   <div className="flex items-center gap-2 mb-1.5">
                     {insights.efficiency.trend === "improving" ? (
@@ -1025,30 +1025,30 @@ export function AdminDashboard() {
                     ) : (
                       <AlertTriangle className="w-5 h-5 text-amber-300" />
                     )}
-                    <span className="text-sm font-bold text-zinc-100">
+                    <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
                       {insights.efficiency.trend === "improving" ? "Flow Looks Healthy" : "Review Booking Pressure"}
                     </span>
                   </div>
-                  <p className="text-xs text-zinc-400 font-medium">Trend: {insights.efficiency.trend}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Trend: {insights.efficiency.trend}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
                   <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-1">Top Event Type</p>
-                  <p className="text-sm font-semibold text-zinc-100">{insights.bookingPatterns.topEventType}</p>
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{insights.bookingPatterns.topEventType}</p>
                 </div>
-                <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
                   <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-1">Top Ministry</p>
-                  <p className="text-sm font-semibold text-zinc-100">{insights.bookingPatterns.topMinistry}</p>
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{insights.bookingPatterns.topMinistry}</p>
                 </div>
-                <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
                   <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-1">Top Venue</p>
-                  <p className="text-sm font-semibold text-zinc-100">{insights.bookingPatterns.topVenue}</p>
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{insights.bookingPatterns.topVenue}</p>
                 </div>
-                <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
                   <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-1">Busiest Window</p>
-                  <p className="text-sm font-semibold text-zinc-100">{insights.busiestWindow}</p>
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{insights.busiestWindow}</p>
                 </div>
               </div>
 
@@ -1084,20 +1084,20 @@ export function AdminDashboard() {
                 </div>
               </div>
 
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">
                 Live request count this month: <span className="font-semibold text-zinc-300">{requestsThisMonth}</span>
               </p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-3xl border border-zinc-900 bg-zinc-950/60 p-5">
+        <div className="rounded-3xl border border-zinc-900 bg-white dark:bg-zinc-950/60 p-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
             <div className="flex items-center gap-3">
               <BarChart3 className="w-5 h-5 text-[#00A859]" />
               <div>
-                <h2 className="text-sm font-black text-white">Admin Statistics</h2>
-                <p className="text-[11px] text-zinc-400">Approval workload, request trends, and venue demand for the portal.</p>
+                <h2 className="text-sm font-black text-zinc-900 dark:text-zinc-100">Admin Statistics</h2>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Approval workload, request trends, and venue demand for the portal.</p>
               </div>
             </div>
             <span className="text-[9px] font-black uppercase px-2 py-1 rounded-full bg-[#0F3B8C]/10 text-blue-300">Live DSR Analytics</span>
@@ -1105,27 +1105,27 @@ export function AdminDashboard() {
 
           <div className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="rounded-2xl border border-zinc-900 bg-zinc-950/60 px-5 py-4">
-                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Venues</p>
+              <div className="rounded-2xl border border-zinc-900 bg-white dark:bg-zinc-950/60 px-5 py-4">
+                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Venues</p>
                 <p className="mt-2 text-3xl font-black text-[#00A859]">{venues.length}</p>
               </div>
-              <div className="rounded-2xl border border-zinc-900 bg-zinc-950/60 px-5 py-4">
-                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Active</p>
+              <div className="rounded-2xl border border-zinc-900 bg-white dark:bg-zinc-950/60 px-5 py-4">
+                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Active</p>
                 <p className="mt-2 text-3xl font-black text-amber-300">{venueStatusCounts.ACTIVE}</p>
               </div>
-              <div className="rounded-2xl border border-zinc-900 bg-zinc-950/60 px-5 py-4">
-                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Users</p>
+              <div className="rounded-2xl border border-zinc-900 bg-white dark:bg-zinc-950/60 px-5 py-4">
+                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Users</p>
                 <p className="mt-2 text-3xl font-black text-[#0F3B8C] dark:text-blue-300">{adminUsers.length}</p>
               </div>
-              <div className="rounded-2xl border border-zinc-900 bg-zinc-950/60 px-5 py-4">
-                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Admins</p>
+              <div className="rounded-2xl border border-zinc-900 bg-white dark:bg-zinc-950/60 px-5 py-4">
+                <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Admins</p>
                 <p className="mt-2 text-3xl font-black text-red-500">{userRoleCounts.ADMIN}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-              <div className="p-4 rounded-2xl border bg-zinc-900/60 border-zinc-800">
-                <p className="text-[10px] font-black uppercase text-zinc-500 mb-4">Status Distribution</p>
+              <div className="p-4 rounded-2xl border bg-white dark:bg-zinc-950/60 border-zinc-200 dark:border-zinc-800">
+                <p className="text-[10px] font-black uppercase text-zinc-400 dark:text-zinc-500 mb-4">Status Distribution</p>
                 {[
                   ["Active", venueStatusCounts.ACTIVE],
                   ["Inactive", venueStatusCounts.INACTIVE],
@@ -1139,8 +1139,8 @@ export function AdminDashboard() {
                 ))}
               </div>
 
-              <div className="p-4 rounded-2xl border bg-zinc-900/60 border-zinc-800">
-                <p className="text-[10px] font-black uppercase text-zinc-500 mb-4">Venue Demand</p>
+              <div className="p-4 rounded-2xl border bg-white dark:bg-zinc-950/60 border-zinc-200 dark:border-zinc-800">
+                <p className="text-[10px] font-black uppercase text-zinc-400 dark:text-zinc-500 mb-4">Venue Demand</p>
                 <div className="space-y-3">
                   {auditStats?.requestsByMinistry?.slice(0, 5).map((ministry) => (
                     <div key={ministry.ministryId} className="grid grid-cols-[1fr_auto] gap-3 items-center">
@@ -1160,32 +1160,32 @@ export function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl border bg-zinc-900/60 border-zinc-800">
-                <p className="text-[10px] font-black uppercase text-zinc-500 mb-4">System Snapshot</p>
+              <div className="p-4 rounded-2xl border bg-white dark:bg-zinc-950/60 border-zinc-200 dark:border-zinc-800">
+                <p className="text-[10px] font-black uppercase text-zinc-400 dark:text-zinc-500 mb-4">System Snapshot</p>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-xl bg-[#00A859]/10"><p className="text-[9px] uppercase font-black text-[#00A859]">Approval Rate</p><p className="text-xl font-black text-zinc-100">{insights.efficiency.approvalRate}</p></div>
-                  <div className="p-3 rounded-xl bg-[#0F3B8C]/10"><p className="text-[9px] uppercase font-black text-blue-300">Venues</p><p className="text-xl font-black text-zinc-100">{venues.length}</p></div>
-                  <div className="p-3 rounded-xl bg-[#C99700]/10"><p className="text-[9px] uppercase font-black text-amber-300">Ministries</p><p className="text-xl font-black text-zinc-100">{ministries.length}</p></div>
-                  <div className="p-3 rounded-xl bg-red-500/10"><p className="text-[9px] uppercase font-black text-red-500">Conflicts</p><p className="text-xl font-black text-zinc-100">{auditStats?.totalConflictsDetected ?? 0}</p></div>
+                  <div className="p-3 rounded-xl bg-[#00A859]/10"><p className="text-[9px] uppercase font-black text-[#00A859]">Approval Rate</p><p className="text-xl font-black text-zinc-900 dark:text-zinc-100">{insights.efficiency.approvalRate}</p></div>
+                  <div className="p-3 rounded-xl bg-[#0F3B8C]/10"><p className="text-[9px] uppercase font-black text-blue-300">Venues</p><p className="text-xl font-black text-zinc-900 dark:text-zinc-100">{venues.length}</p></div>
+                  <div className="p-3 rounded-xl bg-[#C99700]/10"><p className="text-[9px] uppercase font-black text-amber-300">Ministries</p><p className="text-xl font-black text-zinc-900 dark:text-zinc-100">{ministries.length}</p></div>
+                  <div className="p-3 rounded-xl bg-red-500/10"><p className="text-[9px] uppercase font-black text-red-500">Conflicts</p><p className="text-xl font-black text-zinc-900 dark:text-zinc-100">{auditStats?.totalConflictsDetected ?? 0}</p></div>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-sm font-black text-white">Requests by {reportView === "weekly" ? "Week" : reportView === "monthly" ? "Month" : "Year"}</h3>
-                  <p className="mt-1 text-xs text-zinc-400">Live approved and rejected request activity from the audit log.</p>
+                  <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-100">Requests by {reportView === "weekly" ? "Week" : reportView === "monthly" ? "Month" : "Year"}</h3>
+                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Live approved and rejected request activity from the audit log.</p>
                 </div>
 
                 <div className="flex gap-2 rounded-xl bg-zinc-950 p-1">
                   <button
                     type="button"
                     onClick={() => setReportView("weekly")}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors duration-150 ${
                       reportView === "weekly"
-                        ? "bg-[#0F3B8C] text-white shadow-sm"
-                        : "text-zinc-400 hover:text-white"
+                        ? "bg-[#0F3B8C] text-white hover:bg-[#0d3380] hover:text-white dark:hover:bg-[#1a4fab] dark:hover:text-white shadow-sm"
+                        : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
                     }`}
                   >
                     Week
@@ -1193,10 +1193,10 @@ export function AdminDashboard() {
                   <button
                     type="button"
                     onClick={() => setReportView("monthly")}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors duration-150 ${
                       reportView === "monthly"
-                        ? "bg-[#0F3B8C] text-white shadow-sm"
-                        : "text-zinc-400 hover:text-white"
+                        ? "bg-[#0F3B8C] text-white hover:bg-[#0d3380] hover:text-white dark:hover:bg-[#1a4fab] dark:hover:text-white shadow-sm"
+                        : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
                     }`}
                   >
                     Month
@@ -1204,10 +1204,10 @@ export function AdminDashboard() {
                   <button
                     type="button"
                     onClick={() => setReportView("yearly")}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors duration-150 ${
                       reportView === "yearly"
-                        ? "bg-[#0F3B8C] text-white shadow-sm"
-                        : "text-zinc-400 hover:text-white"
+                        ? "bg-[#0F3B8C] text-white hover:bg-[#0d3380] hover:text-white dark:hover:bg-[#1a4fab] dark:hover:text-white shadow-sm"
+                        : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
                     }`}
                   >
                     Year
@@ -1216,21 +1216,21 @@ export function AdminDashboard() {
               </div>
 
               <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-4 py-3">
+                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 px-4 py-3">
                   <p className="text-xs font-bold uppercase tracking-wider text-blue-300">Requested</p>
-                  <p className="mt-1.5 text-2xl font-black text-zinc-100">
+                  <p className="mt-1.5 text-2xl font-black text-zinc-900 dark:text-zinc-100">
                     {reportData.reduce((sum, row) => sum + row.requests, 0)}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-4 py-3">
+                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 px-4 py-3">
                   <p className="text-xs font-bold uppercase tracking-wider text-[#00A859]">Approved</p>
-                  <p className="mt-1.5 text-2xl font-black text-zinc-100">
+                  <p className="mt-1.5 text-2xl font-black text-zinc-900 dark:text-zinc-100">
                     {approvedRequestsThisPeriod}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-4 py-3">
+                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 px-4 py-3">
                   <p className="text-xs font-bold uppercase tracking-wider text-red-500">Rejected</p>
-                  <p className="mt-1.5 text-2xl font-black text-zinc-100">
+                  <p className="mt-1.5 text-2xl font-black text-zinc-900 dark:text-zinc-100">
                     {rejectedRequestsThisPeriod}
                   </p>
                 </div>
@@ -1241,13 +1241,13 @@ export function AdminDashboard() {
                   const total = row.requests + row.approved + row.rejected;
 
                   return (
-                    <div key={row.label} className="rounded-xl border border-zinc-800 bg-zinc-950/60 px-3.5 py-2.5">
+                    <div key={row.label} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 px-3.5 py-2.5">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-sm font-semibold text-zinc-100">{row.label}</p>
-                          <p className="text-[11px] text-zinc-500">{total} total request events</p>
+                          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{row.label}</p>
+                          <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{total} total request events</p>
                         </div>
-                        <span className="text-xs font-semibold text-zinc-400">
+                        <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
                           {row.approved} approved • {row.rejected} rejected
                         </span>
                       </div>
@@ -1263,34 +1263,34 @@ export function AdminDashboard() {
                 })}
 
                 {reportData.length === 0 && (
-                  <p className="text-sm text-zinc-500">No request activity found for this period.</p>
+                  <p className="text-sm text-zinc-400 dark:text-zinc-500">No request activity found for this period.</p>
                 )}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="rounded-3xl border border-zinc-900 bg-zinc-950/60 p-5">
+        <div className="rounded-3xl border border-zinc-900 bg-white dark:bg-zinc-950/60 p-5">
           <div className="flex items-center justify-between gap-3 mb-5">
             <div>
-              <h2 className="text-sm font-black text-white">Pending Approval Queue</h2>
-              <p className="text-[11px] text-zinc-400">Review the next DSRs waiting for assignment or decision.</p>
+              <h2 className="text-sm font-black text-zinc-900 dark:text-zinc-100">Pending Approval Queue</h2>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Review the next DSRs waiting for assignment or decision.</p>
             </div>
             <span className="text-[10px] font-black text-amber-300">{pendingQueuePreview.length} pending</span>
           </div>
           {pendingQueuePreview.length === 0 ? (
-            <p className="text-[10px] text-zinc-500">No pending approvals are waiting right now.</p>
+            <p className="text-[10px] text-zinc-400 dark:text-zinc-500">No pending approvals are waiting right now.</p>
           ) : (
             <div className="space-y-3">
               {pendingQueuePreview.slice(0, 4).map((log) => (
-                <div key={log.id} className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+                <div key={log.id} className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-black text-zinc-500">{log.venueRequest?.id ?? log.id}</p>
-                      <h3 className="text-sm font-black truncate text-white">{log.venueRequest?.venue?.name ?? "Venue pending"}</h3>
-                      <p className="text-[10px] text-zinc-400">{log.venueRequest?.ministry?.name ?? "Ministry pending"} • {log.venueRequest?.startDateTime ? new Date(log.venueRequest.startDateTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Date pending"}</p>
+                      <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500">{log.venueRequest?.id ?? log.id}</p>
+                      <h3 className="text-sm font-black truncate text-zinc-900 dark:text-zinc-100">{log.venueRequest?.venue?.name ?? "Venue pending"}</h3>
+                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400">{log.venueRequest?.ministry?.name ?? "Ministry pending"} • {log.venueRequest?.startDateTime ? new Date(log.venueRequest.startDateTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Date pending"}</p>
                     </div>
-                    <button type="button" className="px-3 py-2 rounded-xl bg-[#00A859] text-white text-[10px] font-black">Review</button>
+                    <button type="button" className="px-3 py-2 rounded-xl bg-[#00A859] text-white hover:bg-[#009950] hover:text-white dark:hover:bg-[#00bf65] dark:hover:text-white text-[10px] font-black">Review</button>
                   </div>
                 </div>
               ))}
@@ -1300,26 +1300,26 @@ export function AdminDashboard() {
       </div>
 
       <div className="mb-10">
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10 overflow-hidden">
-          <div className="px-8 py-6 bg-gradient-to-r from-slate-50 to-purple-50/30 border-b border-slate-200 flex items-center justify-between gap-3">
+        <div className="bg-white dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-sm overflow-hidden">
+          <div className="px-8 py-6 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Users className="w-6 h-6 text-purple-600" />
+              <div className="p-2 bg-[#0F3B8C]/10 rounded-lg">
+                <Users className="w-6 h-6 text-[#0F3B8C] dark:text-blue-300" />
               </div>
               <div>
-                <h2 className="font-semibold text-slate-900 text-xl">Users</h2>
-                <p className="text-sm text-slate-600 mt-0.5">View live audit activity and manage Cognito users in one place</p>
+                <h2 className="font-semibold text-zinc-900 dark:text-zinc-100 text-xl">Users</h2>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">View live audit activity and manage Cognito users in one place</p>
               </div>
             </div>
 
-            <div className="flex gap-2 rounded-xl bg-slate-100 p-1.5">
+            <div className="flex gap-2 rounded-xl bg-white dark:bg-zinc-950 p-1.5 border border-zinc-200 dark:border-zinc-800">
               <button
                 type="button"
                 onClick={() => setUsersTab("activity")}
-                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors duration-150 ${
                   usersTab === "activity"
-                    ? "bg-white text-purple-700 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-[#0F3B8C] text-white shadow-sm"
+                    : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200"
                 }`}
               >
                 Activity
@@ -1327,10 +1327,10 @@ export function AdminDashboard() {
               <button
                 type="button"
                 onClick={() => setUsersTab("manage")}
-                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors duration-150 ${
                   usersTab === "manage"
-                    ? "bg-white text-purple-700 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-[#0F3B8C] text-white shadow-sm"
+                    : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200"
                 }`}
               >
                 Manage Users
@@ -1341,21 +1341,21 @@ export function AdminDashboard() {
           {usersTab === "activity" ? (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gradient-to-r from-slate-100 to-slate-50 border-b-2 border-slate-200">
+                <thead className="bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-zinc-800">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">ID</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Email</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Role</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">ID</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Email</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Role</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900 bg-white dark:bg-zinc-950/30">
                   {activityUsers.length > 0 ? (
                     activityUsers.map((user) => (
-                      <tr key={user.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-5 text-sm font-semibold text-slate-900">{user.id}</td>
-                        <td className="px-6 py-5 text-sm font-semibold text-slate-900">{user.name}</td>
-                        <td className="px-6 py-5 text-sm text-slate-700">{user.email}</td>
+                      <tr key={user.id} className="hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100 transition-colors duration-150">
+                        <td className="px-6 py-5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{user.id}</td>
+                        <td className="px-6 py-5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{user.name}</td>
+                        <td className="px-6 py-5 text-sm text-zinc-600 dark:text-zinc-300">{user.email}</td>
                         <td className="px-6 py-5">
                           <span
                             className={`inline-flex items-center px-4 py-1.5 text-xs font-bold rounded-full border ${
@@ -1365,7 +1365,7 @@ export function AdminDashboard() {
                                 ? "bg-blue-50 text-blue-700 border-blue-200"
                                 : user.role === "PARISH_SECRETARY"
                                 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                : "bg-slate-100 text-slate-700 border-slate-200"
+                                : "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700"
                             }`}
                           >
                             {formatRole(user.role)}
@@ -1375,7 +1375,7 @@ export function AdminDashboard() {
                     ))
                   ) : (
                     <tr>
-                      <td className="px-6 py-8 text-sm text-slate-500" colSpan={4}>
+                      <td className="px-6 py-8 text-sm text-zinc-500 dark:text-zinc-400" colSpan={4}>
                         {adminUsersLoading ? "Loading users..." : "No users available."}
                       </td>
                     </tr>
@@ -1385,33 +1385,33 @@ export function AdminDashboard() {
             </div>
           ) : (
             <div className="p-8 space-y-8">
-              <div className="grid grid-cols-4 gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <div className="grid grid-cols-4 gap-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 p-5">
                 <div className="col-span-2">
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Email</label>
+                  <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Email</label>
                   <input
                     value={newUserDraft.email}
                     onChange={(e) => setNewUserDraft((current) => ({ ...current, email: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-zinc-900 dark:text-zinc-100 focus:border-[#0F3B8C] focus:outline-none focus:ring-2 focus:ring-[#0F3B8C]/30"
                     placeholder="user@example.com"
                   />
                 </div>
 
                 <div className="col-span-2">
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Full Name</label>
+                  <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Full Name</label>
                   <input
                     value={newUserDraft.name}
                     onChange={(e) => setNewUserDraft((current) => ({ ...current, name: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-zinc-900 dark:text-zinc-100 focus:border-[#0F3B8C] focus:outline-none focus:ring-2 focus:ring-[#0F3B8C]/30"
                     placeholder="Jane Doe"
                   />
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Role</label>
+                  <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Role</label>
                   <select
                     value={newUserDraft.role}
                     onChange={(e) => setNewUserDraft((current) => ({ ...current, role: e.target.value as UserRoleOption }))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-zinc-900 dark:text-zinc-100 focus:border-[#0F3B8C] focus:outline-none focus:ring-2 focus:ring-[#0F3B8C]/30"
                   >
                     <option value="REQUESTER">Requester</option>
                     <option value="PARISH_SECRETARY">Parish Secretary</option>
@@ -1420,11 +1420,11 @@ export function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Ministry</label>
+                  <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Ministry</label>
                   <select
                     value={newUserDraft.ministryId}
                     onChange={(e) => setNewUserDraft((current) => ({ ...current, ministryId: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-zinc-900 dark:text-zinc-100 focus:border-[#0F3B8C] focus:outline-none focus:ring-2 focus:ring-[#0F3B8C]/30"
                   >
                     <option value="">Unassigned</option>
                     {ministries.map((ministry) => (
@@ -1436,11 +1436,11 @@ export function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Temporary Password</label>
+                  <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Temporary Password</label>
                   <input
                     value={newUserDraft.temporaryPassword}
                     onChange={(e) => setNewUserDraft((current) => ({ ...current, temporaryPassword: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-zinc-900 dark:text-zinc-100 focus:border-[#0F3B8C] focus:outline-none focus:ring-2 focus:ring-[#0F3B8C]/30"
                     placeholder="Leave blank to auto-generate"
                   />
                 </div>
@@ -1450,7 +1450,7 @@ export function AdminDashboard() {
                     type="button"
                     onClick={createAdminUser}
                     disabled={creatingUser}
-                    className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-900/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex items-center gap-2 rounded-lg bg-[#0F3B8C] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0d3380] dark:hover:bg-[#1a4fab] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <KeyRound className="w-4 h-4" />
                     {creatingUser ? "Creating..." : "Create User in Cognito"}
@@ -1492,28 +1492,28 @@ export function AdminDashboard() {
 
               <div>
                 <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-slate-900">Current Users</h3>
-                  <span className="text-sm text-slate-500">
+                  <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Current Users</h3>
+                  <span className="text-sm text-zinc-500 dark:text-zinc-400">
                     {adminUsersLoading ? "Loading..." : `${adminUsers.length} users`}
                   </span>
                 </div>
 
-                <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                <div className="overflow-x-auto rounded-2xl border border-zinc-200 dark:border-zinc-800">
                   <table className="w-full">
-                    <thead className="bg-slate-50 border-b border-slate-200">
+                    <thead className="bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-zinc-800">
                       <tr>
-                        <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Name</th>
-                        <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Email</th>
-                        <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Role</th>
-                        <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Updated Role</th>
-                        <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Action</th>
+                        <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Name</th>
+                        <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Email</th>
+                        <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Role</th>
+                        <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Updated Role</th>
+                        <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
+                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900 bg-white dark:bg-zinc-950/30">
                       {adminUsers.length > 0 ? adminUsers.map((user) => (
-                        <tr key={user.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-5 py-4 text-sm font-semibold text-slate-900">{user.name}</td>
-                          <td className="px-5 py-4 text-sm text-slate-700">{user.email}</td>
+                        <tr key={user.id} className="hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100 transition-colors duration-150">
+                          <td className="px-5 py-4 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{user.name}</td>
+                          <td className="px-5 py-4 text-sm text-zinc-600 dark:text-zinc-300">{user.email}</td>
                           <td className="px-5 py-4">
                             <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${roleStyles[user.role]}`}>
                               {formatRole(user.role)}
@@ -1523,7 +1523,7 @@ export function AdminDashboard() {
                             <select
                               value={userRoleDrafts[user.id] ?? user.role}
                               onChange={(e) => setUserRoleDrafts((current) => ({ ...current, [user.id]: e.target.value as UserRoleOption }))}
-                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                              className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:border-[#0F3B8C] focus:outline-none focus:ring-2 focus:ring-[#0F3B8C]/30"
                             >
                               <option value="REQUESTER">Requester</option>
                               <option value="PARISH_SECRETARY">Parish Secretary</option>
@@ -1536,7 +1536,7 @@ export function AdminDashboard() {
                                 type="button"
                                 onClick={() => saveUserRole(user.id)}
                                 disabled={savingUserRoleId === user.id}
-                                className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
                               >
                                 <Save className="w-3.5 h-3.5" />
                                 {savingUserRoleId === user.id ? "Saving..." : "Save Role"}
@@ -1546,7 +1546,7 @@ export function AdminDashboard() {
                                 type="button"
                                 onClick={() => startDeleteUser(user)}
                                 disabled={deletingUserId === user.id}
-                                className="inline-flex items-center gap-2 rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="inline-flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/15 px-3 py-2 text-xs font-semibold text-red-500 hover:bg-red-500/25 hover:text-red-600 dark:bg-red-500/15 dark:text-red-400 dark:hover:bg-red-500/30 dark:hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                                 Delete
@@ -1556,7 +1556,7 @@ export function AdminDashboard() {
                         </tr>
                       )) : (
                         <tr>
-                          <td className="px-5 py-6 text-sm text-slate-500" colSpan={5}>
+                          <td className="px-5 py-6 text-sm text-zinc-500 dark:text-zinc-400" colSpan={5}>
                             {adminUsersLoading ? "Loading admin users..." : "No users found."}
                           </td>
                         </tr>
@@ -1565,7 +1565,7 @@ export function AdminDashboard() {
                   </table>
                 </div>
 
-                <p className="mt-4 text-xs text-slate-500">
+                <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
                   New users are created in Cognito and synced to the database. Role updates also update Cognito groups.
                 </p>
               </div>
@@ -1576,16 +1576,16 @@ export function AdminDashboard() {
 
       {deleteTargetUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20">
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+          <div className="w-full max-w-lg rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl shadow-slate-900/20">
+            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-6 py-4">
               <div>
-                <h2 className="text-xl font-semibold text-slate-900">Delete User</h2>
-                <p className="mt-0.5 text-sm text-slate-600">This action is protected by admin login and role checks.</p>
+                <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Delete User</h2>
+                <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">This action is protected by admin login and role checks.</p>
               </div>
               <button
                 type="button"
                 onClick={closeDeleteUserModal}
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                className="rounded-lg p-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1611,11 +1611,11 @@ export function AdminDashboard() {
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+            <div className="flex items-center justify-end gap-3 border-t border-zinc-200 dark:border-zinc-800 px-6 py-4">
               <button
                 type="button"
                 onClick={closeDeleteUserModal}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
               >
                 Cancel
               </button>
@@ -1623,7 +1623,7 @@ export function AdminDashboard() {
                 type="button"
                 onClick={confirmDeleteUser}
                 disabled={deletingUserId === deleteTargetUser.id}
-                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-rose-600 to-red-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-rose-900/20 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-rose-600 to-red-600 px-5 py-2 text-sm font-semibold text-white dark:text-white shadow-lg shadow-rose-900/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Trash2 className="w-4 h-4" />
                 {deletingUserId === deleteTargetUser.id ? "Deleting..." : "Delete User"}
@@ -1634,22 +1634,22 @@ export function AdminDashboard() {
       )}
 
       <div>
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10 overflow-hidden">
-          <div className="px-8 py-6 bg-gradient-to-r from-slate-50 to-emerald-50/30 border-b border-slate-200 flex items-center justify-between gap-3">
+        <div className="bg-white dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-sm overflow-hidden">
+          <div className="px-8 py-6 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-100 rounded-lg">
-                <Building2 className="w-6 h-6 text-emerald-600" />
+              <div className="p-2 bg-[#00A859]/10 rounded-lg">
+                <Building2 className="w-6 h-6 text-[#00A859]" />
               </div>
               <div>
-                <h2 className="font-semibold text-slate-900 text-xl">Venue Management</h2>
-                <p className="text-sm text-slate-600 mt-0.5">Configured venue facilities from live data</p>
+                <h2 className="font-semibold text-zinc-900 dark:text-zinc-100 text-xl">Venue Management</h2>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">Configured venue facilities from live data</p>
               </div>
             </div>
 
             <button
               type="button"
               onClick={startCreatingVenue}
-              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-900/20 hover:opacity-95"
+              className="inline-flex items-center gap-2 rounded-lg bg-[#00A859] px-4 py-2 text-sm font-semibold text-white hover:bg-[#009950] hover:text-white dark:hover:bg-[#00bf65] dark:hover:text-white"
             >
               <Plus className="w-4 h-4" />
               Add Venue
@@ -1657,16 +1657,16 @@ export function AdminDashboard() {
           </div>
 
           {venuesLoading ? (
-            <div className="p-8 text-sm text-slate-600">Loading venue data...</div>
+            <div className="p-8 text-sm text-zinc-500 dark:text-zinc-400">Loading venue data...</div>
           ) : venuesError ? (
-            <div className="p-8 text-sm text-rose-700">{venuesError}</div>
+            <div className="p-8 text-sm text-rose-600 dark:text-rose-400">{venuesError}</div>
           ) : venues.length === 0 ? (
-            <div className="space-y-4 p-8 text-sm text-slate-600">
+            <div className="space-y-4 p-8 text-sm text-zinc-500 dark:text-zinc-400">
               <p>No venues were returned from the live data source.</p>
               <button
                 type="button"
                 onClick={startCreatingVenue}
-                className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+                className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
               >
                 <Plus className="w-4 h-4" />
                 Add First Venue
@@ -1675,32 +1675,32 @@ export function AdminDashboard() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gradient-to-r from-slate-100 to-slate-50 border-b-2 border-slate-200">
+                <thead className="bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-zinc-800">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">ID</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Venue Name</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Capacity</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">ID</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Venue Name</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Capacity</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900 bg-white dark:bg-zinc-950/30">
                   {venues.map((venue) => (
-                    <tr key={venue.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-5 text-sm font-semibold text-slate-900">{venue.id}</td>
-                      <td className="px-6 py-5 text-sm font-semibold text-slate-900">{venue.name}</td>
-                      <td className="px-6 py-5 text-sm text-slate-700">{venue.capacity} people</td>
+                    <tr key={venue.id} className="hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100 transition-colors duration-150">
+                      <td className="px-6 py-5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{venue.id}</td>
+                      <td className="px-6 py-5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{venue.name}</td>
+                      <td className="px-6 py-5 text-sm text-zinc-600 dark:text-zinc-300">{venue.capacity} people</td>
                       <td className="px-6 py-5">
                         <span className={`inline-flex items-center px-4 py-1.5 text-xs font-bold rounded-full border ${statusStyles[venue.status]}`}>
                           {venue.status}
                         </span>
                       </td>
-                      <td className="px-6 py-5 text-sm text-slate-700">
+                      <td className="px-6 py-5 text-sm text-zinc-600 dark:text-zinc-300">
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={() => startEditingVenue(venue)}
-                            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                            className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                             Edit
@@ -1708,7 +1708,7 @@ export function AdminDashboard() {
                           <button
                             type="button"
                             onClick={() => startDeleteVenue(venue)}
-                            className="inline-flex items-center gap-2 rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                            className="inline-flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/15 px-3 py-2 text-xs font-semibold text-red-500 hover:bg-red-500/25 hover:text-red-600 dark:bg-red-500/15 dark:text-red-400 dark:hover:bg-red-500/30 dark:hover:text-red-300"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                             Delete
@@ -1752,16 +1752,16 @@ export function AdminDashboard() {
 
       {selectedVenue && isVenueModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20">
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+          <div className="w-full max-w-2xl rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl shadow-slate-900/20">
+            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-6 py-4">
               <div>
-                <h2 className="text-xl font-semibold text-slate-900">Edit Venue</h2>
-                <p className="mt-0.5 text-sm text-slate-600">Update venue details and status.</p>
+                <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Edit Venue</h2>
+                <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">Update venue details and status.</p>
               </div>
               <button
                 type="button"
                 onClick={closeVenueModal}
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                className="rounded-lg p-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1769,7 +1769,7 @@ export function AdminDashboard() {
 
             <div className="space-y-4 p-6">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-700">Current Status</span>
+                <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Current Status</span>
                 <span className={`inline-flex items-center px-4 py-1.5 text-xs font-bold rounded-full border ${statusStyles[venueDraft.status]}`}>
                   {venueDraft.status}
                 </span>
@@ -1777,41 +1777,41 @@ export function AdminDashboard() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Venue Name</label>
+                  <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Venue Name</label>
                   <input
                     value={venueDraft.name}
                     onChange={(e) => setVenueDraft((current) => ({ ...current, name: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-zinc-900 dark:text-zinc-100 focus:border-[#0F3B8C] focus:outline-none focus:ring-2 focus:ring-[#0F3B8C]/30"
                   />
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Capacity</label>
+                  <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Capacity</label>
                   <input
                     type="number"
                     min={1}
                     value={venueDraft.capacity}
                     onChange={(e) => setVenueDraft((current) => ({ ...current, capacity: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-zinc-900 dark:text-zinc-100 focus:border-[#0F3B8C] focus:outline-none focus:ring-2 focus:ring-[#0F3B8C]/30"
                   />
                 </div>
 
                 <div className="col-span-2">
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Description</label>
+                  <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Description</label>
                   <textarea
                     rows={4}
                     value={venueDraft.description}
                     onChange={(e) => setVenueDraft((current) => ({ ...current, description: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-zinc-900 dark:text-zinc-100 focus:border-[#0F3B8C] focus:outline-none focus:ring-2 focus:ring-[#0F3B8C]/30"
                   />
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Status</label>
+                  <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Status</label>
                   <select
                     value={venueDraft.status}
                     onChange={(e) => setVenueDraft((current) => ({ ...current, status: e.target.value as LiveVenue["status"] }))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-zinc-900 dark:text-zinc-100 focus:border-[#0F3B8C] focus:outline-none focus:ring-2 focus:ring-[#0F3B8C]/30"
                   >
                     <option value="ACTIVE">ACTIVE (Green)</option>
                     <option value="INACTIVE">INACTIVE (Red)</option>
@@ -1834,11 +1834,11 @@ export function AdminDashboard() {
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+            <div className="flex items-center justify-end gap-3 border-t border-zinc-200 dark:border-zinc-800 px-6 py-4">
               <button
                 type="button"
                 onClick={closeVenueModal}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
               >
                 Cancel
               </button>
@@ -1846,7 +1846,7 @@ export function AdminDashboard() {
                 type="button"
                 onClick={saveVenueChanges}
                 disabled={savingVenueId === selectedVenue.id}
-                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-900/20 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#0F3B8C] px-5 py-2 text-sm font-semibold text-white hover:bg-[#0d3380] dark:hover:bg-[#1a4fab] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 {savingVenueId === selectedVenue.id ? "Saving..." : "Save Changes"}
@@ -1858,16 +1858,16 @@ export function AdminDashboard() {
 
       {isCreateVenueModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20">
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+          <div className="w-full max-w-2xl rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl shadow-slate-900/20">
+            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-6 py-4">
               <div>
-                <h2 className="text-xl font-semibold text-slate-900">Add Venue</h2>
-                <p className="mt-0.5 text-sm text-slate-600">Create a new venue record.</p>
+                <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Add Venue</h2>
+                <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">Create a new venue record.</p>
               </div>
               <button
                 type="button"
                 onClick={closeCreateVenueModal}
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                className="rounded-lg p-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1876,44 +1876,44 @@ export function AdminDashboard() {
             <div className="space-y-4 p-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Venue Name</label>
+                  <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Venue Name</label>
                   <input
                     value={newVenueDraft.name}
                     onChange={(e) => setNewVenueDraft((current) => ({ ...current, name: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-zinc-900 dark:text-zinc-100 focus:border-[#00A859] focus:outline-none focus:ring-2 focus:ring-[#00A859]/30"
                     placeholder="Main Hall"
                   />
                 </div>
 
                 <div className="col-span-2">
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Description</label>
+                  <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Description</label>
                   <textarea
                     rows={4}
                     value={newVenueDraft.description}
                     onChange={(e) => setNewVenueDraft((current) => ({ ...current, description: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-zinc-900 dark:text-zinc-100 focus:border-[#00A859] focus:outline-none focus:ring-2 focus:ring-[#00A859]/30"
                     placeholder="Optional venue notes"
                   />
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Capacity</label>
+                  <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Capacity</label>
                   <input
                     type="number"
                     min={1}
                     value={newVenueDraft.capacity}
                     onChange={(e) => setNewVenueDraft((current) => ({ ...current, capacity: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-zinc-900 dark:text-zinc-100 focus:border-[#00A859] focus:outline-none focus:ring-2 focus:ring-[#00A859]/30"
                     placeholder="100"
                   />
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Status</label>
+                  <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Status</label>
                   <select
                     value={newVenueDraft.status}
                     onChange={(e) => setNewVenueDraft((current) => ({ ...current, status: e.target.value as LiveVenue["status"] }))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-zinc-900 dark:text-zinc-100 focus:border-[#00A859] focus:outline-none focus:ring-2 focus:ring-[#00A859]/30"
                   >
                     <option value="ACTIVE">ACTIVE</option>
                     <option value="INACTIVE">INACTIVE</option>
@@ -1936,11 +1936,11 @@ export function AdminDashboard() {
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+            <div className="flex items-center justify-end gap-3 border-t border-zinc-200 dark:border-zinc-800 px-6 py-4">
               <button
                 type="button"
                 onClick={closeCreateVenueModal}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
               >
                 Cancel
               </button>
@@ -1948,7 +1948,7 @@ export function AdminDashboard() {
                 type="button"
                 onClick={createVenue}
                 disabled={creatingVenue}
-                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-900/20 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#00A859] px-5 py-2 text-sm font-semibold text-white hover:bg-[#009950] dark:hover:bg-[#00bf65] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Plus className="w-4 h-4" />
                 {creatingVenue ? "Creating..." : "Create Venue"}
@@ -1960,16 +1960,16 @@ export function AdminDashboard() {
 
       {deleteVenueTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20">
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+          <div className="w-full max-w-lg rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl shadow-slate-900/20">
+            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-6 py-4">
               <div>
-                <h2 className="text-xl font-semibold text-slate-900">Delete Venue</h2>
-                <p className="mt-0.5 text-sm text-slate-600">This action cannot be undone.</p>
+                <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Delete Venue</h2>
+                <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">This action cannot be undone.</p>
               </div>
               <button
                 type="button"
                 onClick={closeDeleteVenueModal}
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                className="rounded-lg p-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1981,12 +1981,12 @@ export function AdminDashboard() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">Your Password</label>
+                <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Your Password</label>
                 <input
                   type="password"
                   value={deleteVenuePassword}
                   onChange={(e) => setDeleteVenuePassword(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                  className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-3 text-zinc-900 dark:text-zinc-100 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
                   placeholder="Re-enter your password"
                 />
               </div>
@@ -2005,11 +2005,11 @@ export function AdminDashboard() {
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+            <div className="flex items-center justify-end gap-3 border-t border-zinc-200 dark:border-zinc-800 px-6 py-4">
               <button
                 type="button"
                 onClick={closeDeleteVenueModal}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
               >
                 Cancel
               </button>
@@ -2017,7 +2017,7 @@ export function AdminDashboard() {
                 type="button"
                 onClick={confirmDeleteVenue}
                 disabled={deletingVenueId === deleteVenueTarget.id}
-                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-rose-600 to-red-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-rose-900/20 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-rose-600 to-red-600 px-5 py-2 text-sm font-semibold text-white dark:text-white shadow-lg shadow-rose-900/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Trash2 className="w-4 h-4" />
                 {deletingVenueId === deleteVenueTarget.id ? "Deleting..." : "Delete Venue"}

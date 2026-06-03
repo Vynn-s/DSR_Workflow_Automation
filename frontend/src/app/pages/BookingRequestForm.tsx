@@ -297,6 +297,7 @@ export function BookingRequestForm() {
   const [canProceed, setCanProceed] = useState(false);
   const [bookingRecommendations, setBookingRecommendations] = useState<BookingRecommendationResponse | null>(null);
   const [bookingRecommendationsLoading, setBookingRecommendationsLoading] = useState(false);
+  const [isDraggingAttachment, setIsDraggingAttachment] = useState(false);
 
   // Calendar modal state
   const [showCalendar, setShowCalendar] = useState(false);
@@ -679,22 +680,35 @@ export function BookingRequestForm() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-
-      if (selectedFile.size > MAX_ATTACHMENT_SIZE_BYTES) {
-        setAttachment(null);
-        setSubmitError(
-          `Attachment is too large. Please choose a file smaller than ${formatBytes(MAX_ATTACHMENT_SIZE_BYTES)}.`
-        );
-        e.target.value = "";
-        return;
-      }
-
-      setSubmitError(null);
-      setAttachment(selectedFile);
+  const handleAttachmentSelect = (selectedFile: File | null) => {
+    if (!selectedFile) {
+      return;
     }
+
+    if (selectedFile.size > MAX_ATTACHMENT_SIZE_BYTES) {
+      setAttachment(null);
+      setSubmitError(
+        `Attachment is too large. Please choose a file smaller than ${formatBytes(MAX_ATTACHMENT_SIZE_BYTES)}.`
+      );
+      return;
+    }
+
+    setSubmitError(null);
+    setAttachment(selectedFile);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleAttachmentSelect(e.target.files?.[0] ?? null);
+
+    if (e.target.files?.[0]?.size > MAX_ATTACHMENT_SIZE_BYTES) {
+      e.target.value = "";
+    }
+  };
+
+  const handleAttachmentDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDraggingAttachment(false);
+    handleAttachmentSelect(event.dataTransfer.files?.[0] ?? null);
   };
 
   const fileToDataUrl = (file: File) =>
@@ -745,8 +759,8 @@ export function BookingRequestForm() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-3xl border border-zinc-800 bg-[#121214] shadow-2xl">
-        <div className="bg-gradient-to-r from-[#0F3B8C] to-[#00A859] text-white p-5 flex justify-between items-center border-b border-zinc-800">
+      <div className="w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 shadow-2xl">
+        <div className="bg-gradient-to-r from-[#0F3B8C] to-[#00A859] text-white dark:text-white p-5 flex justify-between items-center border-b border-zinc-200 dark:border-zinc-800">
           <div>
             <h1 className="text-xs font-black tracking-widest uppercase flex items-center gap-2">
               <CalendarIcon className="w-4 h-4 text-amber-300" />
@@ -754,7 +768,7 @@ export function BookingRequestForm() {
             </h1>
             <p className="text-[10px] text-zinc-200">Required fields, signed-letter upload, DSS validation, and duplicate detection are included.</p>
           </div>
-          <button onClick={() => navigate("/requester")} className="text-zinc-200 hover:text-white p-1 rounded-full hover:bg-zinc-900">
+          <button onClick={() => navigate("/requester")} className="text-zinc-100 hover:bg-white/20 hover:text-white dark:hover:bg-white/20 dark:hover:text-white p-1 rounded-lg transition-colors duration-150">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -766,7 +780,7 @@ export function BookingRequestForm() {
             <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-4 text-left">
               {/* DSS Results */}
               {(dssChecking || dssResults.length > 0) && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+              <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
                   <div className="flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 text-amber-300 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
@@ -774,7 +788,7 @@ export function BookingRequestForm() {
                         Availability Notices
                       </h4>
                       {dssChecking ? (
-                        <p className="text-[11px] text-zinc-400">Checking availability and workflow rules...</p>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Checking availability and workflow rules...</p>
                       ) : (
                         <ul className="space-y-2">
                           {dssResults.map((result, index) => (
@@ -791,7 +805,7 @@ export function BookingRequestForm() {
                           ))}
                         </ul>
                       )}
-                       <p className="text-[10px] text-zinc-500 mt-3">
+                       <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-3">
                         These DSS results determine whether the request can be submitted.
                       </p>
                     </div>
@@ -801,7 +815,7 @@ export function BookingRequestForm() {
 
               {/* Live Booking Guidance */}
               {(bookingRecommendationsLoading || bookingRecommendations) && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
                   <div className="flex items-start gap-3">
                     <Info className="w-5 h-5 text-[#00A859] flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
@@ -809,12 +823,12 @@ export function BookingRequestForm() {
                         Live Booking Guidance
                       </h4>
                       {bookingRecommendationsLoading ? (
-                        <p className="text-[11px] text-zinc-400">Reading live booking patterns from the database...</p>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Reading live booking patterns from the database...</p>
                       ) : bookingRecommendations ? (
-                        <div className="space-y-3 text-[11px] text-zinc-400">
+                        <div className="space-y-3 text-[11px] text-zinc-500 dark:text-zinc-400">
                           <p>{bookingRecommendations.monthLabel} currently has {bookingRecommendations.totalRequests} live booking{bookingRecommendations.totalRequests === 1 ? "" : "s"}.</p>
                           {bookingRecommendations.seasonalContext && bookingRecommendations.seasonalContext.length > 0 && (
-                            <div className="rounded-xl border border-zinc-800 bg-[#18181b] p-3">
+                            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#18181b] p-3">
                               <p className="text-[10px] font-black uppercase tracking-wider text-[#FFD700] mb-2">
                                 Church seasonal context for {bookingRecommendations.monthName}
                               </p>
@@ -846,7 +860,7 @@ export function BookingRequestForm() {
               <div>
                 <label
                   htmlFor="venue"
-                  className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5"
+                  className="block text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mb-1.5"
                 >
                   Venue / Facility <span className="text-rose-500">*</span>
                 </label>
@@ -855,7 +869,7 @@ export function BookingRequestForm() {
                   name="venue"
                   value={formData.venue}
                   onChange={handleInputChange}
-                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
+                  className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
                   required
                 >
                   <option value="">Select a venue</option>
@@ -877,7 +891,7 @@ export function BookingRequestForm() {
               <div>
                 <label
                   htmlFor="attendees"
-                  className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5"
+                  className="block text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mb-1.5"
                 >
                   Expected Attendees <span className="text-rose-500">*</span>
                 </label>
@@ -886,7 +900,7 @@ export function BookingRequestForm() {
                   name="attendees"
                   value={formData.attendees}
                   onChange={handleInputChange}
-                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
+                  className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
                   required
                 >
                   {attendeeRangeOptions.map((option) => (
@@ -895,61 +909,61 @@ export function BookingRequestForm() {
                     </option>
                   ))}
                 </select>
-                <p className="mt-2 text-[10px] text-zinc-500">
+                <p className="mt-2 text-[10px] text-zinc-400 dark:text-zinc-500">
                   Choose the range that best matches your expected headcount.
                 </p>
               </div>
 
               {/* Date Picker */}
               <div className="relative">
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">
+                <label className="block text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mb-1.5">
                   Event Date <span className="text-rose-500">*</span>
                 </label>
                 <button
                   ref={calendarButtonRef}
                   type="button"
                   onClick={() => setShowCalendar(!showCalendar)}
-                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none text-left flex items-center justify-between group"
+                  className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none text-left flex items-center justify-between group"
                 >
-                  <span className={formData.date ? "text-zinc-200 font-medium" : "text-zinc-500"}>
+                  <span className={formData.date ? "text-zinc-200 font-medium" : "text-zinc-400 dark:text-zinc-500"}>
                     {formatDisplayDate(formData.date)}
                   </span>
-                  <CalendarIcon className="w-4 h-4 text-zinc-500 group-hover:text-[#00A859] transition-colors" />
+                  <CalendarIcon className="w-4 h-4 text-zinc-400 dark:text-zinc-500 group-hover:text-[#00A859] transition-colors duration-150" />
                 </button>
               </div>
 
               {/* Time Range */}
               <div className="grid grid-cols-2 gap-6">
                 <div className="relative">
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">
+                  <label className="block text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mb-1.5">
                     Start Time <span className="text-rose-500">*</span>
                   </label>
                   <button
                     ref={startTimeButtonRef}
                     type="button"
                     onClick={openStartTimePicker}
-                    className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none text-left flex items-center justify-between group"
+                    className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none text-left flex items-center justify-between group"
                   >
-                    <span className={formData.startTime ? "text-zinc-200 font-medium" : "text-zinc-500"}>
+                    <span className={formData.startTime ? "text-zinc-200 font-medium" : "text-zinc-400 dark:text-zinc-500"}>
                       {formatDisplayTime(formData.startTime)}
                     </span>
-                    <Clock className="w-4 h-4 text-zinc-500 group-hover:text-[#00A859] transition-colors" />
+                    <Clock className="w-4 h-4 text-zinc-400 dark:text-zinc-500 group-hover:text-[#00A859] transition-colors duration-150" />
                   </button>
                 </div>
                 <div className="relative">
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">
+                  <label className="block text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mb-1.5">
                     End Time <span className="text-rose-500">*</span>
                   </label>
                   <button
                     ref={endTimeButtonRef}
                     type="button"
                     onClick={openEndTimePicker}
-                    className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none text-left flex items-center justify-between group"
+                    className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none text-left flex items-center justify-between group"
                   >
-                    <span className={formData.endTime ? "text-zinc-200 font-medium" : "text-zinc-500"}>
+                    <span className={formData.endTime ? "text-zinc-200 font-medium" : "text-zinc-400 dark:text-zinc-500"}>
                       {formatDisplayTime(formData.endTime)}
                     </span>
-                    <Clock className="w-4 h-4 text-zinc-500 group-hover:text-red-400 transition-colors" />
+                    <Clock className="w-4 h-4 text-zinc-400 dark:text-zinc-500 group-hover:text-red-400 transition-colors duration-150" />
                   </button>
                 </div>
               </div>
@@ -960,7 +974,7 @@ export function BookingRequestForm() {
               <div>
                 <label
                   htmlFor="purpose"
-                  className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5"
+                  className="block text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mb-1.5"
                 >
                   Specific Event <span className="text-rose-500">*</span>
                 </label>
@@ -969,7 +983,7 @@ export function BookingRequestForm() {
                   name="purpose"
                   value={formData.purpose}
                   onChange={handleInputChange}
-                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none resize-none"
+                  className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none resize-none"
                   required
                 >
                   <option value="">Select a specific event</option>
@@ -979,7 +993,7 @@ export function BookingRequestForm() {
                     </option>
                   ))}
                 </select>
-                <p className="mt-2 text-[10px] text-zinc-500">
+                <p className="mt-2 text-[10px] text-zinc-400 dark:text-zinc-500">
                   Choose the closest event type for this request.
                 </p>
               </div>
@@ -988,26 +1002,72 @@ export function BookingRequestForm() {
               <div>
                 <label
                   htmlFor="attachment"
-                  className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5"
+                  className="block text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mb-1.5"
                 >
                   Signed Request Letter *
                 </label>
-                <div className={`relative rounded-2xl border p-4 ${attachment ? "bg-[#00A859]/10 border-[#00A859]/30" : "bg-red-500/10 border-red-500/20"}`}>
+                <div
+                  onDragEnter={(event) => {
+                    event.preventDefault();
+                    setIsDraggingAttachment(true);
+                  }}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setIsDraggingAttachment(true);
+                  }}
+                  onDragLeave={(event) => {
+                    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                      setIsDraggingAttachment(false);
+                    }
+                  }}
+                  onDrop={handleAttachmentDrop}
+                  className={`group relative overflow-hidden rounded-2xl border border-dashed p-6 text-center transition-colors duration-150 ${
+                    isDraggingAttachment
+                      ? "border-[#0F3B8C] bg-[#0F3B8C]/10 shadow-[0_0_0_4px_rgba(15,59,140,0.12)]"
+                      : attachment
+                        ? "border-[#00A859]/40 bg-[#00A859]/10"
+                        : "border-zinc-300 bg-zinc-50 hover:border-[#0F3B8C]/70 hover:bg-[#0F3B8C]/5 dark:border-zinc-800 dark:bg-[#18181b] dark:hover:border-[#1a4fab] dark:hover:bg-[#0F3B8C]/10"
+                  }`}
+                >
+                  <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent dark:via-white/10" />
+                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-[#0F3B8C] shadow-sm transition-colors duration-150 group-hover:border-[#0F3B8C]/30 dark:border-zinc-800 dark:bg-zinc-950 dark:text-blue-300">
+                    <Paperclip className="h-5 w-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                      Drop your signed request letter here
+                    </p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      PDF, image, or document file up to {formatBytes(MAX_ATTACHMENT_SIZE_BYTES)}. You can also browse manually.
+                    </p>
+                  </div>
+
+                  <label
+                    htmlFor="attachment"
+                    className="mt-4 inline-flex cursor-pointer items-center justify-center rounded-xl bg-[#0F3B8C] px-4 py-2.5 text-xs font-bold text-[#fff] transition-colors duration-150 hover:bg-[#0d3380] hover:text-[#fff] dark:hover:bg-[#1a4fab] dark:hover:text-[#fff]"
+                  >
+                    Choose file
+                  </label>
                   <input
                     id="attachment"
                     name="attachment"
                     type="file"
                     onChange={handleFileChange}
-                    className="block w-full text-[11px] text-zinc-300 file:mr-3 file:rounded-xl file:border-0 file:bg-white file:px-3 file:py-2 file:text-xs file:font-bold file:text-zinc-950 hover:file:bg-zinc-100"
+                    className="sr-only"
                   />
                 </div>
-                <p className="mt-2 text-[10px] text-zinc-500">
+                <p className="mt-2 text-[10px] text-zinc-400 dark:text-zinc-500">
                   Upload any supporting documents (e.g., event plan, schedule). Maximum size: {formatBytes(MAX_ATTACHMENT_SIZE_BYTES)}.
                 </p>
                 {attachment && (
-                  <div className="mt-3 flex items-center gap-2 text-[10px] font-bold text-[#00A859] bg-[#00A859]/10 px-4 py-2 rounded-xl">
-                    <Paperclip className="w-4 h-4" />
-                    {attachment.name}
+                  <div className="mt-3 flex items-center gap-3 rounded-xl border border-[#00A859]/30 bg-[#00A859]/10 px-4 py-3 text-xs font-bold text-[#007a41] dark:text-[#00A859]">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#00A859]/15">
+                      <Paperclip className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm text-zinc-900 dark:text-zinc-100">{attachment.name}</p>
+                      <p className="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">Selected file ready for submission</p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1017,13 +1077,13 @@ export function BookingRequestForm() {
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <Shield className="w-5 h-5 text-[#00A859]" />
-                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
                       Required Signatures
                     </label>
                   </div>
                   
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-                    <p className="text-xs text-zinc-400 mb-4">
+                   <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
                       Collect the following signatures before submission. You can still submit without all signatures, but approval may be delayed.
                     </p>
                     
@@ -1034,13 +1094,13 @@ export function BookingRequestForm() {
                           className={`p-4 border rounded-lg ${
                             signature.status === "signed"
                               ? "bg-[#00A859]/10 border-[#00A859]/20"
-                              : "bg-[#18181b] border-zinc-800"
+                              : "bg-zinc-50 dark:bg-[#18181b] border-zinc-200 dark:border-zinc-800"
                           }`}
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
-                                <p className="text-sm font-semibold text-zinc-100">
+                                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                                   {signature.signatory}
                                 </p>
                                 {signature.required && (
@@ -1049,20 +1109,20 @@ export function BookingRequestForm() {
                                   </span>
                                 )}
                               </div>
-                              <p className="text-xs text-zinc-400">{signature.role}</p>
+                              <p className="text-xs text-zinc-500 dark:text-zinc-400">{signature.role}</p>
                               {signature.status === "signed" && signature.signedDate && (
                                 <p className="text-xs text-[#00A859] mt-2">
                                   Signed on {signature.signedDate}
                                 </p>
                               )}
                               <div className="mt-3">
-                                <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">
+                                <label className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase mb-1">
                                   Priest Signatory
                                 </label>
                                 <select
                                   value={signature.priestId ?? ""}
                                   onChange={(event) => handlePriestSelection(index, event.target.value)}
-                                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
+                                  className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
                                 >
                                   <option value="">Select priest</option>
                                   {priestSignatureOptions.map((priest) => (
@@ -1072,7 +1132,7 @@ export function BookingRequestForm() {
                                   ))}
                                 </select>
                                 {signature.priestName && (
-                                  <p className="mt-1 text-xs text-zinc-500">
+                                  <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
                                     Assigned to {signature.priestName}
                                   </p>
                                 )}
@@ -1083,7 +1143,7 @@ export function BookingRequestForm() {
                                 <button
                                   type="button"
                                   onClick={() => markSignatureAsPending(index)}
-                                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:bg-zinc-800 rounded-md transition-colors"
+                                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 rounded-md transition-colors duration-150"
                                 >
                                   <XCircle className="w-3.5 h-3.5" />
                                   Undo
@@ -1092,7 +1152,7 @@ export function BookingRequestForm() {
                                 <button
                                   type="button"
                                   onClick={() => markSignatureAsCollected(index)}
-                                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-[#00A859] hover:bg-zinc-800 rounded-md transition-colors"
+                                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-[#00A859] hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 rounded-md transition-colors duration-150"
                                 >
                                   <CheckCircle2 className="w-3.5 h-3.5" />
                                   Mark as Collected
@@ -1105,8 +1165,8 @@ export function BookingRequestForm() {
                     </div>
 
                     {/* Signature Summary */}
-                    <div className="mt-4 pt-4 border-t border-zinc-800 flex items-center justify-between text-sm">
-                      <span className="text-zinc-400">
+                    <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-sm">
+                      <span className="text-zinc-500 dark:text-zinc-400">
                         {submitError ? (
                           <p className="text-sm text-red-600" role="alert">
                             {submitError}
@@ -1123,7 +1183,7 @@ export function BookingRequestForm() {
                 <button
                   type="submit"
                   disabled={isSubmitting || dssChecking || !canProceed}
-                  className="order-3 flex items-center gap-2 px-5 py-2 rounded-xl bg-white text-zinc-950 font-bold text-xs hover:bg-zinc-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="order-3 flex items-center gap-2 px-5 py-2 rounded-xl bg-[#0F3B8C] text-white font-bold text-xs transition-colors duration-150 hover:bg-[#0d3380] hover:text-white dark:hover:bg-[#1a4fab] dark:hover:text-white disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <Send className="w-4 h-4" />
                   {isSubmitting ? "Submitting..." : dssChecking ? "Checking DSS..." : "Submit Request"}
@@ -1132,7 +1192,7 @@ export function BookingRequestForm() {
                   type="button"
                   onClick={(e) => handleSubmit(e, true)}
                   disabled={!canSaveDraft}
-                  className={`flex items-center gap-2 px-5 py-2 rounded-xl bg-zinc-800 text-zinc-200 font-bold text-xs hover:bg-zinc-700 transition-all ${
+                  className={`flex items-center gap-2 rounded-xl border border-zinc-300 bg-transparent px-5 py-2 text-xs font-bold text-zinc-700 transition-colors duration-150 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 ${
                     canSaveDraft
                       ? ""
                       : "opacity-50 cursor-not-allowed"
@@ -1144,7 +1204,7 @@ export function BookingRequestForm() {
                 <button
                   type="button"
                   onClick={() => navigate("/requester")}
-                  className="px-4 py-2 text-xs font-bold text-zinc-400 hover:text-white transition-all"
+                  className="px-4 py-2 text-xs font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors duration-150"
                 >
                   Cancel
                 </button>
@@ -1156,51 +1216,51 @@ export function BookingRequestForm() {
         {/* Venue Information Panel */}
         <div className="col-span-1">
           {selectedVenueInfo ? (
-            <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-6 sticky top-6">
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6 sticky top-6">
               <div className="flex items-center gap-2 mb-4">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <MapPin className="w-5 h-5 text-blue-600" />
+                <div className="p-2 bg-[#0F3B8C]/20 rounded-lg">
+                  <MapPin className="w-5 h-5 text-blue-300" />
                 </div>
-                <h3 className="font-semibold text-slate-900 text-lg">
+                <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
                   Venue Information
                 </h3>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <h4 className="text-sm font-semibold text-slate-900 mb-1">
+                  <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-1">
                     {selectedVenueInfo.name}
                   </h4>
-                  <div className="flex items-center gap-2 text-sm text-slate-600 mb-3">
+                  <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 mb-3">
                     <Users className="w-4 h-4" />
                     <span>Capacity: {selectedVenueInfo.capacity} people</span>
                   </div>
-                  <p className="text-sm text-slate-700">
+                  <p className="text-sm text-zinc-200">
                     {selectedVenueInfo.description}
                   </p>
                 </div>
 
-                <div className="pt-4 border-t border-slate-200">
+                <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
                   <div className="flex items-center gap-2 mb-3">
-                    <FileText className="w-4 h-4 text-slate-600" />
-                    <h4 className="text-sm font-semibold text-slate-900">
+                    <FileText className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
+                    <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
                       Usage Guidelines
                     </h4>
                   </div>
                   <ul className="space-y-2">
                     {selectedVenueInfo.guidelines.map((guideline, index) => (
-                      <li key={index} className="text-sm text-slate-700 flex items-start gap-2">
-                        <span className="mt-1.5 w-1.5 h-1.5 bg-blue-600 rounded-full flex-shrink-0"></span>
+                      <li key={index} className="text-sm text-zinc-300 flex items-start gap-2">
+                        <span className="mt-1.5 w-1.5 h-1.5 bg-[#00A859] rounded-full flex-shrink-0"></span>
                         <span>{guideline}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
 
-                <div className="pt-4 border-t border-slate-200 bg-blue-50 -mx-6 -mb-6 px-6 py-4 rounded-b-xl">
+                <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800 bg-[#0F3B8C]/10 -mx-6 -mb-6 px-6 py-4 rounded-b-2xl">
                   <div className="flex items-start gap-2">
-                    <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-blue-900">
+                    <Info className="w-4 h-4 text-blue-300 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-zinc-300">
                       Please review these guidelines before submitting your request. Compliance with venue rules is required for approval.
                     </p>
                   </div>
@@ -1208,12 +1268,12 @@ export function BookingRequestForm() {
               </div>
             </div>
           ) : (
-            <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-12 text-center sticky top-6">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
-                <MapPin className="w-8 h-8 text-slate-400" />
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-12 text-center sticky top-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-zinc-900 rounded-full mb-4">
+                <MapPin className="w-8 h-8 text-zinc-500 dark:text-zinc-400" />
               </div>
-              <p className="text-slate-600 font-medium">Select a venue</p>
-              <p className="text-slate-500 text-sm mt-1">
+              <p className="text-zinc-900 dark:text-zinc-100 font-medium">Select a venue</p>
+              <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
                 Venue information will appear here
               </p>
             </div>
@@ -1225,7 +1285,7 @@ export function BookingRequestForm() {
       {showCalendar && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowCalendar(false)} />
-          <div className="absolute z-50 mt-2 bg-white rounded-2xl shadow-2xl max-w-lg w-full border-2 border-slate-200"
+          <div className="absolute z-50 mt-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-950 shadow-2xl max-w-lg w-full"
                style={{
                  top: calendarButtonRef.current ? calendarButtonRef.current.getBoundingClientRect().bottom + window.scrollY : 0,
                  left: calendarButtonRef.current ? calendarButtonRef.current.getBoundingClientRect().left + window.scrollX : 0,
@@ -1233,32 +1293,32 @@ export function BookingRequestForm() {
                }}>
             {/* Calendar Header */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex items-center justify-between rounded-t-2xl">
-              <h3 className="font-semibold text-white">Select Date</h3>
+              <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Select Date</h3>
               <button
                 onClick={() => setShowCalendar(false)}
-                className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-white/20 hover:text-white dark:hover:bg-white/20 dark:hover:text-white rounded-lg transition-colors duration-150"
               >
-                <X className="w-4 h-4 text-white" />
+                <X className="w-4 h-4 text-zinc-900 dark:text-zinc-100" />
               </button>
             </div>
 
             {/* Calendar Navigation */}
-            <div className="px-6 py-3 border-b border-slate-200 flex items-center justify-between">
+            <div className="px-6 py-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
               <button
                 onClick={previousMonth}
                 disabled={isPreviousMonthDisabled}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="p-2 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 rounded-lg transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <ChevronLeft className="w-5 h-5 text-slate-600" />
+                <ChevronLeft className="w-5 h-5 text-zinc-300" />
               </button>
-              <h4 className="font-semibold text-slate-900">
+              <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
                 {calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </h4>
               <button
                 onClick={nextMonth}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 rounded-lg transition-colors duration-150"
               >
-                <ChevronRight className="w-5 h-5 text-slate-600" />
+                <ChevronRight className="w-5 h-5 text-zinc-300" />
               </button>
             </div>
 
@@ -1267,7 +1327,7 @@ export function BookingRequestForm() {
               {/* Day Headers */}
               <div className="grid grid-cols-7 gap-2 mb-3">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                  <div key={day} className="text-center py-2 text-xs font-bold text-slate-600 uppercase">
+                  <div key={day} className="text-center py-2 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase">
                     {day}
                   </div>
                 ))}
@@ -1300,12 +1360,12 @@ export function BookingRequestForm() {
                           }
                         }}
                         disabled={isDisabled}
-                        className={`aspect-square rounded-xl font-medium transition-all ${
+                        className={`aspect-square rounded-xl font-medium transition-colors duration-150 ${
                           isSelected
-                            ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg'
+                            ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white dark:text-white shadow-lg'
                             : isDisabled
-                              ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                              : 'hover:bg-blue-50 text-slate-700'
+                              ? 'bg-zinc-900 text-zinc-600 cursor-not-allowed'
+                              : 'hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 text-zinc-300'
                         }`}
                       >
                         {day}
@@ -1325,7 +1385,7 @@ export function BookingRequestForm() {
       {showStartTimePicker && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowStartTimePicker(false)} />
-          <div className="absolute z-50 mt-2 bg-white rounded-2xl shadow-2xl border-2 border-slate-200"
+          <div className="absolute z-50 mt-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-950 shadow-2xl"
                style={{
                  top: startTimeButtonRef.current ? startTimeButtonRef.current.getBoundingClientRect().bottom + window.scrollY : 0,
                  left: startTimeButtonRef.current ? startTimeButtonRef.current.getBoundingClientRect().left + window.scrollX : 0,
@@ -1333,13 +1393,13 @@ export function BookingRequestForm() {
                }}>
             {/* Header */}
             <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-4 flex items-center justify-between rounded-t-2xl">
-              <h3 className="font-semibold text-white">Start Time</h3>
+              <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Start Time</h3>
               <button
                 type="button"
                 onClick={() => setShowStartTimePicker(false)}
-                className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-white/20 hover:text-white dark:hover:bg-white/20 dark:hover:text-white rounded-lg transition-colors duration-150"
               >
-                <X className="w-4 h-4 text-white" />
+                <X className="w-4 h-4 text-zinc-900 dark:text-zinc-100" />
               </button>
             </div>
 
@@ -1347,7 +1407,7 @@ export function BookingRequestForm() {
             <div className="p-6">
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <p className="text-xs font-bold text-slate-600 text-center mb-2">Hour</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center mb-2">Hour</p>
                   <ScrollPicker
                     items={getAllowedHours(startTimeValues.period)}
                     selectedIndex={Math.max(0, getAllowedHours(startTimeValues.period).indexOf(startTimeValues.hour))}
@@ -1359,7 +1419,7 @@ export function BookingRequestForm() {
                 </div>
 
                 <div>
-                  <p className="text-xs font-bold text-slate-600 text-center mb-2">Minute</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center mb-2">Minute</p>
                   <ScrollPicker
                     items={Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"))}
                     selectedIndex={startTimeValues.minute / 5}
@@ -1368,7 +1428,7 @@ export function BookingRequestForm() {
                 </div>
 
                 <div>
-                  <p className="text-xs font-bold text-slate-600 text-center mb-2">Period</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center mb-2">Period</p>
                   <ScrollPicker
                     items={["AM", "PM"]}
                     selectedIndex={startTimeValues.period === "AM" ? 0 : 1}
@@ -1379,11 +1439,11 @@ export function BookingRequestForm() {
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
+            <div className="px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-950 rounded-b-2xl">
               <button
                 type="button"
                 onClick={applyStartTime}
-                className="w-full px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition-all shadow-lg font-medium"
+                className="w-full bg-white text-zinc-900 dark:bg-white dark:text-zinc-950 rounded-xl px-4 py-2.5 text-sm font-semibold hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-200 dark:hover:text-zinc-950 transition-colors duration-150"
               >
                 Confirm
               </button>
@@ -1396,7 +1456,7 @@ export function BookingRequestForm() {
       {showEndTimePicker && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowEndTimePicker(false)} />
-          <div className="absolute z-50 mt-2 bg-white rounded-2xl shadow-2xl border-2 border-slate-200"
+          <div className="absolute z-50 mt-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-950 shadow-2xl"
                style={{
                  top: endTimeButtonRef.current ? endTimeButtonRef.current.getBoundingClientRect().bottom + window.scrollY : 0,
                  left: endTimeButtonRef.current ? endTimeButtonRef.current.getBoundingClientRect().left + window.scrollX : 0,
@@ -1404,13 +1464,13 @@ export function BookingRequestForm() {
                }}>
             {/* Header */}
             <div className="bg-gradient-to-r from-rose-600 to-rose-700 px-6 py-4 flex items-center justify-between rounded-t-2xl">
-              <h3 className="font-semibold text-white">End Time</h3>
+              <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">End Time</h3>
               <button
                 type="button"
                 onClick={() => setShowEndTimePicker(false)}
-                className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-white/20 hover:text-white dark:hover:bg-white/20 dark:hover:text-white rounded-lg transition-colors duration-150"
               >
-                <X className="w-4 h-4 text-white" />
+                <X className="w-4 h-4 text-zinc-900 dark:text-zinc-100" />
               </button>
             </div>
 
@@ -1418,7 +1478,7 @@ export function BookingRequestForm() {
             <div className="p-6">
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <p className="text-xs font-bold text-slate-600 text-center mb-2">Hour</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center mb-2">Hour</p>
                   <ScrollPicker
                     items={getAllowedHours(endTimeValues.period)}
                     selectedIndex={Math.max(0, getAllowedHours(endTimeValues.period).indexOf(endTimeValues.hour))}
@@ -1430,7 +1490,7 @@ export function BookingRequestForm() {
                 </div>
 
                 <div>
-                  <p className="text-xs font-bold text-slate-600 text-center mb-2">Minute</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center mb-2">Minute</p>
                   <ScrollPicker
                     items={Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"))}
                     selectedIndex={endTimeValues.minute / 5}
@@ -1439,7 +1499,7 @@ export function BookingRequestForm() {
                 </div>
 
                 <div>
-                  <p className="text-xs font-bold text-slate-600 text-center mb-2">Period</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center mb-2">Period</p>
                   <ScrollPicker
                     items={["AM", "PM"]}
                     selectedIndex={endTimeValues.period === "AM" ? 0 : 1}
@@ -1450,11 +1510,11 @@ export function BookingRequestForm() {
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
+            <div className="px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-950 rounded-b-2xl">
               <button
                 type="button"
                 onClick={applyEndTime}
-                className="w-full px-6 py-3 bg-gradient-to-r from-rose-600 to-rose-700 text-white rounded-xl hover:from-rose-700 hover:to-rose-800 transition-all shadow-lg font-medium"
+                className="w-full bg-white text-zinc-900 dark:bg-white dark:text-zinc-950 rounded-xl px-4 py-2.5 text-sm font-semibold hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-200 dark:hover:text-zinc-950 transition-colors duration-150"
               >
                 Confirm
               </button>

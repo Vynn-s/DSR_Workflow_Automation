@@ -49,21 +49,21 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex items-center justify-center p-4 text-slate-950 dark:text-zinc-100">
+    <div className="min-h-screen bg-white dark:bg-[#030712] flex items-center justify-center p-4 text-zinc-900 dark:text-zinc-100">
       <button
         type="button"
         onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")}
-        className="fixed right-5 top-5 z-10 p-2 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-slate-950 dark:hover:text-white transition-all"
+        className="fixed right-5 top-5 z-10 p-2 rounded-xl bg-white dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors duration-150"
         aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
       >
         {theme === "dark" ? <Sun className="w-4 h-4 text-amber-300" /> : <Moon className="w-4 h-4" />}
       </button>
-      <div className="bg-white dark:bg-[#121214] rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-2xl max-w-4xl w-full overflow-hidden grid grid-cols-1 md:grid-cols-12 min-h-[500px]">
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 shadow-2xl max-w-4xl w-full overflow-hidden grid grid-cols-1 md:grid-cols-12 min-h-[500px]">
         <div className="md:col-span-5 bg-gradient-to-b from-[#0F3B8C] to-[#0d1e3d] p-8 flex flex-col justify-between relative border-r border-zinc-900 text-center overflow-hidden">
           <div className="absolute top-0 left-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
           <div className="flex items-center justify-center gap-2">
             <img src="/logo.png" alt="San Pedro Cathedral Logo" className="w-5 h-5 object-contain" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300">San Pedro Cathedral</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-white dark:text-white">San Pedro Cathedral</span>
           </div>
 
           <div className="w-full max-w-[210px] mx-auto aspect-square bg-white rounded-full p-4 relative flex flex-col justify-center items-center shadow-2xl border-4 border-amber-400">
@@ -72,15 +72,15 @@ export function LoginPage() {
 
           <div className="space-y-1">
             <p className="text-xs font-bold text-amber-400">Archdiocese of Davao</p>
-            <p className="text-[9px] text-zinc-400">Official scheduling gatekeeper interface</p>
+            <p className="text-[9px] text-zinc-500 dark:text-zinc-400">Official scheduling gatekeeper interface</p>
           </div>
         </div>
 
-        <div className="md:col-span-7 p-8 sm:p-12 flex flex-col justify-center bg-white dark:bg-[#121214]">
+        <div className="md:col-span-7 p-8 sm:p-12 flex flex-col justify-center bg-white dark:bg-zinc-950/60">
           <div className="max-w-sm w-full mx-auto space-y-6 text-left">
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-slate-950 dark:text-white">Welcome to San Pedro Cathedral Portal</h1>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Please sign in with your parish credentials to continue.</p>
+              <h1 className="text-base font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Welcome to San Pedro Cathedral Portal</h1>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Please sign in with your parish credentials to continue.</p>
             </div>
 
             {error ? (
@@ -91,17 +91,19 @@ export function LoginPage() {
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label htmlFor="email" className="block text-[11px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                <label htmlFor="email" className="block text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
                   Email or Username
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex w-11 items-center justify-center">
+                    <Mail className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
+                  </div>
                   <input
                     id="email"
                     type="text"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-white dark:bg-[#18181b] border border-slate-300 dark:border-zinc-800 focus:border-[#0F3B8C] rounded-xl pl-10 pr-4 py-3 text-xs text-slate-950 dark:text-zinc-100 outline-none transition-all font-semibold placeholder:text-slate-400 dark:placeholder:text-zinc-600"
+                    className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl pl-12 pr-4 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-[#0F3B8C]"
                     placeholder="you@email.com"
                     required
                   />
@@ -110,28 +112,30 @@ export function LoginPage() {
 
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <label htmlFor="password" className="block text-[11px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+                  <label htmlFor="password" className="block text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                     Password
                   </label>
-                  <button type="button" className="text-[11px] text-[#00A859] hover:underline font-bold">
+                  <button type="button" className="text-[11px] text-[#00A859] hover:text-[#009950] dark:hover:text-[#00bf65] hover:underline font-bold transition-colors duration-150">
                     Forgot?
                   </button>
                 </div>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex w-11 items-center justify-center">
+                    <Lock className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
+                  </div>
                   <input
                     id="password"
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-white dark:bg-[#18181b] border border-slate-300 dark:border-zinc-800 focus:border-[#0F3B8C] rounded-xl pl-10 pr-10 py-3 text-xs text-slate-950 dark:text-zinc-100 outline-none transition-all font-semibold placeholder:text-slate-400 dark:placeholder:text-zinc-600"
+                    className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl pl-12 pr-10 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-[#0F3B8C]"
                     placeholder="••••••••••••"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors duration-150"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -142,32 +146,32 @@ export function LoginPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3.5 rounded-xl bg-[#0F3B8C] dark:bg-white text-white dark:text-zinc-950 font-bold text-xs hover:bg-[#0d3276] dark:hover:bg-zinc-100 transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                className="w-full bg-[#0F3B8C] text-white hover:bg-[#0d3380] hover:text-white dark:hover:bg-[#1a4fab] dark:hover:text-white rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors duration-150 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isLoading ? "Verifying parish credentials..." : "Continue to Portal"}
               </button>
             </form>
 
-            <div className="space-y-2 pt-4 border-t border-slate-200 dark:border-zinc-900">
-              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">Quick Select Preset Role</span>
+              <div className="space-y-2 pt-4 border-t border-zinc-900">
+              <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block mb-2">Quick Select Preset Role</span>
               <button
                 type="button"
                 onClick={() => { setEmail("requester@test.com"); setPassword("Password123!"); }}
-                className="w-full py-2.5 px-3 rounded-xl bg-white dark:bg-[#18181b] hover:bg-slate-50 dark:hover:bg-zinc-800 border border-slate-200 dark:border-zinc-800 text-[11px] font-bold text-slate-700 dark:text-zinc-200 transition-colors flex items-center justify-center gap-2"
+                className="w-full border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 bg-transparent rounded-xl px-4 py-2.5 text-sm hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 transition-colors duration-150 flex items-center justify-center gap-2"
               >
-                <User className="w-4 h-4 text-zinc-400" /> Staff Requester (requester@test.com)
+                <User className="w-4 h-4 text-zinc-500 dark:text-zinc-400" /> Staff Requester (requester@test.com)
               </button>
               <button
                 type="button"
                 onClick={() => { setEmail("approver@test.com"); setPassword("Password123!"); }}
-                className="w-full py-2.5 px-3 rounded-xl bg-white dark:bg-[#18181b] hover:bg-slate-50 dark:hover:bg-zinc-800 border border-slate-200 dark:border-zinc-800 text-[11px] font-bold text-slate-700 dark:text-zinc-200 transition-colors flex items-center justify-center gap-2"
+                className="w-full border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 bg-transparent rounded-xl px-4 py-2.5 text-sm hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 transition-colors duration-150 flex items-center justify-center gap-2"
               >
                 <Shield className="w-4 h-4 text-[#00A859]" /> Parish Approver (approver@test.com)
               </button>
               <button
                 type="button"
                 onClick={() => { setEmail("admin@sanpedro.cathedral.org"); setPassword("Password123!"); }}
-                className="w-full py-2.5 px-3 rounded-xl bg-white dark:bg-[#18181b] hover:bg-slate-50 dark:hover:bg-zinc-800 border border-slate-200 dark:border-zinc-800 text-[11px] font-bold text-slate-700 dark:text-zinc-200 transition-colors flex items-center justify-center gap-2"
+                className="w-full border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 bg-transparent rounded-xl px-4 py-2.5 text-sm hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 transition-colors duration-150 flex items-center justify-center gap-2"
               >
                 <Sparkles className="w-4 h-4 text-amber-400" /> Administrator (admin@sanpedro.cathedral.org)
               </button>

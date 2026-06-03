@@ -74,7 +74,7 @@ export function ScrollPicker({ items, selectedIndex, onChange, className }: Scro
         ref={containerRef}
         onScroll={handleScroll}
         className={[
-          "h-full overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/90 shadow-inner scrollbar-hide snap-y snap-mandatory",
+          "h-full overflow-y-auto rounded-xl border border-zinc-200 bg-zinc-50 shadow-inner scrollbar-hide snap-y snap-mandatory dark:border-zinc-800 dark:bg-[#18181b]",
           className,
         ]
           .filter(Boolean)
@@ -96,10 +96,10 @@ export function ScrollPicker({ items, selectedIndex, onChange, className }: Scro
               onClick={() => onChange(index)}
               style={{ height: `${itemHeight}px` }}
               className={[
-                "flex w-full items-center justify-center rounded-lg px-3 text-sm font-medium transition-all snap-center",
+                "flex w-full items-center justify-center rounded-lg px-3 text-sm font-medium transition-colors duration-150 snap-center",
                 isSelected
-                  ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
-                  : "text-slate-500 hover:bg-white hover:text-slate-800",
+                  ? "bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-100 dark:ring-zinc-700"
+                  : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100",
               ]
                 .filter(Boolean)
                 .join(" ")}
@@ -112,11 +112,11 @@ export function ScrollPicker({ items, selectedIndex, onChange, className }: Scro
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 top-1/2 z-10 -translate-y-1/2">
-        <div className="h-11 rounded-none border-y border-emerald-300/70 bg-emerald-50/30 backdrop-blur-[0.5px] shadow-[0_0_0_1px_rgba(16,185,129,0.08)_inset]" />
+        <div className="h-11 rounded-none border-y border-emerald-500/40 bg-emerald-500/10 backdrop-blur-[0.5px] shadow-[0_0_0_1px_rgba(16,185,129,0.08)_inset]" />
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 top-1/2 z-0 -translate-y-1/2">
-        <div className="h-11 rounded-none bg-gradient-to-b from-white/0 via-emerald-50/10 to-white/0" />
+        <div className="h-11 rounded-none bg-gradient-to-b from-zinc-950/0 via-emerald-500/10 to-zinc-950/0" />
       </div>
     </div>
   );

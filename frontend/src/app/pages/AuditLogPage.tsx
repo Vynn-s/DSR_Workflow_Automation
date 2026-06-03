@@ -356,25 +356,25 @@ export function AuditLogPage() {
     <div>
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-black text-white mb-2 tracking-tight">
+        <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-2 tracking-tight">
           Audit Log & Reports
         </h1>
-        <p className="text-xs text-zinc-400">
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
           View system activity and user actions
         </p>
       </div>
 
       {/* Filters */}
-      <div className="bg-zinc-950/60 backdrop-blur-sm border border-zinc-800 rounded-3xl p-6 mb-6">
+      <div className="bg-white dark:bg-zinc-950/60 backdrop-blur-sm border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 mb-6">
         <div className="flex items-center gap-2 mb-4">
-          <Filter className="w-5 h-5 text-zinc-500" />
-          <h3 className="font-black text-white">Filters</h3>
+          <Filter className="w-5 h-5 text-zinc-400 dark:text-zinc-500" />
+          <h3 className="font-black text-zinc-900 dark:text-zinc-100">Filters</h3>
         </div>
         <div className="flex gap-4 items-end">
           <div className="flex-1">
             <label
               htmlFor="role-filter"
-              className="block text-[10px] font-black uppercase text-zinc-500 mb-2"
+              className="block text-[10px] font-black uppercase text-zinc-400 dark:text-zinc-500 mb-2"
             >
               Filter by Role
             </label>
@@ -382,7 +382,7 @@ export function AuditLogPage() {
               id="role-filter"
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value as RoleFilter)}
-              className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
+              className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
             >
               <option value="All">All Roles</option>
               <option value="REQUESTER">Requester</option>
@@ -394,7 +394,7 @@ export function AuditLogPage() {
           <div className="flex-1">
             <label
               htmlFor="action-filter"
-              className="block text-[10px] font-black uppercase text-zinc-500 mb-2"
+              className="block text-[10px] font-black uppercase text-zinc-400 dark:text-zinc-500 mb-2"
             >
               Filter by Action
             </label>
@@ -402,7 +402,7 @@ export function AuditLogPage() {
               id="action-filter"
               value={filterAction}
               onChange={(e) => setFilterAction(e.target.value)}
-              className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
+              className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
             >
               <option value="All">All Actions</option>
               <option value="REQUEST_CREATED">Submitted Request</option>
@@ -415,7 +415,7 @@ export function AuditLogPage() {
           <div className="flex-1">
             <label
               htmlFor="date-filter"
-              className="block text-[10px] font-black uppercase text-zinc-500 mb-2"
+              className="block text-[10px] font-black uppercase text-zinc-400 dark:text-zinc-500 mb-2"
             >
               Filter by Date
             </label>
@@ -424,7 +424,7 @@ export function AuditLogPage() {
               type="date"
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
-              className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
+              className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
             />
           </div>
 
@@ -434,7 +434,7 @@ export function AuditLogPage() {
               setFilterAction("All");
               setFilterDate("");
             }}
-            className="px-4 py-2.5 bg-[#0F3B8C] text-white rounded-xl text-xs font-black transition-all"
+            className="px-4 py-2.5 bg-[#0F3B8C] text-white hover:bg-[#0d3380] hover:text-white dark:hover:bg-[#1a4fab] dark:hover:text-white rounded-xl text-xs font-black transition-colors duration-150"
           >
             Clear Filters
           </button>
@@ -448,10 +448,10 @@ export function AuditLogPage() {
       )}
 
       {/* Audit Log Table */}
-      <div className="rounded-3xl border border-zinc-800 bg-transparent overflow-hidden mb-8">
-        <div className="px-6 py-5 border-b border-zinc-800 flex items-center gap-2">
-          <Activity className="w-5 h-5 text-zinc-500" />
-          <h2 className="font-black text-white text-lg">
+      <div className="rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-transparent overflow-hidden mb-8">
+        <div className="px-6 py-5 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-2">
+          <Activity className="w-5 h-5 text-zinc-400 dark:text-zinc-500" />
+          <h2 className="font-black text-zinc-900 dark:text-zinc-100 text-lg">
             Activity Log
           </h2>
           <span className="ml-auto px-3 py-1 bg-zinc-900 text-zinc-300 text-xs font-black rounded-full">
@@ -461,31 +461,31 @@ export function AuditLogPage() {
 
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-zinc-950 border-b border-zinc-800">
+            <thead className="bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
               <tr>
-                <th className="px-6 py-4 text-left text-[10px] font-black text-zinc-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
                   Timestamp
                 </th>
-                <th className="px-6 py-4 text-left text-[10px] font-black text-zinc-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
                   User
                 </th>
-                <th className="px-6 py-4 text-left text-[10px] font-black text-zinc-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
                   Role
                 </th>
-                <th className="px-6 py-4 text-left text-[10px] font-black text-zinc-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
                   Action
                 </th>
-                <th className="px-6 py-4 text-left text-[10px] font-black text-zinc-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
                   Details
                 </th>
-                <th className="px-6 py-4 text-center text-[10px] font-black text-zinc-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-center text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-900">
               {!loading && auditLogs.map((entry) => (
-                <tr key={entry.id} className="hover:bg-zinc-900/40 transition-colors">
+                <tr key={entry.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors duration-150">
                   <td className="px-6 py-4 text-sm text-zinc-300 whitespace-nowrap font-mono">
                     {formatTimeOnly(entry.timestamp)}
                   </td>
@@ -499,7 +499,7 @@ export function AuditLogPage() {
                            ? "bg-purple-500/10 text-purple-300 border-purple-500/20"
                           : entry.role === "Approver"
                            ? "bg-[#0F3B8C]/20 text-blue-300 border-[#0F3B8C]/30"
-                           : "bg-zinc-900 text-zinc-300 border-zinc-800"
+                           : "bg-zinc-900 text-zinc-300 border-zinc-200 dark:border-zinc-800"
                       }`}
                     >
                       {entry.role}
@@ -508,13 +508,13 @@ export function AuditLogPage() {
                   <td className="px-6 py-4 text-sm font-semibold text-zinc-200">
                     {entry.action}
                   </td>
-                  <td className="px-6 py-4 text-sm text-zinc-400">
+                  <td className="px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400">
                     {entry.details}
                   </td>
                   <td className="px-6 py-4 text-center">
                     <button
                       onClick={() => setSelectedEntry(entry)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-[#00A859] hover:bg-zinc-900 rounded-md transition-colors"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-[#00A859] hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 rounded-md transition-colors duration-150"
                     >
                       <Eye className="w-3.5 h-3.5" />
                       View Details
@@ -528,22 +528,22 @@ export function AuditLogPage() {
 
         {loading && (
           <div className="p-12 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4 animate-pulse">
-              <Activity className="w-8 h-8 text-slate-400" />
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-zinc-900 rounded-full mb-4 animate-pulse">
+              <Activity className="w-8 h-8 text-zinc-500 dark:text-zinc-400" />
             </div>
-            <p className="text-slate-600 font-medium">Loading audit entries...</p>
+            <p className="text-zinc-500 dark:text-zinc-400 font-medium">Loading audit entries...</p>
           </div>
         )}
 
         {auditLogs.length === 0 && !loading && (
           <div className="p-12 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
-              <Activity className="w-8 h-8 text-slate-400" />
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-zinc-900 rounded-full mb-4">
+              <Activity className="w-8 h-8 text-zinc-500 dark:text-zinc-400" />
             </div>
-            <p className="text-slate-600 font-medium">
+            <p className="text-zinc-900 dark:text-zinc-100 font-medium">
               No audit entries found
             </p>
-            <p className="text-slate-500 text-sm mt-1">
+            <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
               Try adjusting your filters
             </p>
           </div>
@@ -553,44 +553,44 @@ export function AuditLogPage() {
       {/* Summary Statistics */}
       <div>
         <div className="flex items-center gap-2 mb-4">
-          <TrendingUp className="w-5 h-5 text-slate-600" />
-          <h2 className="font-semibold text-slate-900 text-lg">
+          <TrendingUp className="w-5 h-5 text-zinc-500 dark:text-zinc-400" />
+          <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
             Utilization Reports
           </h2>
         </div>
         <div className="grid grid-cols-4 gap-4">
-          <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-6 hover:shadow-xl transition-shadow">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Total Actions Logged</p>
-            <p className="text-3xl font-semibold text-slate-900">
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Total Actions Logged</p>
+            <p className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100">
               {auditTotal}
             </p>
           </div>
-          <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-6 hover:shadow-xl transition-shadow">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Requests Submitted</p>
-            <p className="text-3xl font-semibold text-slate-900">{auditStats?.totalRequestsThisMonth ?? requestsSubmitted}</p>
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Requests Submitted</p>
+            <p className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100">{auditStats?.totalRequestsThisMonth ?? requestsSubmitted}</p>
           </div>
-          <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-6 hover:shadow-xl transition-shadow">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Approvals Made</p>
-            <p className="text-3xl font-semibold text-slate-900">{auditStats?.totalApprovedRequests ?? approvalsMade}</p>
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Approvals Made</p>
+            <p className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100">{auditStats?.totalApprovedRequests ?? approvalsMade}</p>
           </div>
-          <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-6 hover:shadow-xl transition-shadow">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Average Turnaround</p>
-            <p className="text-3xl font-semibold text-slate-900">{averageTurnaround}</p>
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Average Turnaround</p>
+            <p className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100">{averageTurnaround}</p>
           </div>
         </div>
 
         {auditStats && (
           <div className="grid grid-cols-2 gap-4 mt-4">
-            <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-6">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Requests by Ministry</p>
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">Requests by Ministry</p>
               <div className="space-y-4">
                 {auditStats.requestsByMinistry.length > 0 ? auditStats.requestsByMinistry.map((ministry) => (
                   <div key={ministry.ministryId}>
                     <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="font-medium text-slate-800">{ministry.ministryName}</span>
-                      <span className="text-slate-500">{ministry.total}</span>
+                      <span className="font-medium text-zinc-200">{ministry.ministryName}</span>
+                      <span className="text-zinc-500 dark:text-zinc-400">{ministry.total}</span>
                     </div>
-                    <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
                       <div
                         className="h-full rounded-full bg-blue-500"
                         style={{
@@ -603,21 +603,21 @@ export function AuditLogPage() {
                     </div>
                   </div>
                 )) : (
-                  <p className="text-sm text-slate-500">No ministry activity yet.</p>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">No ministry activity yet.</p>
                 )}
               </div>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-6">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Weekly Request Volume</p>
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">Weekly Request Volume</p>
               <div className="space-y-4">
                 {auditStats.weeklyRequestVolume.map((week) => (
                   <div key={week.weekStart}>
                     <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="font-medium text-slate-800">{new Date(week.weekStart).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
-                      <span className="text-slate-500">{week.total}</span>
+                      <span className="font-medium text-zinc-200">{new Date(week.weekStart).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                      <span className="text-zinc-500 dark:text-zinc-400">{week.total}</span>
                     </div>
-                    <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
                       <div
                         className="h-full rounded-full bg-emerald-500"
                         style={{ width: `${week.total > 0 ? Math.max(8, Math.min(100, week.total * 12)) : 0}%` }}
@@ -643,7 +643,7 @@ export function AuditLogPage() {
               </div>
               <button
                 onClick={() => setSelectedEntry(null)}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 rounded-lg transition-colors duration-150"
               >
                 <X className="w-5 h-5 text-slate-600" />
               </button>
@@ -807,7 +807,7 @@ export function AuditLogPage() {
                                 console.error("Clipboard write failed", err);
                               }
                             }}
-                            className="px-3 py-1 text-xs bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"
+                            className="px-3 py-1 text-xs bg-zinc-100 dark:bg-zinc-900 rounded-md hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 transition-colors duration-150"
                           >
                             Copy
                           </button>
@@ -826,7 +826,7 @@ export function AuditLogPage() {
                                     console.error("Clipboard write failed", err);
                                   }
                                 }}
-                                className="px-2 py-0.5 text-xs bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"
+                                className="px-2 py-0.5 text-xs bg-zinc-100 dark:bg-zinc-900 rounded-md hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 transition-colors duration-150"
                               >
                                 Copy
                               </button>
@@ -896,7 +896,7 @@ export function AuditLogPage() {
             <div className="border-t border-slate-200 px-6 py-4 bg-slate-50 sticky bottom-0">
               <button
                 onClick={() => setSelectedEntry(null)}
-                className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
+                className="w-full px-4 py-2 bg-white text-zinc-900 dark:bg-white dark:text-zinc-950 rounded-xl hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-200 dark:hover:text-zinc-950 transition-colors duration-150"
               >
                 Close
               </button>

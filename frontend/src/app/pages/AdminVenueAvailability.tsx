@@ -156,7 +156,7 @@ export function AdminVenueAvailability() {
           <div className="flex items-center justify-center p-16">
             <div className="text-center">
               <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-slate-600 font-medium">Loading venue availability...</p>
+              <p className="text-zinc-500 dark:text-zinc-400 font-medium">Loading venue availability...</p>
             </div>
           </div>
         );
@@ -165,7 +165,7 @@ export function AdminVenueAvailability() {
       if (error) {
         return (
           <div className="p-10 text-center">
-            <p className="text-rose-700 font-medium">{error}</p>
+            <p className="text-red-400 font-medium">{error}</p>
           </div>
         );
       }
@@ -250,10 +250,10 @@ export function AdminVenueAvailability() {
     <div>
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-semibold text-slate-900 mb-2 tracking-tight">
+        <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-2 tracking-tight">
           Venue Availability Management
         </h1>
-        <p className="text-slate-600">
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
           Manage bookings and update venue availability
         </p>
       </div>
@@ -261,11 +261,11 @@ export function AdminVenueAvailability() {
       {/* Venue Selector and Add Button */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <label htmlFor="venue-select" className="text-sm font-semibold text-slate-700">
+          <label htmlFor="venue-select" className="text-xs text-zinc-500 dark:text-zinc-400">
             Select Venue
           </label>
           <div className="flex items-center gap-3">
-            <MapPin className="w-5 h-5 text-slate-400" />
+            <MapPin className="w-5 h-5 text-zinc-500 dark:text-zinc-400" />
             <select
               id="venue-select"
               value={selectedVenue}
@@ -273,7 +273,7 @@ export function AdminVenueAvailability() {
                 setSelectedVenue(e.target.value);
                 resetForm();
               }}
-              className="px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+              className="bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-[#0F3B8C] transition-colors duration-150"
             >
               {venues.map((venue) => (
                 <option key={venue} value={venue}>
@@ -290,7 +290,7 @@ export function AdminVenueAvailability() {
             setEditingSlot(null);
             resetForm();
           }}
-          className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-900/20"
+          className="flex items-center gap-2 bg-white text-zinc-900 dark:bg-white dark:text-zinc-950 rounded-xl px-4 py-2.5 text-sm font-semibold hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-200 dark:hover:text-zinc-950 transition-colors duration-150"
         >
           <Plus className="w-4 h-4" />
           Add Booking
@@ -299,32 +299,32 @@ export function AdminVenueAvailability() {
 
       {/* Add/Edit Form */}
       {(isAddingSlot || editingSlot) && (
-        <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 p-6 mb-6">
-          <h3 className="font-semibold text-slate-900 text-lg mb-4">
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6 mb-6">
+          <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-4">
             {editingSlot ? "Edit Booking" : "Add New Booking"}
           </h3>
 
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
+              <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-2">
                 Date <span className="text-rose-500">*</span>
               </label>
               <input
                 type="date"
                 value={formData.date}
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-[#0F3B8C] transition-colors duration-150"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
+              <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-2">
                 Status <span className="text-rose-500">*</span>
               </label>
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value as "Approved" | "Pending" | "Cancelled" })}
-                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-[#0F3B8C] transition-colors duration-150"
               >
                 <option value="Pending">Pending</option>
                 <option value="Approved">Approved</option>
@@ -335,7 +335,7 @@ export function AdminVenueAvailability() {
 
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
+              <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-2">
                 Start Time <span className="text-rose-500">*</span>
               </label>
               <input
@@ -343,12 +343,12 @@ export function AdminVenueAvailability() {
                 placeholder="e.g., 10:00 AM"
                 value={formData.startTime}
                 onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-[#0F3B8C] transition-colors duration-150"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
+              <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-2">
                 End Time <span className="text-rose-500">*</span>
               </label>
               <input
@@ -356,13 +356,13 @@ export function AdminVenueAvailability() {
                 placeholder="e.g., 12:00 PM"
                 value={formData.endTime}
                 onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-[#0F3B8C] transition-colors duration-150"
               />
             </div>
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
+            <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-2">
               Purpose <span className="text-rose-500">*</span>
             </label>
             <input
@@ -370,12 +370,12 @@ export function AdminVenueAvailability() {
               placeholder="e.g., Wedding Ceremony"
               value={formData.purpose}
               onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
-              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+              className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-[#0F3B8C] transition-colors duration-150"
             />
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
+            <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-2">
               Requester <span className="text-rose-500">*</span>
             </label>
             <input
@@ -383,7 +383,7 @@ export function AdminVenueAvailability() {
               placeholder="e.g., Maria Cruz"
               value={formData.requester}
               onChange={(e) => setFormData({ ...formData, requester: e.target.value })}
-              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+              className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-[#0F3B8C] transition-colors duration-150"
             />
           </div>
 
@@ -391,7 +391,7 @@ export function AdminVenueAvailability() {
             {editingSlot ? (
               <button
                 onClick={() => handleUpdate(editingSlot)}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all"
+                className="flex items-center gap-2 bg-white text-zinc-900 dark:bg-white dark:text-zinc-950 rounded-xl px-4 py-2.5 text-sm font-semibold hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-200 dark:hover:text-zinc-950 transition-colors duration-150"
               >
                 <Check className="w-4 h-4" />
                 Update Booking
@@ -399,7 +399,7 @@ export function AdminVenueAvailability() {
             ) : (
               <button
                 onClick={handleAdd}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+                className="flex items-center gap-2 bg-white text-zinc-900 dark:bg-white dark:text-zinc-950 rounded-xl px-4 py-2.5 text-sm font-semibold hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-200 dark:hover:text-zinc-950 transition-colors duration-150"
               >
                 <Plus className="w-4 h-4" />
                 Add Booking
@@ -407,7 +407,7 @@ export function AdminVenueAvailability() {
             )}
             <button
               onClick={resetForm}
-              className="flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-all"
+              className="flex items-center gap-2 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 bg-transparent rounded-xl px-4 py-2.5 text-sm hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 transition-colors duration-150"
             >
               <X className="w-4 h-4" />
               Cancel
@@ -417,9 +417,9 @@ export function AdminVenueAvailability() {
       )}
 
       {/* Schedule View */}
-      <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-200/60">
-          <h2 className="font-semibold text-slate-900 text-lg">
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 overflow-hidden">
+        <div className="px-6 py-5 border-b border-zinc-200 dark:border-zinc-800">
+          <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
             Schedule for {selectedVenue}
           </h2>
         </div>
@@ -430,7 +430,7 @@ export function AdminVenueAvailability() {
               {currentSlots.map((slot) => (
                 <div
                   key={slot.id}
-                  className="border border-slate-200 rounded-xl p-5 bg-gradient-to-br from-slate-50 to-white hover:shadow-md transition-shadow"
+                  className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-5 transition-shadow"
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
@@ -477,14 +477,14 @@ export function AdminVenueAvailability() {
                   <div className="flex gap-2 pt-3 border-t border-slate-200">
                     <button
                       onClick={() => startEdit(slot)}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-300 dark:hover:bg-blue-500/20 dark:hover:text-blue-200 rounded-md transition-colors duration-150"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                       Edit
                     </button>
                     <button
                       onClick={() => handleDelete(slot.id)}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-500/25 hover:text-red-600 dark:text-red-400 dark:hover:bg-red-500/30 dark:hover:text-red-300 rounded-md transition-colors duration-150"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                       Delete

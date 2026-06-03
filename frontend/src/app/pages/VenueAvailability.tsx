@@ -190,7 +190,7 @@ export function VenueAvailability() {
       <div className="flex items-center justify-center p-16">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-zinc-400 font-medium">Loading venue availability...</p>
+          <p className="text-zinc-500 dark:text-zinc-400 font-medium">Loading venue availability...</p>
         </div>
       </div>
     );
@@ -277,31 +277,31 @@ export function VenueAvailability() {
     <div>
       {/* Page Header */}
       <div className="mb-10">
-        <h1 className="text-2xl font-black text-white mb-3 tracking-tight">
+        <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-3 tracking-tight">
           Venue Availability
         </h1>
-        <p className="text-xs text-zinc-400">
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
           View current bookings and available time slots (Read-only)
         </p>
       </div>
 
       {/* Controls: Venue Selector and View Toggle */}
-      <div className="mb-8 flex items-end justify-between gap-6">
+      <div className="mb-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6 rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/60">
         {/* Venue Selector */}
         <div className="flex-1">
           <label
             htmlFor="venue-select"
-            className="block text-[10px] font-black uppercase text-zinc-500 mb-2"
+            className="block text-[10px] font-black uppercase text-zinc-400 dark:text-zinc-500 mb-2"
           >
             Select Venue
           </label>
           <div className="flex items-center gap-3">
-            <MapPin className="w-5 h-5 text-zinc-500" />
+            <MapPin className="w-5 h-5 text-zinc-400 dark:text-zinc-500" />
             <select
               id="venue-select"
               value={selectedVenue || ""}
               onChange={(e) => setSelectedVenue(e.target.value)}
-              className="bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
+              className="bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-900 dark:text-zinc-100 outline-none focus:ring-1 focus:ring-[#0F3B8C]"
             >
               <option value={ALL_VENUES_VALUE}>All Venues</option>
               {venues.map((venue) => (
@@ -313,7 +313,7 @@ export function VenueAvailability() {
             <button
               onClick={() => void loadAvailability("refresh")}
               disabled={isRefreshing}
-              className="px-4 py-2.5 bg-[#0F3B8C] text-white rounded-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+              className="px-4 py-2.5 bg-[#0F3B8C] text-white hover:bg-[#0d3380] hover:text-white dark:hover:bg-[#1a4fab] dark:hover:text-white rounded-xl transition-colors duration-150 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
             >
               <RefreshCw className={`w-4 h-4 text-white ${isRefreshing ? "animate-spin" : ""}`} />
               <span className="text-xs font-black text-white">
@@ -324,13 +324,13 @@ export function VenueAvailability() {
         </div>
 
         {/* View Toggle */}
-        <div className="flex gap-2 bg-zinc-950 p-1.5 rounded-xl border border-zinc-800">
+        <div className="flex gap-2 bg-zinc-950 p-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800">
           <button
             onClick={() => setViewMode("list")}
-            className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 ${
+            className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-colors duration-150 flex items-center gap-2 ${
               viewMode === "list"
-                ? "bg-[#0F3B8C] text-white"
-                : "text-zinc-400 hover:bg-zinc-900"
+                ? "bg-[#0F3B8C] text-white hover:bg-[#0d3380] hover:text-white dark:hover:bg-[#1a4fab] dark:hover:text-white"
+                : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
             }`}
           >
             <List className="w-4 h-4" />
@@ -338,10 +338,10 @@ export function VenueAvailability() {
           </button>
           <button
             onClick={() => setViewMode("calendar")}
-            className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 ${
+            className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-colors duration-150 flex items-center gap-2 ${
               viewMode === "calendar"
-                ? "bg-[#0F3B8C] text-white"
-                : "text-zinc-400 hover:bg-zinc-900"
+                ? "bg-[#0F3B8C] text-white hover:bg-[#0d3380] hover:text-white dark:hover:bg-[#1a4fab] dark:hover:text-white"
+                : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
             }`}
           >
             <Calendar className="w-4 h-4" />
@@ -352,12 +352,12 @@ export function VenueAvailability() {
 
       {/* List View */}
       {viewMode === "list" && (
-        <div className="rounded-3xl border border-zinc-800 bg-transparent overflow-hidden">
-          <div className="px-8 py-6 border-b border-zinc-800">
-            <h2 className="font-black text-white text-xl">
+        <div className="rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 overflow-hidden shadow-sm">
+          <div className="px-8 py-6 border-b border-zinc-200 dark:border-zinc-800">
+            <h2 className="font-black text-zinc-900 dark:text-zinc-100 text-xl">
               Schedule for {selectedVenue === ALL_VENUES_VALUE ? "All Venues" : selectedVenue}
             </h2>
-            <p className="text-xs text-zinc-400 mt-1">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
               {selectedVenue === ALL_VENUES_VALUE ? "All bookings across every venue" : "All bookings for this venue"}
             </p>
           </div>
@@ -368,11 +368,11 @@ export function VenueAvailability() {
                 {bookedSlots.map((slot, index) => (
                   <div
                     key={index}
-                    className={`rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 transition-all border-l-4 ${slot.status === "Approved" ? "border-l-[#00A859]" : "border-l-[#C99700]"}`}
+                    className={`rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6 transition-colors duration-150 border-l-4 shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-900/70 ${slot.status === "Approved" ? "border-l-[#00A859]" : "border-l-[#C99700]"}`}
                   >
                     {/* Header with Request ID and Status */}
-                    <div className="flex items-center justify-between mb-5 pb-4 border-b border-zinc-800">
-                      <span className="text-sm font-bold text-zinc-500">
+                    <div className="flex items-center justify-between mb-5 pb-4 border-b border-zinc-200 dark:border-zinc-800">
+                      <span className="text-sm font-bold text-zinc-400 dark:text-zinc-500">
                         {slot.requestId}
                       </span>
                       <span
@@ -390,53 +390,53 @@ export function VenueAvailability() {
 
                     <div className="grid grid-cols-3 gap-6 mb-5">
                       <div>
-                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-2">Date</p>
-                        <p className="text-sm font-bold text-zinc-100">
+                        <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Date</p>
+                        <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
                           {slot.date}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-2">Time</p>
+                        <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Time</p>
                         <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-zinc-500" />
-                          <p className="text-sm font-semibold text-zinc-100">
+                          <Clock className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
+                          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                             {slot.time}
                           </p>
                         </div>
                       </div>
                       {slot.attendees && (
                         <div>
-                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-2">Attendees</p>
-                          <p className="text-sm font-semibold text-zinc-100">
+                          <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Attendees</p>
+                          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                             {slot.attendees} people
                           </p>
                         </div>
                       )}
                     </div>
 
-                    <div className="mb-5 pb-5 border-b border-zinc-800">
-                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-2">Purpose</p>
-                      <p className="text-sm text-zinc-100 font-medium">{slot.purpose}</p>
+                    <div className="mb-5 pb-5 border-b border-zinc-200 dark:border-zinc-800">
+                        <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Purpose</p>
+                      <p className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">{slot.purpose}</p>
                     </div>
 
                     {selectedVenue === ALL_VENUES_VALUE && (
-                      <div className="mb-5 pb-5 border-b border-zinc-800">
-                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-2">Venue</p>
-                        <p className="text-sm text-zinc-100 font-medium">{slot.venueName}</p>
+                      <div className="mb-5 pb-5 border-b border-zinc-200 dark:border-zinc-800">
+                        <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Venue</p>
+                        <p className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">{slot.venueName}</p>
                       </div>
                     )}
 
                     {/* Requester and Approver */}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-2">Requested By</p>
-                        <div className="flex items-start gap-2 bg-zinc-950/60 p-3 rounded-lg border border-zinc-800">
+                        <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Requested By</p>
+                        <div className="flex items-start gap-2 bg-white dark:bg-zinc-950/60 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800">
                           <User className="w-4 h-4 text-blue-600 mt-0.5" />
                           <div>
-                            <p className="text-sm font-semibold text-zinc-100">
+                            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                               {slot.requester}
                             </p>
-                            <p className="text-xs text-zinc-400 mt-0.5">
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                               {slot.requesterEmail}
                             </p>
                           </div>
@@ -445,15 +445,15 @@ export function VenueAvailability() {
 
                       {slot.status === "Approved" && slot.approver && (
                         <div>
-                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-2">Approved By</p>
-                          <div className="flex items-start gap-2 bg-zinc-950/60 p-3 rounded-lg border border-[#00A859]/20">
+                          <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Approved By</p>
+                          <div className="flex items-start gap-2 bg-white dark:bg-zinc-950/60 p-3 rounded-lg border border-[#00A859]/20">
                             <UserCheck className="w-4 h-4 text-emerald-600 mt-0.5" />
                             <div>
-                              <p className="text-sm font-semibold text-zinc-100">
+                              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                                 {slot.approver}
                               </p>
                               {slot.approvedDate && (
-                                  <p className="text-xs text-zinc-400 mt-0.5">
+                                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                                   {slot.approvedDate}
                                 </p>
                               )}
@@ -464,7 +464,7 @@ export function VenueAvailability() {
 
                       {slot.status === "Pending" && (
                         <div>
-                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-2">Status</p>
+                          <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Status</p>
                           <div className="bg-[#C99700]/10 border border-[#C99700]/20 rounded-lg p-3">
                             <p className="text-xs text-amber-300 font-medium">
                               Awaiting approval
@@ -478,29 +478,29 @@ export function VenueAvailability() {
               </div>
 
               {/* Legend */}
-              <div className="mt-8 pt-6 border-t-2 border-slate-200">
-                <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-4">Legend:</p>
+              <div className="mt-8 pt-6 border-t border-zinc-200 dark:border-zinc-800">
+                <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">Legend:</p>
                 <div className="flex gap-8 text-sm">
                   <div className="flex items-center gap-2">
                     <span className="w-4 h-4 bg-emerald-100 border-2 border-emerald-400 rounded-full"></span>
-                    <span className="text-slate-700 font-medium">Booked (Approved)</span>
+                    <span className="text-zinc-500 dark:text-zinc-400 font-medium">Booked (Approved)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-4 h-4 bg-amber-100 border-2 border-amber-400 rounded-full"></span>
-                    <span className="text-slate-700 font-medium">Pending Approval</span>
+                    <span className="text-zinc-500 dark:text-zinc-400 font-medium">Pending Approval</span>
                   </div>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="p-16 text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-slate-100 to-blue-50 rounded-full mb-6 shadow-lg shadow-slate-900/10">
-                <Calendar className="w-10 h-10 text-slate-500" />
+              <div className="p-16 text-center">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-zinc-900 rounded-full mb-6">
+                <Calendar className="w-10 h-10 text-zinc-500 dark:text-zinc-400" />
               </div>
-              <p className="text-slate-900 font-semibold text-lg">
+              <p className="text-zinc-900 dark:text-zinc-100 font-semibold text-lg">
                 No bookings found for {selectedVenue}
               </p>
-              <p className="text-slate-500 mt-2">
+              <p className="text-zinc-500 dark:text-zinc-400 mt-2">
                 All time slots are currently available
               </p>
             </div>
@@ -510,27 +510,27 @@ export function VenueAvailability() {
 
       {/* Calendar View */}
       {viewMode === "calendar" && (
-        <div className="rounded-3xl border border-zinc-800 bg-transparent overflow-hidden">
+          <div className="rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 overflow-hidden shadow-sm">
           {/* Calendar Header */}
-          <div className="px-8 py-6 border-b border-zinc-800 flex items-center justify-between">
+          <div className="px-8 py-6 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
             <div>
-              <h2 className="font-black text-white text-xl">
+              <h2 className="font-black text-zinc-900 dark:text-zinc-100 text-xl">
                 {selectedVenue === ALL_VENUES_VALUE ? "All Venues" : selectedVenue} - {currentMonthName} {currentYear}
               </h2>
-              <p className="text-xs text-zinc-400 mt-1">Click on a date to see booking details</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Click on a date to see booking details</p>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={previousMonth}
-                className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg hover:bg-zinc-800 transition-all"
+                className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 transition-colors duration-150"
               >
-                <ChevronLeft className="w-5 h-5 text-zinc-300" />
+                <ChevronLeft className="w-5 h-5" />
               </button>
               <button
                 onClick={nextMonth}
-                className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg hover:bg-zinc-800 transition-all"
+                className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 transition-colors duration-150"
               >
-                <ChevronRight className="w-5 h-5 text-zinc-300" />
+                <ChevronRight className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -539,7 +539,7 @@ export function VenueAvailability() {
             {/* Day Headers */}
             <div className="grid grid-cols-7 gap-2 mb-3">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                <div key={day} className="text-center py-3 font-black text-[10px] text-zinc-500 uppercase tracking-wider bg-zinc-950 rounded-xl">
+                <div key={day} className="text-center py-3 font-black text-[10px] text-zinc-500 dark:text-zinc-400 uppercase tracking-wider bg-zinc-100 dark:bg-zinc-950 rounded-xl">
                   {day}
                 </div>
               ))}
@@ -561,19 +561,19 @@ export function VenueAvailability() {
                   <div
                     key={day}
                     onClick={() => hasBookings && setSelectedDayBookings(bookings)}
-                    className={`aspect-square rounded-2xl p-3 transition-all group relative border bg-zinc-900/60 ${
+                    className={`aspect-square rounded-2xl p-3 transition-colors duration-150 group relative border bg-white dark:bg-zinc-950/60 shadow-sm ${
                       hasBookings
                         ? hasApproved && hasPending
-                          ? "border-zinc-800 border-l-4 border-l-[#C99700] cursor-pointer"
+                          ? "border-zinc-200 dark:border-zinc-800 border-l-4 border-l-[#C99700] cursor-pointer"
                           : hasApproved
-                          ? "border-zinc-800 border-l-4 border-l-[#00A859] cursor-pointer"
-                          : "border-zinc-800 border-l-4 border-l-[#C99700] cursor-pointer"
-                        : "border-zinc-800 hover:bg-zinc-900"
+                          ? "border-zinc-200 dark:border-zinc-800 border-l-4 border-l-[#00A859] cursor-pointer"
+                          : "border-zinc-200 dark:border-zinc-800 border-l-4 border-l-[#C99700] cursor-pointer"
+                        : "border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                     }`}
                   >
                     <div className="flex flex-col h-full">
                       <span className={`text-sm font-bold mb-1 ${
-                         hasBookings ? "text-zinc-100" : "text-zinc-500"
+                         hasBookings ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-500"
                       }`}>
                         {day}
                       </span>
@@ -587,7 +587,7 @@ export function VenueAvailability() {
                               <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
                             )}
                           </div>
-                          <span className="text-xs font-bold text-zinc-300">
+                          <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
                             {bookings.length} event{bookings.length > 1 ? 's' : ''}
                           </span>
                         </div>
@@ -597,7 +597,7 @@ export function VenueAvailability() {
                     {/* Tooltip on hover */}
                     {hasBookings && (
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                        <div className="bg-slate-900 text-white text-xs rounded-lg p-3 shadow-xl min-w-[200px]">
+                          <div className="bg-zinc-950 text-zinc-100 text-xs rounded-lg p-3 shadow-xl min-w-[200px]">
                           <p className="font-bold mb-2 border-b border-slate-700 pb-2">
                             {currentMonthName} {day}, {currentYear}
                           </p>
@@ -624,20 +624,20 @@ export function VenueAvailability() {
             </div>
 
             {/* Calendar Legend */}
-            <div className="mt-8 pt-6 border-t border-zinc-800">
-              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wider mb-4">Legend:</p>
+            <div className="mt-8 pt-6 border-t border-zinc-200 dark:border-zinc-800">
+              <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-4">Legend:</p>
               <div className="flex gap-8 text-sm">
                 <div className="flex items-center gap-2">
                   <span className="w-4 h-4 bg-emerald-50 border-2 border-emerald-300 rounded"></span>
-                  <span className="text-zinc-400 font-medium">Approved Booking</span>
+                  <span className="text-zinc-500 dark:text-zinc-400 font-medium">Approved Booking</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-4 h-4 bg-amber-50 border-2 border-amber-300 rounded"></span>
-                  <span className="text-zinc-400 font-medium">Pending Approval</span>
+                  <span className="text-zinc-500 dark:text-zinc-400 font-medium">Pending Approval</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="w-4 h-4 bg-zinc-900 border-2 border-zinc-800 rounded"></span>
-                  <span className="text-zinc-400 font-medium">Available</span>
+                  <span className="w-4 h-4 bg-zinc-200 dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 rounded"></span>
+                  <span className="text-zinc-500 dark:text-zinc-400 font-medium">Available</span>
                 </div>
               </div>
             </div>
@@ -648,7 +648,7 @@ export function VenueAvailability() {
       {/* Booking Details Modal */}
       {selectedDayBookings && selectedDayBookings.length > 0 && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-6">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden border border-slate-200 max-h-[90vh] overflow-y-auto">
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl max-w-3xl w-full overflow-hidden max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6 flex items-center justify-between sticky top-0 z-10">
               <div>
@@ -659,7 +659,7 @@ export function VenueAvailability() {
               </div>
               <button
                 onClick={() => setSelectedDayBookings(null)}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                className="p-2 hover:bg-white/20 hover:text-white dark:hover:bg-white/20 dark:hover:text-white rounded-lg transition-colors duration-150"
               >
                 <X className="w-6 h-6 text-white" />
               </button>
@@ -671,10 +671,10 @@ export function VenueAvailability() {
                 {selectedDayBookings.map((booking, index) => (
                   <div
                     key={index}
-                    className={`border-2 rounded-xl p-6 ${
+                    className={`border rounded-2xl p-6 ${
                       booking.status === "Approved"
-                        ? "border-emerald-300 bg-gradient-to-br from-emerald-50 to-white"
-                        : "border-amber-300 bg-gradient-to-br from-amber-50 to-white"
+                        ? "border-[#00A859]/20 bg-[#00A859]/10"
+                        : "border-[#C99700]/20 bg-[#C99700]/10"
                     } ${index > 0 ? 'mt-6' : ''}`}
                   >
                     {/* Status Badge */}
@@ -682,8 +682,8 @@ export function VenueAvailability() {
                       <span
                         className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-full ${
                           booking.status === "Approved"
-                            ? "bg-emerald-600 text-white"
-                            : "bg-amber-600 text-white"
+                            ? "bg-emerald-600 text-white dark:text-white"
+                            : "bg-amber-600 text-white dark:text-white"
                         }`}
                       >
                         {booking.status === "Approved" && <CheckCircle2 className="w-4 h-4" />}
@@ -695,36 +695,36 @@ export function VenueAvailability() {
                     {/* Details Grid */}
                     <div className="grid grid-cols-2 gap-6 mb-6">
                       <div>
-                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Time</p>
-                        <p className="text-sm font-semibold text-slate-900">{booking.time}</p>
+                        <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Time</p>
+                        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{booking.time}</p>
                       </div>
                       {booking.attendees && (
                         <div>
-                          <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Attendees</p>
-                          <p className="text-sm font-semibold text-slate-900">{booking.attendees} people</p>
+                          <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Attendees</p>
+                          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{booking.attendees} people</p>
                         </div>
                       )}
                     </div>
 
-                    <div className="mb-6 pb-6 border-b border-slate-300">
-                      <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Purpose</p>
-                      <p className="text-sm text-slate-900">{booking.purpose}</p>
+                    <div className="mb-6 pb-6 border-b border-zinc-200 dark:border-zinc-800">
+                      <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Purpose</p>
+                      <p className="text-sm text-zinc-900 dark:text-zinc-100">{booking.purpose}</p>
                     </div>
 
                     {selectedVenue === ALL_VENUES_VALUE && (
-                      <div className="mb-6 pb-6 border-b border-slate-300">
-                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Venue</p>
-                        <p className="text-sm text-slate-900">{(booking as BookedSlot & { venueName?: string }).venueName}</p>
+                      <div className="mb-6 pb-6 border-b border-zinc-200 dark:border-zinc-800">
+                        <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Venue</p>
+                        <p className="text-sm text-zinc-900 dark:text-zinc-100">{(booking as BookedSlot & { venueName?: string }).venueName}</p>
                       </div>
                     )}
 
                     {/* Requester Info */}
-                    <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-slate-200">
+                    <div className="flex items-start gap-3 p-4 bg-zinc-50 dark:bg-[#18181b] rounded-xl border border-zinc-200 dark:border-zinc-800">
                       <User className="w-4 h-4 text-blue-600 mt-1" />
                       <div>
-                        <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">Requested By</p>
-                        <p className="text-sm font-semibold text-slate-900">{booking.requester}</p>
-                        <p className="text-xs text-slate-600 mt-0.5">{booking.requesterEmail}</p>
+                        <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Requested By</p>
+                        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{booking.requester}</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{booking.requesterEmail}</p>
                       </div>
                     </div>
                   </div>

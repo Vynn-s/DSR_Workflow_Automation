@@ -336,6 +336,17 @@ button:disabled,
   opacity: 0.6;
 }
 
+button:not(:disabled),
+a[href],
+[role="button"],
+summary,
+select,
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+  cursor: pointer;
+}
+
 button svg,
 a svg {
   flex-shrink: 0;

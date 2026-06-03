@@ -94,30 +94,30 @@ export function NotificationCenter() {
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case "approved":
-        return <CheckCircle2 className="w-6 h-6 text-emerald-600" />;
+        return <CheckCircle2 className="w-6 h-6 text-[#00A859]" />;
       case "rejected":
-        return <XCircle className="w-6 h-6 text-rose-600" />;
+        return <XCircle className="w-6 h-6 text-red-400" />;
       case "review":
       case "remarks":
-        return <Clock className="w-6 h-6 text-blue-600" />;
+        return <Clock className="w-6 h-6 text-blue-300" />;
       default:
-        return <Bell className="w-6 h-6 text-slate-600" />;
+        return <Bell className="w-6 h-6 text-zinc-500 dark:text-zinc-400" />;
     }
   };
 
   const getNotificationBg = (type: string, read: boolean) => {
-    if (read) return "bg-white";
+    if (read) return "bg-white dark:bg-zinc-950/60";
     
     switch (type) {
       case "approved":
-        return "bg-emerald-50/50";
+        return "bg-[#00A859]/10";
       case "rejected":
-        return "bg-rose-50/50";
+        return "bg-red-500/10";
       case "review":
       case "remarks":
-        return "bg-blue-50/50";
+        return "bg-[#0F3B8C]/10";
       default:
-        return "bg-white";
+        return "bg-white dark:bg-zinc-950/60";
     }
   };
 
@@ -127,24 +127,24 @@ export function NotificationCenter() {
       <div className="mb-8">
         <button
           onClick={() => navigate("/requester")}
-          className="flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-4 transition-colors"
+          className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 mb-4 transition-colors duration-150"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Dashboard
         </button>
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-semibold text-slate-900 mb-2 tracking-tight">
+            <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-2 tracking-tight">
               Notification Center
             </h1>
-            <p className="text-slate-600">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
               Stay updated on your booking requests and approvals
             </p>
           </div>
           {unreadCount > 0 && (
             <button
               onClick={markAllAsRead}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              className="flex items-center gap-2 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 bg-transparent rounded-xl px-4 py-2.5 text-sm hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 transition-colors duration-150"
             >
               <Check className="w-4 h-4" />
               Mark all as read
@@ -156,13 +156,13 @@ export function NotificationCenter() {
       {/* Stats and Filter */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex gap-4">
-          <div className="px-4 py-2 bg-white border border-slate-200 rounded-lg">
-            <p className="text-xs text-slate-600">Total</p>
-            <p className="text-2xl font-semibold text-slate-900">{notifications.length}</p>
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 px-4 py-2">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Total</p>
+            <p className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">{notifications.length}</p>
           </div>
-          <div className="px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-xs text-blue-600">Unread</p>
-            <p className="text-2xl font-semibold text-blue-900">{unreadCount}</p>
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 px-4 py-2">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Unread</p>
+            <p className="text-2xl font-semibold text-blue-300">{unreadCount}</p>
           </div>
         </div>
 
@@ -170,20 +170,20 @@ export function NotificationCenter() {
         <div className="flex gap-2">
           <button
             onClick={() => setFilter("all")}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-150 ${
               filter === "all"
-                ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                ? "bg-white text-zinc-900 dark:bg-white dark:text-zinc-950"
+                : "border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
             }`}
           >
             All
           </button>
           <button
             onClick={() => setFilter("unread")}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-150 ${
               filter === "unread"
-                ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                ? "bg-white text-zinc-900 dark:bg-white dark:text-zinc-950"
+                : "border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
             }`}
           >
             Unread ({unreadCount})
@@ -192,13 +192,13 @@ export function NotificationCenter() {
       </div>
 
       {/* Notifications List */}
-      <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-xl shadow-lg shadow-slate-900/5 overflow-hidden">
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 overflow-hidden">
         {filteredNotifications.length > 0 ? (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-zinc-800">
             {filteredNotifications.map((notification) => (
               <div
                 key={notification.id}
-                className={`p-6 transition-colors hover:bg-slate-50 ${getNotificationBg(notification.type, notification.read)}`}
+                className={`p-6 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 ${getNotificationBg(notification.type, notification.read)}`}
               >
                 <div className="flex gap-4">
                   {/* Icon */}
@@ -211,25 +211,25 @@ export function NotificationCenter() {
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-slate-900">
+                          <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
                             {notification.message}
                           </h3>
                           {!notification.read && (
-                            <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
+                            <span className="w-2 h-2 bg-blue-300 rounded-full"></span>
                           )}
                         </div>
-                        <p className="text-sm text-slate-600">
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
                           Request: <span className="font-medium">{notification.requestId}</span>
                         </p>
                       </div>
-                      <div className="text-right text-sm text-slate-500 flex-shrink-0 ml-4">
+                      <div className="text-right text-sm text-zinc-500 dark:text-zinc-400 flex-shrink-0 ml-4">
                         <p>{notification.date}</p>
                         <p>{notification.time}</p>
                       </div>
                     </div>
 
                     {notification.details && (
-                      <p className="text-sm text-slate-700 mb-4 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                      <p className="text-sm text-zinc-300 mb-4 bg-zinc-50 dark:bg-[#18181b] p-3 rounded-xl border border-zinc-200 dark:border-zinc-800">
                         {notification.details}
                       </p>
                     )}
@@ -239,7 +239,7 @@ export function NotificationCenter() {
                       {!notification.read && (
                         <button
                           onClick={() => markAsRead(notification.id)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-300 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 rounded-md transition-colors duration-150"
                         >
                           <Check className="w-3.5 h-3.5" />
                           Mark as read
@@ -247,7 +247,7 @@ export function NotificationCenter() {
                       )}
                       <button
                         onClick={() => deleteNotification(notification.id)}
-                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 rounded-md transition-colors duration-150"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                         Delete
@@ -260,13 +260,13 @@ export function NotificationCenter() {
           </div>
         ) : (
           <div className="p-12 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
-              <Bell className="w-8 h-8 text-slate-400" />
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-zinc-900 rounded-full mb-4">
+              <Bell className="w-8 h-8 text-zinc-500 dark:text-zinc-400" />
             </div>
-            <p className="text-slate-600 font-medium">
+            <p className="text-zinc-900 dark:text-zinc-100 font-medium">
               No {filter === "unread" ? "unread " : ""}notifications
             </p>
-            <p className="text-slate-500 text-sm mt-1">
+            <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
               {filter === "unread" 
                 ? "You're all caught up!" 
                 : "You don't have any notifications yet"}

@@ -1,6 +1,7 @@
 {
   "name": "dsr-workflow-automation",
   "private": true,
+  "packageManager": "pnpm@11.0.4",
   "pnpm": {
     "overrides": {
       "@types/react": "18.3.23",

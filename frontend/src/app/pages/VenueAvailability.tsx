@@ -155,7 +155,7 @@ export function VenueAvailability() {
       });
       setSelectedDayBookings(null);
     } catch (err) {
-      console.error("Failed to load availability:", err);
+      console.warn("Failed to load availability");
       setError("Unable to load venue availability. Please try again later.");
       setVenues([]);
       setBookingsByVenue({});

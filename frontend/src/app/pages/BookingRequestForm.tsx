@@ -585,7 +585,9 @@ export function BookingRequestForm() {
       return;
     }
 
-    if (!formData.venue || !formData.date || !formData.startTime || !formData.endTime || !formData.purpose || !formData.attendees) {
+    const purpose = formData.purpose.trim();
+
+    if (!formData.venue || !formData.date || !formData.startTime || !formData.endTime || !purpose || !formData.attendees) {
       setSubmitError("Please fill in all required fields");
       return;
     }
@@ -640,8 +642,8 @@ export function BookingRequestForm() {
 
       await api.post("/requests", {
         venueId: selectedVenue.id,
-        eventName: formData.purpose,
-        purpose: formData.purpose,
+        eventName: purpose,
+        purpose,
         startDateTime: combineDateAndTimeToIso(formData.date, formData.startTime),
         endDateTime: combineDateAndTimeToIso(formData.date, formData.endTime),
         startTime: formData.startTime,
@@ -1191,7 +1193,7 @@ export function BookingRequestForm() {
                 <button
                   type="button"
                   onClick={(e) => handleSubmit(e, true)}
-                  disabled={!canSaveDraft}
+                  disabled={isSubmitting || !canSaveDraft}
                   className={`flex items-center gap-2 rounded-xl border border-zinc-300 bg-transparent px-5 py-2 text-xs font-bold text-zinc-700 transition-colors duration-150 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 ${
                     canSaveDraft
                       ? ""

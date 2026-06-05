@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { fetchAuthSession, fetchUserAttributes, getCurrentUser, signIn, signOut } from "aws-amplify/auth";
 
 export enum UserRole {
@@ -50,9 +50,30 @@ function getRoleFromSessionGroups(session: Awaited<ReturnType<typeof fetchAuthSe
   return UserRole.REQUESTER;
 }
 
+function isSessionExpired(session: Awaited<ReturnType<typeof fetchAuthSession>>): boolean {
+  const expiresAt = session.tokens?.idToken?.payload.exp;
+  return typeof expiresAt === "number" && expiresAt * 1000 <= Date.now();
+}
+
+function clearAuthStorage() {
+  sessionStorage.clear();
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const logout = useCallback(async () => {
+    try {
+      await signOut({ global: true });
+    } catch {
+      // Ignore logout failures; local auth state must still be cleared.
+    } finally {
+      setUser(null);
+      clearAuthStorage();
+      window.location.assign("/login");
+    }
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -66,6 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ]);
 
         const role = getRoleFromSessionGroups(session);
+        if (isSessionExpired(session)) {
+          await logout();
+          return;
+        }
+
         const email = attributes.email ?? "";
         const ministryId = attributes["custom:ministryId"] || undefined;
 
@@ -94,12 +120,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [logout]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const intervalId = window.setInterval(async () => {
+      try {
+        const session = await fetchAuthSession();
+        if (isSessionExpired(session)) {
+          await logout();
+        }
+      } catch {
+        await logout();
+      }
+    }, 60_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [logout, user]);
 
   const login = async (email: string, password: string) => {
-     localStorage.clear();  // ← add this
-      sessionStorage.clear(); // ← add this
-    await signIn({ username: email, password });
+    clearAuthStorage();
+    const trimmedEmail = email.trim();
+    await signIn({ username: trimmedEmail, password });
 
     const [session, currentUser, attributes] = await Promise.all([
       fetchAuthSession(),
@@ -108,11 +153,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ]);
 
     const role = getRoleFromSessionGroups(session);
+    if (isSessionExpired(session)) {
+      await logout();
+      return null;
+    }
+
     const nextUser: User = {
       id: currentUser.userId,
-      email: attributes.email ?? email,
+      email: attributes.email ?? trimmedEmail,
       ministryId: attributes["custom:ministryId"] || undefined,
-      name: attributes.name ?? currentUser.username ?? email,
+      name: attributes.name ?? currentUser.username ?? trimmedEmail,
       role,
     };
 
@@ -120,19 +170,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return role;
   };
-
-  const logout = async () => {
-  try {
-    await signOut({ global: true });
-  } catch (error) {
-    console.error("Logout error:", error);
-  } finally {
-    setUser(null);
-    localStorage.clear();
-    sessionStorage.clear();
-    window.location.assign("/");
-  }
-};
 
   return (
     <AuthContext.Provider

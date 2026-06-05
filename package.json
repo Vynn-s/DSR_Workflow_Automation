@@ -1,0 +1,10 @@
+{
+  "name": "dsr-workflow-automation",
+  "private": true,
+  "pnpm": {
+    "overrides": {
+      "fast-uri": "3.1.2",
+      "js-cookie": "3.0.8"
+    }
+  }
+}

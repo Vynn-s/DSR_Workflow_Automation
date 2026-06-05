@@ -541,7 +541,7 @@ export function AdminDashboard() {
           return liveVenuesResult.value[0]?.id ?? null;
         });
       } else {
-        console.error("Failed to load venue data:", liveVenuesResult.reason);
+        console.warn("Failed to load venue data");
         setVenues([]);
         setVenuesError("Unable to load venue data right now.");
       }
@@ -554,7 +554,7 @@ export function AdminDashboard() {
           )
         );
       } else {
-        console.error("Failed to load admin users:", adminUsersResult.reason);
+        console.warn("Failed to load admin users");
         setAdminUsers([]);
         setAdminUsersError("Unable to load admin users right now.");
       }
@@ -562,21 +562,21 @@ export function AdminDashboard() {
       if (ministriesResult.status === "fulfilled") {
         setMinistries(ministriesResult.value.ministries ?? []);
       } else {
-        console.error("Failed to load ministries:", ministriesResult.reason);
+        console.warn("Failed to load ministries");
         setMinistries([]);
       }
 
       if (auditStatsResult.status === "fulfilled") {
         setAuditStats(auditStatsResult.value);
       } else {
-        console.error("Failed to load audit stats:", auditStatsResult.reason);
+        console.warn("Failed to load audit stats");
         setAuditStats(null);
       }
 
       if (auditLogsResult.status === "fulfilled") {
         setAuditLogs(auditLogsResult.value);
       } else {
-        console.error("Failed to load audit logs:", auditLogsResult.reason);
+        console.warn("Failed to load audit logs");
         setAuditLogs([]);
       }
 
@@ -674,7 +674,7 @@ export function AdminDashboard() {
     setVenueSaveMessageType(null);
 
     try {
-      const updatedVenue = await api.put<{ venue: LiveVenue }>(`/venues/${selectedVenueId}`, {
+      const updatedVenue = await api.put<{ venue: LiveVenue }>(`/venues/${encodeURIComponent(selectedVenueId)}`, {
         name: venueDraft.name.trim(),
         description: venueDraft.description.trim() || null,
         capacity: Number(venueDraft.capacity),
@@ -686,7 +686,7 @@ export function AdminDashboard() {
       setVenueSaveMessageType("success");
       closeVenueModal();
     } catch (error) {
-      console.error("Failed to save venue:", error);
+      console.warn("Failed to save venue");
       setVenueSaveMessage("Unable to save venue changes right now.");
       setVenueSaveMessageType("error");
     } finally {
@@ -743,7 +743,7 @@ export function AdminDashboard() {
       });
       setIsCreateVenueModalOpen(false);
     } catch (error) {
-      console.error("Failed to create venue:", error);
+      console.warn("Failed to create venue");
       setVenueCreateMessage("Unable to create venue right now.");
       setVenueCreateMessageType("error");
     } finally {
@@ -800,7 +800,7 @@ export function AdminDashboard() {
       setVenueDeleteMessageType("success");
       closeDeleteVenueModal();
     } catch (error) {
-      console.error("Failed to delete venue:", error);
+      console.warn("Failed to delete venue");
       const apiMessage =
         typeof error === "object" &&
         error !== null &&
@@ -850,7 +850,7 @@ export function AdminDashboard() {
       );
       setUserCreateMessageType("success");
     } catch (error) {
-      console.error("Failed to create admin user:", error);
+      console.warn("Failed to create admin user");
       const apiMessage =
         typeof error === "object" &&
         error !== null &&
@@ -894,7 +894,7 @@ export function AdminDashboard() {
       setUserCreateMessage(`Role updated successfully for ${response.user.email}.`);
       setUserCreateMessageType("success");
     } catch (error) {
-      console.error("Failed to update user role:", error);
+      console.warn("Failed to update user role");
       setUserCreateMessage("Unable to update role right now.");
       setUserCreateMessageType("error");
     } finally {
@@ -936,7 +936,7 @@ export function AdminDashboard() {
       setUserDeleteMessageType("success");
       closeDeleteUserModal();
     } catch (error) {
-      console.error("Failed to delete user:", error);
+      console.warn("Failed to delete user");
       const apiMessage =
         typeof error === "object" &&
         error !== null &&

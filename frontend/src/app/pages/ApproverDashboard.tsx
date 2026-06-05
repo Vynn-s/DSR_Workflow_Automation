@@ -263,7 +263,7 @@ export function ApproverDashboard() {
           });
         }
       } catch (error) {
-        console.error("Failed to load approval queue:", error);
+        console.warn("Failed to load approval queue");
         if (isMounted) {
           setRequests([]);
           setRequestsError("Unable to load approval queue right now.");
@@ -284,7 +284,7 @@ export function ApproverDashboard() {
           setVenues(liveVenues);
         }
       } catch (error) {
-        console.error("Failed to load venues for approver dashboard:", error);
+        console.warn("Failed to load venues for approver dashboard");
         if (isMounted) {
           setVenues([]);
         }
@@ -324,7 +324,7 @@ export function ApproverDashboard() {
           setArchivedRequests(liveArchive);
         }
       } catch (error) {
-        console.error("Failed to load approval archive:", error);
+        console.warn("Failed to load approval archive");
         if (isMounted) {
           setArchivedRequests([]);
           setArchiveError("Unable to load approval archive right now.");
@@ -347,7 +347,7 @@ export function ApproverDashboard() {
           setPriests(response.priests ?? []);
         }
       } catch (error) {
-        console.error("Failed to load priest list for approver dashboard:", error);
+        console.warn("Failed to load priest list for approver dashboard");
         if (isMounted) {
           setPriests([]);
         }
@@ -397,7 +397,7 @@ export function ApproverDashboard() {
           setSelectedRequest((current) => (current?.id === selectedRequest.id ? { ...current, dssRecommendation } : current));
         }
       } catch (error) {
-        console.error("Failed to evaluate DSS for selected request:", error);
+        console.warn("Failed to evaluate DSS for selected request");
         if (isMounted) {
           setSelectedRequest((current) => (current?.id === selectedRequest.id ? { ...current, dssRecommendation: undefined } : current));
           setDssError("Unable to load DSS guidance right now.");
@@ -465,7 +465,7 @@ export function ApproverDashboard() {
       setActionError(null);
       setActionSuccess(null);
 
-      await api.post(`/approvals/${requestId}/approve`, {
+      await api.post(`/approvals/${encodeURIComponent(requestId)}/approve`, {
         remarks: remarks.trim() || undefined,
       });
 
@@ -474,12 +474,12 @@ export function ApproverDashboard() {
       try {
         await refreshQueue();
       } catch (refreshError) {
-        console.error("Failed to refresh approval queue after approve:", refreshError);
+          console.warn("Failed to refresh approval queue after approve");
       }
 
       setActionSuccess("Request accepted successfully.");
     } catch (error) {
-      console.error("Failed to approve request:", error);
+      console.warn("Failed to approve request");
       setActionError("Unable to approve this request right now.");
     } finally {
       setIsActionLoading(false);
@@ -504,7 +504,7 @@ export function ApproverDashboard() {
       setActionError(null);
       setActionSuccess(null);
 
-      await api.post(`/approvals/${requestId}/reject`, {
+      await api.post(`/approvals/${encodeURIComponent(requestId)}/reject`, {
         remarks: remarks.trim() || "Rejected from approver dashboard",
       });
 
@@ -522,12 +522,12 @@ export function ApproverDashboard() {
       try {
         await refreshQueue();
       } catch (refreshError) {
-        console.error("Failed to refresh approval queue after reject:", refreshError);
+        console.warn("Failed to refresh approval queue after reject");
       }
 
       setActionSuccess("Request rejected successfully.");
     } catch (error) {
-      console.error("Failed to reject request:", error);
+      console.warn("Failed to reject request");
       setActionError("Unable to reject this request right now.");
     } finally {
       setIsActionLoading(false);

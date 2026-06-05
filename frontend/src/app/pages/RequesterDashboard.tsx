@@ -147,7 +147,7 @@ export function RequesterDashboard() {
           setRequests(liveRequests);
         }
       } catch (error) {
-        console.error("Failed to load requests:", error);
+        console.warn("Failed to load requests");
         if (isMounted) {
           setRequests([]);
           setLoadError("Unable to load your submitted requests right now.");

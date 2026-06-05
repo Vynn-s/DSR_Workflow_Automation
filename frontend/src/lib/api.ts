@@ -1,6 +1,34 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { fetchAuthSession, signOut } from "aws-amplify/auth";
 
+if (import.meta.env.DEV && !import.meta.env.VITE_API_URL) {
+  console.warn("VITE_API_URL is not defined");
+}
+
+function readCookie(name: string) {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return document.cookie
+    .split(";")
+    .map((cookie) => cookie.trim())
+    .find((cookie) => cookie.startsWith(`${name}=`))
+    ?.slice(name.length + 1) ?? null;
+}
+
+async function clearSessionAndRedirect() {
+  try {
+    await signOut({ global: true });
+  } catch {
+    // Ignore sign-out failures; redirect still blocks stale sessions.
+  }
+
+  if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+    window.location.assign("/login");
+  }
+}
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   headers: {
@@ -14,51 +42,45 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   try {
     const session = await fetchAuthSession();
     const token = session.tokens?.idToken?.toString();
+    const expiresAt = session.tokens?.idToken?.payload.exp;
+
+    if (typeof expiresAt === "number" && expiresAt * 1000 <= Date.now()) {
+      await clearSessionAndRedirect();
+      return config;
+    }
 
     if (token) {
       config.headers = config.headers ?? {};
       (config.headers as any).Authorization = `Bearer ${token}`;
     }
-  } catch (e) {
+  } catch {
     // No authenticated session available; proceed without Authorization header
     // (keep requests unauthenticated)
+  }
+
+  if (config.method && config.method.toUpperCase() !== "GET") {
+    config.headers = config.headers ?? {};
+    (config.headers as any)["Content-Type"] = "application/json";
+
+    const csrfToken = readCookie("csrfToken") ?? readCookie("XSRF-TOKEN");
+    if (csrfToken) {
+      (config.headers as any)["X-CSRF-Token"] = decodeURIComponent(csrfToken);
+    }
   }
 
   return config;
 });
 
-// Response interceptor: log details and only redirect when truly unauthenticated
+// Response interceptor: redirect stale sessions without logging sensitive payloads.
 api.interceptors.response.use(
   (response) => response.data,
   async (error: AxiosError) => {
     const status = error.response?.status;
 
-    // Only log unexpected errors loudly; 400s are often user input/DSS validation issues.
-    if (!status || status >= 500) {
-      console.error("API interceptor caught error:", error);
-    }
-
     if (status === 401) {
-      console.error("API error (full):", error);
-      console.error("API error response status:", error.response?.status);
-      console.error("API error response data:", error.response?.data);
-      console.error("API request url:", (error.config as any)?.url);
-
-      const responseData = error.response?.data as { error?: { message?: string } } | undefined;
-      const message = responseData?.error?.message?.toLowerCase() ?? "";
-      const isTokenFailure = message.includes("invalid token") || message.includes("no token provided");
-
-      if (isTokenFailure) {
-        try {
-          await signOut();
-        } catch (e) {
-          console.error("signOut failed:", e);
-        }
-
-        if (typeof window !== "undefined") {
-          window.location.assign("/");
-        }
-      }
+      await clearSessionAndRedirect();
+    } else if (import.meta.env.DEV && (!status || status >= 500)) {
+      console.warn("API request failed");
     }
 
     return Promise.reject(error);

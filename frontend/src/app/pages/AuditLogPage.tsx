@@ -307,7 +307,7 @@ export function AuditLogPage() {
         setAuditTotal(logsResult.value.data.total ?? 0);
         setAuditLogs(visibleEntries);
       } else {
-        console.error("Failed to load audit logs:", logsResult.reason);
+        console.warn("Failed to load audit logs");
         setAuditTotal(0);
         setAuditLogs([]);
         setError("Unable to load audit logs right now.");
@@ -316,7 +316,7 @@ export function AuditLogPage() {
       if (statsResult.status === "fulfilled") {
         setAuditStats(statsResult.value);
       } else {
-        console.error("Failed to load audit stats:", statsResult.reason);
+        console.warn("Failed to load audit stats");
         setAuditStats(null);
       }
 
@@ -804,7 +804,7 @@ export function AuditLogPage() {
                               try {
                                 void navigator.clipboard.writeText(selectedEntry.fullDetails.requestIdRaw || "");
                               } catch (err) {
-                                console.error("Clipboard write failed", err);
+                                console.warn("Clipboard write failed");
                               }
                             }}
                             className="px-3 py-1 text-xs bg-zinc-100 dark:bg-zinc-900 rounded-md hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 transition-colors duration-150"
@@ -823,7 +823,7 @@ export function AuditLogPage() {
                                   try {
                                     void navigator.clipboard.writeText(selectedEntry.fullDetails.requestIdAltRaw || "");
                                   } catch (err) {
-                                    console.error("Clipboard write failed", err);
+                                    console.warn("Clipboard write failed");
                                   }
                                 }}
                                 className="px-2 py-0.5 text-xs bg-zinc-100 dark:bg-zinc-900 rounded-md hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 transition-colors duration-150"

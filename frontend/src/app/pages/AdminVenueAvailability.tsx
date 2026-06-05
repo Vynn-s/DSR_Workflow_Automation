@@ -118,7 +118,7 @@ export function AdminVenueAvailability() {
           setSelectedVenue(sortedVenues[0]);
         }
       } catch (err) {
-        console.error("Failed to load availability:", err);
+        console.warn("Failed to load availability");
         setError("Unable to load venue availability. Please try again later.");
         setVenues(["Mezzanine Hall A", "Mezzanine Hall B", "Mezzanine Hall (Whole A & B)", "Socio Hall", "Auditorium", "Meeting Room 1", "Meeting Room 2", "Parish Rectory", "Blessed Sacrament Chapel", "Chapel of the Saints"]);
         setBookingsByVenue({});

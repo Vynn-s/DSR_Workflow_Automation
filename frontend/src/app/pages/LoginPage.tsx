@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
-import { Eye, EyeOff, Lock, Mail, Moon, Shield, Sparkles, Sun, User } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, Moon, Sun } from "lucide-react";
 import { useAuth, UserRole } from "../../context/AuthContext";
 
 
@@ -29,7 +29,7 @@ export function LoginPage() {
     setError(null);
 
     try {
-      const role = await login(email, password);
+      const role = await login(email.trim(), password);
 
       if (role === UserRole.REQUESTER) {
         navigate("/requester");
@@ -103,6 +103,7 @@ export function LoginPage() {
                     type="text"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    maxLength={254}
                     className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl pl-12 pr-4 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-[#0F3B8C]"
                     placeholder="you@email.com"
                     required
@@ -128,6 +129,7 @@ export function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    maxLength={256}
                     className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl pl-12 pr-10 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-[#0F3B8C]"
                     placeholder="••••••••••••"
                     required
@@ -151,31 +153,6 @@ export function LoginPage() {
                 {isLoading ? "Verifying parish credentials..." : "Continue to Portal"}
               </button>
             </form>
-
-              <div className="space-y-2 pt-4 border-t border-zinc-900">
-              <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block mb-2">Quick Select Preset Role</span>
-              <button
-                type="button"
-                onClick={() => { setEmail("requester@test.com"); setPassword("Password123!"); }}
-                className="w-full border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 bg-transparent rounded-xl px-4 py-2.5 text-sm hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 transition-colors duration-150 flex items-center justify-center gap-2"
-              >
-                <User className="w-4 h-4 text-zinc-500 dark:text-zinc-400" /> Staff Requester (requester@test.com)
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail("approver@test.com"); setPassword("Password123!"); }}
-                className="w-full border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 bg-transparent rounded-xl px-4 py-2.5 text-sm hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 transition-colors duration-150 flex items-center justify-center gap-2"
-              >
-                <Shield className="w-4 h-4 text-[#00A859]" /> Parish Approver (approver@test.com)
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail("admin@sanpedro.cathedral.org"); setPassword("Password123!"); }}
-                className="w-full border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 bg-transparent rounded-xl px-4 py-2.5 text-sm hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 transition-colors duration-150 flex items-center justify-center gap-2"
-              >
-                <Sparkles className="w-4 h-4 text-amber-400" /> Administrator (admin@sanpedro.cathedral.org)
-              </button>
-            </div>
           </div>
         </div>
       </div>

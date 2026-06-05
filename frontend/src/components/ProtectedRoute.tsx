@@ -1,11 +1,16 @@
-import { useEffect } from "react";
 import { Navigate, Outlet, useLocation } from "react-router";
 import { useAuth } from "../context/AuthContext";
 
 interface ProtectedRouteProps {
   allowedRoles: string[];
-  redirectTo?: string;
 }
+
+const roleDashboards: Record<string, string> = {
+  REQUESTER: "/requester",
+  PARISH_SECRETARY: "/approver",
+  PARISH_PRIEST: "/admin",
+  ADMIN: "/admin",
+};
 
 function LoadingSpinner() {
   return (
@@ -15,31 +20,20 @@ function LoadingSpinner() {
   );
 }
 
-export function ProtectedRoute({ allowedRoles, redirectTo = "/" }: ProtectedRouteProps) {
+export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
   const { user, isLoading, isAuthenticated } = useAuth();
   const location = useLocation();
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.location.pathname === "/unauthorized") {
-      window.location.replace("/");
-    }
-  }, []);
 
   if (isLoading) {
     return <LoadingSpinner />;
   }
 
   if (!isAuthenticated || !user) {
-    return <Navigate to={redirectTo} replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   if (!allowedRoles.includes(user.role)) {
-    if (typeof window !== "undefined") {
-      window.location.assign("/");
-      window.sessionStorage.setItem("authMessage", "Unauthorized access");
-    }
-
-    return <Navigate to="/" replace state={{ from: location, message: "Unauthorized access" }} />;
+    return <Navigate to={roleDashboards[user.role] ?? "/login"} replace />;
   }
 
   return <Outlet />;

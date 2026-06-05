@@ -85,7 +85,7 @@ export function LoginPage() {
             </div>
 
             {error ? (
-              <p className="p-3.5 bg-red-950/40 border border-red-500/20 rounded-xl text-red-400 text-xs font-semibold" role="alert">
+              <p className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-semibold dark:bg-red-950/40 dark:border-red-500/20 dark:text-red-400" role="alert">
                 {error}
               </p>
             ) : null}

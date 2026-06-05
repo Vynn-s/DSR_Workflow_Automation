@@ -144,6 +144,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     clearAuthStorage();
     const trimmedEmail = email.trim();
+
+    try {
+      await signOut();
+    } catch {
+      // No active session to clear before sign-in.
+    }
+
     await signIn({ username: trimmedEmail, password });
 
     const [session, currentUser, attributes] = await Promise.all([

@@ -385,7 +385,7 @@ export function AuditLogPage() {
               id="role-filter"
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value as RoleFilter)}
-              className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
+              className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-900 dark:text-zinc-100 outline-none"
             >
               <option value="All">All Roles</option>
               <option value="REQUESTER">Requester</option>
@@ -405,7 +405,7 @@ export function AuditLogPage() {
               id="action-filter"
               value={filterAction}
               onChange={(e) => setFilterAction(e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
+              className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-900 dark:text-zinc-100 outline-none"
             >
               <option value="All">All Actions</option>
               <option value="REQUEST_CREATED">Submitted Request</option>
@@ -427,7 +427,7 @@ export function AuditLogPage() {
               type="date"
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none"
+              className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-900 dark:text-zinc-100 outline-none"
             />
           </div>
 
@@ -445,7 +445,7 @@ export function AuditLogPage() {
       </div>
 
       {error && (
-        <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+        <div className="mb-6 rounded-xl border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-400">
           {error}
         </div>
       )}
@@ -457,7 +457,7 @@ export function AuditLogPage() {
           <h2 className="font-black text-zinc-900 dark:text-zinc-100 text-lg">
             Activity Log
           </h2>
-          <span className="ml-auto px-3 py-1 bg-zinc-900 text-zinc-300 text-xs font-black rounded-full">
+          <span className="ml-auto px-3 py-1 bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 text-xs font-black rounded-full">
             {auditTotal} entries
           </span>
         </div>
@@ -486,29 +486,29 @@ export function AuditLogPage() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-900">
+            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-900">
               {!loading && auditLogs.map((entry) => (
                 <tr key={entry.id} className="even:bg-zinc-50 dark:even:bg-zinc-900/40 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors duration-150">
-                  <td className="px-6 py-4 text-sm text-zinc-300 whitespace-nowrap font-mono">
+                  <td className="px-6 py-4 text-sm text-zinc-600 dark:text-zinc-300 whitespace-nowrap font-mono">
                     {formatTimeOnly(entry.timestamp)}
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium text-zinc-200">
+                  <td className="px-6 py-4 text-sm font-medium text-zinc-900 dark:text-zinc-200">
                     {entry.user}
                   </td>
                   <td className="px-6 py-4">
                     <span
                       className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full border ${
                         entry.role === "Administrator"
-                           ? "bg-purple-500/10 text-purple-300 border-purple-500/20"
+                           ? "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20"
                           : entry.role === "Approver"
-                           ? "bg-[#0F3B8C]/20 text-blue-300 border-[#0F3B8C]/30"
-                           : "bg-zinc-900 text-zinc-300 border-zinc-200 dark:border-zinc-800"
+                           ? "bg-[#0F3B8C]/20 text-[#0F3B8C] dark:text-blue-300 border-[#0F3B8C]/30"
+                           : "bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800"
                       }`}
                     >
                       {entry.role}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm font-semibold text-zinc-200">
+                  <td className="px-6 py-4 text-sm font-semibold text-zinc-900 dark:text-zinc-200">
                     {entry.action}
                   </td>
                   <td className="px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400">
@@ -576,10 +576,10 @@ export function AuditLogPage() {
                 {auditStats.requestsByMinistry.length > 0 ? auditStats.requestsByMinistry.map((ministry) => (
                   <div key={ministry.ministryId}>
                     <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="font-medium text-zinc-200">{ministry.ministryName}</span>
+                      <span className="font-medium text-zinc-900 dark:text-zinc-200">{ministry.ministryName}</span>
                       <span className="text-zinc-500 dark:text-zinc-400">{ministry.total}</span>
                     </div>
-                    <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
+                    <div className="h-2 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
                       <div
                         className="h-full rounded-full bg-blue-500"
                         style={{
@@ -603,10 +603,10 @@ export function AuditLogPage() {
                 {auditStats.weeklyRequestVolume.map((week) => (
                   <div key={week.weekStart}>
                     <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="font-medium text-zinc-200">{new Date(week.weekStart).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                      <span className="font-medium text-zinc-900 dark:text-zinc-200">{new Date(week.weekStart).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
                       <span className="text-zinc-500 dark:text-zinc-400">{week.total}</span>
                     </div>
-                    <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
+                    <div className="h-2 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
                       <div
                         className="h-full rounded-full bg-emerald-500"
                         style={{ width: `${week.total > 0 ? Math.max(8, Math.min(100, week.total * 12)) : 0}%` }}

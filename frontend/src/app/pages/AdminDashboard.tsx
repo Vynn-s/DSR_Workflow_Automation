@@ -1044,7 +1044,7 @@ export function AdminDashboard() {
       </div>
 
       {analyticsError && (
-        <div className="mb-8 rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm text-red-400">
+        <div className="mb-8 rounded-2xl border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/10 px-5 py-4 text-sm text-red-700 dark:text-red-400">
           {analyticsError}
         </div>
       )}
@@ -1052,8 +1052,8 @@ export function AdminDashboard() {
       <div className="mb-10 space-y-6">
         <div className="rounded-3xl border border-[#0F3B8C]/30 bg-[#0F3B8C]/10 p-6">
           <div className="flex items-start gap-4">
-            <div className="p-3 rounded-2xl bg-zinc-950/70 border border-zinc-200 dark:border-zinc-800">
-              <Sparkles className="w-5 h-5 text-[#C99700]" />
+            <div className="p-3 rounded-2xl bg-white dark:bg-zinc-950/70 border border-zinc-200 dark:border-zinc-800">
+              <Sparkles className="w-5 h-5 text-[#B45309] dark:text-amber-300" />
             </div>
             <div className="flex-1 space-y-5">
               <div>
@@ -1063,7 +1063,7 @@ export function AdminDashboard() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60">
-                  <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  <p className="text-[10px] font-black text-[#B45309] dark:text-amber-300 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                     <TrendingUp className="w-4 h-4" />
                     Peak Request Demand
                   </p>
@@ -1074,7 +1074,7 @@ export function AdminDashboard() {
                 </div>
 
                 <div className="rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60">
-                  <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  <p className="text-[10px] font-black text-[#B45309] dark:text-amber-300 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                     <Clock className="w-4 h-4" />
                     Approval Flow
                   </p>
@@ -1085,12 +1085,12 @@ export function AdminDashboard() {
                 </div>
 
                 <div className="rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60">
-                  <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-3">Booking Pressure</p>
+                  <p className="text-[10px] font-black text-[#B45309] dark:text-amber-300 uppercase tracking-wider mb-3">Booking Pressure</p>
                   <div className="flex items-center gap-2 mb-1.5">
                     {insights.efficiency.trend === "improving" ? (
                       <CheckCircle2 className="w-5 h-5 text-[#00A859]" />
                     ) : (
-                      <AlertTriangle className="w-5 h-5 text-amber-300" />
+                        <AlertTriangle className="w-5 h-5 text-[#B45309] dark:text-amber-300" />
                     )}
                     <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
                       {insights.efficiency.trend === "improving" ? "Flow Looks Healthy" : "Review Booking Pressure"}
@@ -1102,32 +1102,32 @@ export function AdminDashboard() {
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
-                  <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-1">Top Event Type</p>
+                  <p className="text-[10px] font-black text-[#B45309] dark:text-amber-300 uppercase tracking-wider mb-1">Top Event Type</p>
                   <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{insights.bookingPatterns.topEventType}</p>
                 </div>
                 <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
-                  <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-1">Top Ministry</p>
+                  <p className="text-[10px] font-black text-[#B45309] dark:text-amber-300 uppercase tracking-wider mb-1">Top Ministry</p>
                   <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{insights.bookingPatterns.topMinistry}</p>
                 </div>
                 <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
-                  <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-1">Top Venue</p>
+                  <p className="text-[10px] font-black text-[#B45309] dark:text-amber-300 uppercase tracking-wider mb-1">Top Venue</p>
                   <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{insights.bookingPatterns.topVenue}</p>
                 </div>
                 <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
-                  <p className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-1">Busiest Window</p>
+                  <p className="text-[10px] font-black text-[#B45309] dark:text-amber-300 uppercase tracking-wider mb-1">Busiest Window</p>
                   <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{insights.busiestWindow}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <h4 className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <h4 className="text-[10px] font-black text-[#B45309] dark:text-amber-300 uppercase tracking-wider mb-2 flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     Operational Notes
                   </h4>
                   <ul className="space-y-1.5">
                     {insights.recommendations.map((rec, index) => (
-                      <li key={index} className="text-xs text-zinc-300 flex items-start gap-2">
+                      <li key={index} className="text-xs text-zinc-600 dark:text-zinc-300 flex items-start gap-2">
                         <span className="text-[#00A859] mt-0.5">•</span>
                         <span>{rec}</span>
                       </li>
@@ -1136,14 +1136,14 @@ export function AdminDashboard() {
                 </div>
 
                 <div>
-                  <h4 className="text-[10px] font-black text-[#C99700] uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <h4 className="text-[10px] font-black text-[#B45309] dark:text-amber-300 uppercase tracking-wider mb-2 flex items-center gap-1">
                     <AlertTriangle className="w-3.5 h-3.5" />
                     Watch List
                   </h4>
                   <ul className="space-y-1.5">
                     {insights.risks.map((risk, index) => (
-                      <li key={index} className="text-xs text-zinc-300 flex items-start gap-2">
-                        <span className="text-amber-300 mt-0.5">•</span>
+                      <li key={index} className="text-xs text-zinc-600 dark:text-zinc-300 flex items-start gap-2">
+                        <span className="text-[#B45309] dark:text-amber-300 mt-0.5">•</span>
                         <span>{risk}</span>
                       </li>
                     ))}
@@ -1152,13 +1152,13 @@ export function AdminDashboard() {
               </div>
 
               <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                Live request count this month: <span className="font-semibold text-zinc-300">{requestsThisMonth}</span>
+                Live request count this month: <span className="font-semibold text-zinc-700 dark:text-zinc-300">{requestsThisMonth}</span>
               </p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-3xl border border-zinc-900 bg-white dark:bg-zinc-950/60 p-5">
+        <div className="rounded-3xl border border-zinc-200 dark:border-zinc-900 bg-white dark:bg-zinc-950/60 p-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
             <div className="flex items-center gap-3">
               <BarChart3 className="w-5 h-5 text-[#00A859]" />
@@ -1167,24 +1167,24 @@ export function AdminDashboard() {
                 <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Approval workload, request trends, and venue demand for the portal.</p>
               </div>
             </div>
-            <span className="text-[9px] font-black uppercase px-2 py-1 rounded-full bg-[#0F3B8C]/10 text-blue-300">Live DSR Analytics</span>
+            <span className="text-[9px] font-black uppercase px-2 py-1 rounded-full bg-[#0F3B8C]/10 text-[#0F3B8C] dark:text-blue-300">Live DSR Analytics</span>
           </div>
 
           <div className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="rounded-2xl border border-zinc-900 bg-white dark:bg-zinc-950/60 px-5 py-4">
+              <div className="rounded-2xl border border-zinc-200 dark:border-zinc-900 bg-white dark:bg-zinc-950/60 px-5 py-4">
                 <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Venues</p>
                 <p className="mt-2 text-3xl font-black text-[#00A859]">{venues.length}</p>
               </div>
-              <div className="rounded-2xl border border-zinc-900 bg-white dark:bg-zinc-950/60 px-5 py-4">
+              <div className="rounded-2xl border border-zinc-200 dark:border-zinc-900 bg-white dark:bg-zinc-950/60 px-5 py-4">
                 <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Active</p>
-                <p className="mt-2 text-3xl font-black text-amber-300">{venueStatusCounts.ACTIVE}</p>
+                <p className="mt-2 text-3xl font-black text-[#92400E] dark:text-amber-300">{venueStatusCounts.ACTIVE}</p>
               </div>
-              <div className="rounded-2xl border border-zinc-900 bg-white dark:bg-zinc-950/60 px-5 py-4">
+              <div className="rounded-2xl border border-zinc-200 dark:border-zinc-900 bg-white dark:bg-zinc-950/60 px-5 py-4">
                 <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Users</p>
                 <p className="mt-2 text-3xl font-black text-[#0F3B8C] dark:text-blue-300">{adminUsers.length}</p>
               </div>
-              <div className="rounded-2xl border border-zinc-900 bg-white dark:bg-zinc-950/60 px-5 py-4">
+              <div className="rounded-2xl border border-zinc-200 dark:border-zinc-900 bg-white dark:bg-zinc-950/60 px-5 py-4">
                 <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Admins</p>
                 <p className="mt-2 text-3xl font-black text-red-500">{userRoleCounts.ADMIN}</p>
               </div>
@@ -1200,8 +1200,8 @@ export function AdminDashboard() {
                   ["Rejected", rejectedRequestsThisPeriod],
                 ].map(([label, value]) => (
                   <div key={String(label)} className="mb-3">
-                    <div className="flex justify-between text-[10px] font-bold mb-1 text-zinc-300"><span>{label}</span><span>{value}</span></div>
-                    <div className="h-2 rounded-full bg-zinc-800 overflow-hidden"><div className="h-full rounded-full bg-[#00A859]" style={{ width: `${Math.max(8, (Number(value) / Math.max(1, venues.length + rejectedRequestsThisPeriod)) * 100)}%` }} /></div>
+                    <div className="flex justify-between text-[10px] font-bold mb-1 text-zinc-600 dark:text-zinc-300"><span>{label}</span><span>{value}</span></div>
+                    <div className="h-2 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden"><div className="h-full rounded-full bg-[#00A859]" style={{ width: `${Math.max(8, (Number(value) / Math.max(1, venues.length + rejectedRequestsThisPeriod)) * 100)}%` }} /></div>
                   </div>
                 ))}
               </div>
@@ -1212,16 +1212,16 @@ export function AdminDashboard() {
                   {auditStats?.requestsByMinistry?.slice(0, 5).map((ministry) => (
                     <div key={ministry.ministryId} className="grid grid-cols-[1fr_auto] gap-3 items-center">
                       <div>
-                        <p className="text-[10px] font-bold truncate text-zinc-300">{ministry.ministryName}</p>
-                        <div className="h-2 mt-1 rounded-full bg-zinc-800 overflow-hidden"><div className="h-full rounded-full bg-[#0F3B8C]" style={{ width: `${Math.max(6, (ministry.total / Math.max(1, requestsThisMonth)) * 100)}%` }} /></div>
+                        <p className="text-[10px] font-bold truncate text-zinc-600 dark:text-zinc-300">{ministry.ministryName}</p>
+                        <div className="h-2 mt-1 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden"><div className="h-full rounded-full bg-[#0F3B8C]" style={{ width: `${Math.max(6, (ministry.total / Math.max(1, requestsThisMonth)) * 100)}%` }} /></div>
                       </div>
-                      <span className="text-[10px] font-black text-zinc-300">{ministry.total}</span>
+                      <span className="text-[10px] font-black text-zinc-600 dark:text-zinc-300">{ministry.total}</span>
                     </div>
                   ))}
                   {(!auditStats?.requestsByMinistry || auditStats.requestsByMinistry.length === 0) && venues.slice(0, 5).map((venue) => (
                     <div key={venue.id} className="grid grid-cols-[1fr_auto] gap-3 items-center">
-                      <div><p className="text-[10px] font-bold truncate text-zinc-300">{venue.name}</p><div className="h-2 mt-1 rounded-full bg-zinc-800 overflow-hidden"><div className="h-full rounded-full bg-[#0F3B8C]" style={{ width: "12%" }} /></div></div>
-                      <span className="text-[10px] font-black text-zinc-300">0</span>
+                      <div><p className="text-[10px] font-bold truncate text-zinc-600 dark:text-zinc-300">{venue.name}</p><div className="h-2 mt-1 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden"><div className="h-full rounded-full bg-[#0F3B8C]" style={{ width: "12%" }} /></div></div>
+                      <span className="text-[10px] font-black text-zinc-600 dark:text-zinc-300">0</span>
                     </div>
                   ))}
                 </div>
@@ -1231,8 +1231,8 @@ export function AdminDashboard() {
                 <p className="text-[10px] font-black uppercase text-zinc-400 dark:text-zinc-500 mb-4">System Snapshot</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 rounded-xl bg-[#00A859]/10"><p className="text-[9px] uppercase font-black text-[#00A859]">Approval Rate</p><p className="text-xl font-black text-zinc-900 dark:text-zinc-100">{insights.efficiency.approvalRate}</p></div>
-                  <div className="p-3 rounded-xl bg-[#0F3B8C]/10"><p className="text-[9px] uppercase font-black text-blue-300">Venues</p><p className="text-xl font-black text-zinc-900 dark:text-zinc-100">{venues.length}</p></div>
-                  <div className="p-3 rounded-xl bg-[#C99700]/10"><p className="text-[9px] uppercase font-black text-amber-300">Ministries</p><p className="text-xl font-black text-zinc-900 dark:text-zinc-100">{ministries.length}</p></div>
+                  <div className="p-3 rounded-xl bg-[#0F3B8C]/10"><p className="text-[9px] uppercase font-black text-[#0F3B8C] dark:text-blue-300">Venues</p><p className="text-xl font-black text-zinc-900 dark:text-zinc-100">{venues.length}</p></div>
+                  <div className="p-3 rounded-xl bg-[#B45309]/10"><p className="text-[9px] uppercase font-black text-[#92400E] dark:text-amber-300">Ministries</p><p className="text-xl font-black text-zinc-900 dark:text-zinc-100">{ministries.length}</p></div>
                   <div className="p-3 rounded-xl bg-red-500/10"><p className="text-[9px] uppercase font-black text-red-500">Conflicts</p><p className="text-xl font-black text-zinc-900 dark:text-zinc-100">{auditStats?.totalConflictsDetected ?? 0}</p></div>
                 </div>
               </div>
@@ -1245,7 +1245,7 @@ export function AdminDashboard() {
                   <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Live approved and rejected request activity from the audit log.</p>
                 </div>
 
-                <div className="flex gap-2 rounded-xl bg-zinc-950 p-1">
+                <div className="flex gap-2 rounded-xl bg-zinc-100 dark:bg-zinc-950 p-1">
                   <button
                     type="button"
                     onClick={() => setReportView("weekly")}
@@ -1284,7 +1284,7 @@ export function AdminDashboard() {
 
               <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 px-4 py-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-blue-300">Requested</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#0F3B8C] dark:text-blue-300">Requested</p>
                   <p className="mt-1.5 text-2xl font-black text-zinc-900 dark:text-zinc-100">
                     <AnimatedNumber value={reportData.reduce((sum, row) => sum + row.requests, 0)} />
                   </p>
@@ -1318,7 +1318,7 @@ export function AdminDashboard() {
                           {row.approved} approved • {row.rejected} rejected
                         </span>
                       </div>
-                      <div className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-zinc-800">
+                      <div className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
                         <div className="flex h-full w-full">
                           <div className="bg-blue-500" style={{ width: `${total > 0 ? (row.requests / total) * 100 : 0}%` }} />
                           <div className="bg-emerald-500" style={{ width: `${total > 0 ? (row.approved / total) * 100 : 0}%` }} />
@@ -1337,13 +1337,13 @@ export function AdminDashboard() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-zinc-900 bg-white dark:bg-zinc-950/60 p-5">
+        <div className="rounded-3xl border border-zinc-200 dark:border-zinc-900 bg-white dark:bg-zinc-950/60 p-5">
           <div className="flex items-center justify-between gap-3 mb-5">
             <div>
               <h2 className="text-sm font-black text-zinc-900 dark:text-zinc-100">Pending Approval Queue</h2>
               <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Review the next DSRs waiting for assignment or decision.</p>
             </div>
-            <span className="text-[10px] font-black text-amber-300">{pendingQueuePreview.length} pending</span>
+            <span className="text-[10px] font-black text-[#92400E] dark:text-amber-300">{pendingQueuePreview.length} pending</span>
           </div>
           {pendingQueuePreview.length === 0 ? (
             <p className="text-[10px] text-zinc-400 dark:text-zinc-500">No pending approvals are waiting right now.</p>

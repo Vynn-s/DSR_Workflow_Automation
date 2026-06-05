@@ -217,7 +217,7 @@ export function RequesterDashboard() {
       case "Rejected":
         return "bg-red-500/10 text-red-400 border-red-500/20";
       case "Pending":
-        return "bg-[#C99700]/10 text-amber-300 border-[#C99700]/20";
+        return "bg-[#B45309]/10 text-[#92400E] dark:text-amber-300 border-[#B45309]/25 dark:border-[#C99700]/20";
       case "Under Review":
         return "bg-[#0F3B8C]/20 text-blue-300 border-[#0F3B8C]/30";
       case "Draft":
@@ -328,7 +328,7 @@ export function RequesterDashboard() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         {[
           ["All", "All", stats.all, "text-[#00A859]"],
-          ["Pending", "Pending", stats.pending, "text-amber-300"],
+          ["Pending", "Pending", stats.pending, "text-[#92400E] dark:text-amber-300"],
           ["Approved", "Approved", stats.approved, "text-[#00A859]"],
           ["Rejected", "Rejected", stats.rejected, "text-red-500"],
           ["Completed", "Completed", stats.completed, "text-blue-500"],

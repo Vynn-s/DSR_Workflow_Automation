@@ -199,7 +199,7 @@ export function VenueAvailability() {
   if (error) {
     return (
       <div className="p-10 text-center">
-        <p className="text-red-400 font-medium">{error}</p>
+        <p className="text-red-700 dark:text-red-400 font-medium">{error}</p>
       </div>
     );
   }
@@ -318,7 +318,7 @@ export function VenueAvailability() {
         </div>
 
         {/* View Toggle */}
-        <div className="flex gap-2 bg-zinc-950 p-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800">
+        <div className="flex gap-2 bg-zinc-100 dark:bg-zinc-950 p-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800">
           <button
             onClick={() => setViewMode("list")}
             className={`px-5 py-2.5 text-sm font-semibold rounded-lg transition-colors duration-150 flex items-center gap-2 ${
@@ -373,7 +373,7 @@ export function VenueAvailability() {
                         className={`inline-flex items-center gap-2 px-4 py-1.5 text-xs font-bold rounded-full ${
                           slot.status === "Approved"
                             ? "bg-[#00A859]/15 text-[#00A859] border border-[#00A859]/20"
-                            : "bg-[#C99700]/15 text-amber-300 border border-[#C99700]/20"
+                            : "bg-[#C99700]/15 text-[#C99700] dark:text-amber-300 border border-[#C99700]/20"
                         }`}
                       >
                         {slot.status === "Approved" && <CheckCircle2 className="w-4 h-4" />}
@@ -460,7 +460,7 @@ export function VenueAvailability() {
                         <div>
                           <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Status</p>
                           <div className="bg-[#C99700]/10 border border-[#C99700]/20 rounded-lg p-3">
-                            <p className="text-xs text-amber-300 font-medium">
+                            <p className="text-xs text-[#C99700] dark:text-amber-300 font-medium">
                               Awaiting approval
                             </p>
                           </div>
@@ -488,7 +488,7 @@ export function VenueAvailability() {
             </div>
           ) : (
               <div className="p-16 text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-zinc-900 rounded-full mb-6">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-zinc-100 dark:bg-zinc-900 rounded-full mb-6">
                 <Calendar className="w-10 h-10 text-zinc-500 dark:text-zinc-400" />
               </div>
               <p className="text-zinc-900 dark:text-zinc-100 font-semibold text-lg">

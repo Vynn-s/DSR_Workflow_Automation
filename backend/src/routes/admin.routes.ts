@@ -5,6 +5,7 @@ const {
 	listAdminUsers,
 	createAdminUser,
 	updateAdminUserRole,
+	updateAdminUserMinistry,
 	deleteAdminUser,
 	getMinistries,
 } = require("../controllers/admin.controller") as typeof import("../controllers/admin.controller");
@@ -18,6 +19,7 @@ adminRoutes.get("/users", listAdminUsers);
 adminRoutes.post("/users", createAdminUser);
 adminRoutes.get("/ministries", getMinistries);
 adminRoutes.patch("/users/:id/role", updateAdminUserRole);
+adminRoutes.patch("/users/:id/ministry", updateAdminUserMinistry);
 adminRoutes.delete("/users/:id", deleteAdminUser);
 
 export { adminRoutes };

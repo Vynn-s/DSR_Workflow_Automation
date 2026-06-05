@@ -497,6 +497,8 @@ export function AdminDashboard() {
   const [userCreateMessageType, setUserCreateMessageType] = useState<"success" | "error" | null>(null);
   const [savingUserRoleId, setSavingUserRoleId] = useState<string | null>(null);
   const [userRoleDrafts, setUserRoleDrafts] = useState<Record<string, UserRoleOption>>({});
+  const [savingUserMinistryId, setSavingUserMinistryId] = useState<string | null>(null);
+  const [userMinistryDrafts, setUserMinistryDrafts] = useState<Record<string, string>>({});
   const [deleteTargetUser, setDeleteTargetUser] = useState<AdminUserRow | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [userDeleteMessage, setUserDeleteMessage] = useState<string | null>(null);
@@ -551,6 +553,11 @@ export function AdminDashboard() {
         setUserRoleDrafts(
           Object.fromEntries(
             (adminUsersResult.value.users ?? []).map((user) => [user.id, normalizeRoleOption(user.role)])
+          )
+        );
+        setUserMinistryDrafts(
+          Object.fromEntries(
+            (adminUsersResult.value.users ?? []).map((user) => [user.id, user.ministryId ?? ""])
           )
         );
       } else {
@@ -838,6 +845,7 @@ export function AdminDashboard() {
 
       setAdminUsers((current) => [response.user, ...current]);
       setUserRoleDrafts((current) => ({ ...current, [response.user.id]: normalizeRoleOption(response.user.role) }));
+      setUserMinistryDrafts((current) => ({ ...current, [response.user.id]: response.user.ministryId ?? "" }));
       setNewUserDraft({
         email: "",
         name: "",
@@ -902,6 +910,49 @@ export function AdminDashboard() {
     }
   };
 
+  const saveUserMinistry = async (userId: string) => {
+    const currentUser = adminUsers.find((user) => user.id === userId);
+    if (!currentUser || currentUser.role !== "REQUESTER") {
+      return;
+    }
+
+    const nextMinistryId = userMinistryDrafts[userId] || null;
+    if ((currentUser.ministryId ?? null) === nextMinistryId) {
+      setUserCreateMessage("Selected ministry is already up to date.");
+      setUserCreateMessageType("success");
+      return;
+    }
+
+    setSavingUserMinistryId(userId);
+    setUserCreateMessage(null);
+    setUserCreateMessageType(null);
+
+    try {
+      const response = await api.patch<{ user: AdminUserRow }>(`/admin/users/${encodeURIComponent(userId)}/ministry`, {
+        ministryId: nextMinistryId,
+      });
+
+      setAdminUsers((current) => current.map((user) => (user.id === userId ? response.user : user)));
+      setUserMinistryDrafts((current) => ({ ...current, [userId]: response.user.ministryId ?? "" }));
+      setUserCreateMessage(`Ministry updated successfully for ${response.user.email}.`);
+      setUserCreateMessageType("success");
+    } catch (error) {
+      console.warn("Failed to update user ministry");
+      const apiMessage =
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        typeof (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message === "string"
+          ? (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message
+          : null;
+
+      setUserCreateMessage(apiMessage ?? "Unable to update ministry right now.");
+      setUserCreateMessageType("error");
+    } finally {
+      setSavingUserMinistryId(null);
+    }
+  };
+
   const startDeleteUser = (user: AdminUserRow) => {
     setDeleteTargetUser(user);
     setUserDeleteMessage(null);
@@ -928,6 +979,11 @@ export function AdminDashboard() {
 
       setAdminUsers((current) => current.filter((user) => user.id !== deleteTargetUser.id));
       setUserRoleDrafts((current) => {
+        const next = { ...current };
+        delete next[deleteTargetUser.id];
+        return next;
+      });
+      setUserMinistryDrafts((current) => {
         const next = { ...current };
         delete next[deleteTargetUser.id];
         return next;
@@ -1506,6 +1562,7 @@ export function AdminDashboard() {
                         <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Email</th>
                         <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Role</th>
                         <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Updated Role</th>
+                        <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Ministry</th>
                         <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Action</th>
                       </tr>
                     </thead>
@@ -1529,6 +1586,35 @@ export function AdminDashboard() {
                               <option value="PARISH_SECRETARY">Parish Secretary</option>
                               <option value="ADMIN">Administrator</option>
                             </select>
+                          </td>
+                          <td className="px-5 py-4">
+                            {user.role === "REQUESTER" ? (
+                              <div className="flex min-w-[260px] items-center gap-2">
+                                <select
+                                  value={userMinistryDrafts[user.id] ?? user.ministryId ?? ""}
+                                  onChange={(e) => setUserMinistryDrafts((current) => ({ ...current, [user.id]: e.target.value }))}
+                                  className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:border-[#0F3B8C] focus:outline-none focus:ring-2 focus:ring-[#0F3B8C]/30"
+                                >
+                                  <option value="">Unassigned</option>
+                                  {ministries.map((ministry) => (
+                                    <option key={ministry.id} value={ministry.id}>
+                                      {ministry.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  onClick={() => saveUserMinistry(user.id)}
+                                  disabled={savingUserMinistryId === user.id}
+                                  className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  <Save className="w-3.5 h-3.5" />
+                                  {savingUserMinistryId === user.id ? "Saving..." : "Save"}
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-zinc-500 dark:text-zinc-400">Not applicable</span>
+                            )}
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-2">
@@ -1556,7 +1642,7 @@ export function AdminDashboard() {
                         </tr>
                       )) : (
                         <tr>
-                          <td className="px-5 py-6 text-sm text-zinc-500 dark:text-zinc-400" colSpan={5}>
+                          <td className="px-5 py-6 text-sm text-zinc-500 dark:text-zinc-400" colSpan={6}>
                             {adminUsersLoading ? "Loading admin users..." : "No users found."}
                           </td>
                         </tr>

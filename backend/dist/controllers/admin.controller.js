@@ -3,32 +3,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getMinistries = getMinistries;
 exports.listAdminUsers = listAdminUsers;
 exports.createAdminUser = createAdminUser;
 exports.updateAdminUserRole = updateAdminUserRole;
+exports.updateAdminUserMinistry = updateAdminUserMinistry;
 exports.deleteAdminUser = deleteAdminUser;
 const crypto_1 = require("crypto");
-const pg_1 = require("pg");
 const zod_1 = require("zod");
 const client_cognito_identity_provider_1 = require("@aws-sdk/client-cognito-identity-provider");
 const env_1 = __importDefault(require("../config/env"));
+const database_1 = require("../config/database");
 const { AppError } = require("../middleware/errorHandler");
-let pool = null;
 let cognitoClient = null;
-function getPool() {
-    if (pool) {
-        return pool;
-    }
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) {
-        throw new AppError("Missing required environment variable: DATABASE_URL", 500);
-    }
-    pool = new pg_1.Pool({
-        connectionString,
-        ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : { rejectUnauthorized: false },
-    });
-    return pool;
-}
 function getCognitoClient() {
     if (cognitoClient) {
         return cognitoClient;
@@ -46,6 +33,9 @@ const createUserSchema = zod_1.z.object({
 });
 const updateRoleSchema = zod_1.z.object({
     role: adminUserRoleSchema,
+});
+const updateMinistrySchema = zod_1.z.object({
+    ministryId: zod_1.z.string().min(1).nullable(),
 });
 const deleteUserSchema = zod_1.z.object({
     password: zod_1.z.string().trim().max(256).optional(),
@@ -114,6 +104,24 @@ function mapCognitoCreateUserError(error) {
         return new AppError("Cognito user pool configuration is incomplete", 500);
     }
     return null;
+}
+async function listMinistries() {
+    const result = await database_1.pool.query(`SELECT id, name
+		 FROM "Ministry"
+		 ORDER BY name ASC`);
+    return result.rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+    }));
+}
+async function getMinistries(req, res, next) {
+    try {
+        const ministries = await listMinistries();
+        return res.json({ ministries });
+    }
+    catch (error) {
+        return next(error);
+    }
 }
 async function listAllCognitoUsers() {
     if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
@@ -268,7 +276,7 @@ async function getDeleteUsageCounts(client, userId) {
     return result.rows[0];
 }
 async function listAdminUsers(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);
@@ -316,7 +324,7 @@ async function listAdminUsers(req, res, next) {
     }
 }
 async function createAdminUser(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     let cognitoUserCreated = false;
     try {
         if (!req.user) {
@@ -388,7 +396,7 @@ async function createAdminUser(req, res, next) {
     }
 }
 async function updateAdminUserRole(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);
@@ -444,8 +452,61 @@ async function updateAdminUserRole(req, res, next) {
         client.release();
     }
 }
+async function updateAdminUserMinistry(req, res, next) {
+    const client = await database_1.pool.connect();
+    try {
+        if (!req.user) {
+            throw new AppError("Unauthorized", 401);
+        }
+        const parsedParams = zod_1.z.object({ id: zod_1.z.string().min(1) }).safeParse(req.params);
+        if (!parsedParams.success) {
+            throw new AppError("Invalid user id", 400);
+        }
+        const parsedBody = updateMinistrySchema.safeParse(req.body);
+        if (!parsedBody.success) {
+            throw new AppError(`Invalid user payload: ${parsedBody.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join(", ")}`, 400);
+        }
+        const userResult = await client.query(`SELECT id, role FROM "User" WHERE id = $1`, [parsedParams.data.id]);
+        if (userResult.rows.length === 0) {
+            throw new AppError("User not found", 404);
+        }
+        const user = userResult.rows[0];
+        if (user.role !== "REQUESTER") {
+            throw new AppError("Only requester users can be assigned to a ministry", 400);
+        }
+        const ministryId = parsedBody.data.ministryId;
+        if (ministryId) {
+            const ministryResult = await client.query(`SELECT id FROM "Ministry" WHERE id = $1`, [ministryId]);
+            if (ministryResult.rows.length === 0) {
+                throw new AppError("Ministry not found", 404);
+            }
+        }
+        await client.query(`UPDATE "User"
+			 SET "ministryId" = $1, "updatedAt" = NOW()
+			 WHERE id = $2`, [ministryId, user.id]);
+        const updatedResult = await client.query(`SELECT
+				u.id,
+				u.email,
+				u.name,
+				u.role,
+				u."ministryId",
+				u."createdAt",
+				u."updatedAt",
+				m.name AS ministry_name
+			 FROM "User" u
+			 LEFT JOIN "Ministry" m ON u."ministryId" = m.id
+			 WHERE u.id = $1`, [user.id]);
+        return res.json({ user: mapRow(updatedResult.rows[0]) });
+    }
+    catch (error) {
+        return next(error);
+    }
+    finally {
+        client.release();
+    }
+}
 async function deleteAdminUser(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);
@@ -512,6 +573,7 @@ exports.default = {
     listAdminUsers,
     createAdminUser,
     updateAdminUserRole,
+    updateAdminUserMinistry,
     deleteAdminUser,
 };
 //# sourceMappingURL=admin.controller.js.map

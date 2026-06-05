@@ -79,6 +79,10 @@ const updateRoleSchema = z.object({
 	role: adminUserRoleSchema,
 });
 
+const updateMinistrySchema = z.object({
+	ministryId: z.string().min(1).nullable(),
+});
+
 const deleteUserSchema = z.object({
 	password: z.string().trim().max(256).optional(),
 });
@@ -603,6 +607,79 @@ export async function updateAdminUserRole(req: Request, res: Response, next: Nex
 	}
 }
 
+export async function updateAdminUserMinistry(req: Request, res: Response, next: NextFunction) {
+	const client = await pool.connect();
+	try {
+		if (!req.user) {
+			throw new AppError("Unauthorized", 401);
+		}
+
+		const parsedParams = z.object({ id: z.string().min(1) }).safeParse(req.params);
+		if (!parsedParams.success) {
+			throw new AppError("Invalid user id", 400);
+		}
+
+		const parsedBody = updateMinistrySchema.safeParse(req.body);
+		if (!parsedBody.success) {
+			throw new AppError(
+				`Invalid user payload: ${parsedBody.error.issues.map((issue: any) => `${issue.path.join(".")}: ${issue.message}`).join(", ")}`,
+				400,
+			);
+		}
+
+		const userResult = await client.query(
+			`SELECT id, role FROM "User" WHERE id = $1`,
+			[parsedParams.data.id],
+		);
+
+		if (userResult.rows.length === 0) {
+			throw new AppError("User not found", 404);
+		}
+
+		const user = userResult.rows[0] as { id: string; role: AdminUserRole };
+		if (user.role !== "REQUESTER") {
+			throw new AppError("Only requester users can be assigned to a ministry", 400);
+		}
+
+		const ministryId = parsedBody.data.ministryId;
+		if (ministryId) {
+			const ministryResult = await client.query(`SELECT id FROM "Ministry" WHERE id = $1`, [ministryId]);
+			if (ministryResult.rows.length === 0) {
+				throw new AppError("Ministry not found", 404);
+			}
+		}
+
+		await client.query(
+			`UPDATE "User"
+			 SET "ministryId" = $1, "updatedAt" = NOW()
+			 WHERE id = $2`,
+			[ministryId, user.id],
+		);
+
+		const updatedResult = await client.query(
+			`SELECT
+				u.id,
+				u.email,
+				u.name,
+				u.role,
+				u."ministryId",
+				u."createdAt",
+				u."updatedAt",
+				m.name AS ministry_name
+			 FROM "User" u
+			 LEFT JOIN "Ministry" m ON u."ministryId" = m.id
+			 WHERE u.id = $1`,
+			[user.id],
+		);
+
+		return res.json({ user: mapRow(updatedResult.rows[0]) });
+	} catch (error) {
+		return next(error);
+	} finally {
+		client.release();
+	}
+}
+
 export async function deleteAdminUser(req: Request, res: Response, next: NextFunction) {
 	const client = await pool.connect();
 	try {
@@ -695,5 +772,6 @@ export default {
 	listAdminUsers,
 	createAdminUser,
 	updateAdminUserRole,
+	updateAdminUserMinistry,
 	deleteAdminUser,
 };

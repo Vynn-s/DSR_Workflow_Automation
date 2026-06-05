@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getAuditLogs = getAuditLogs;
 exports.getAuditStats = getAuditStats;
-const pg_1 = require("pg");
+const database_1 = require("../config/database");
 const { z } = require("zod");
 const { AppError } = require("../middleware/errorHandler");
 const auditQuerySchema = z.object({
@@ -15,21 +15,6 @@ const auditQuerySchema = z.object({
     page: z.coerce.number().int().positive().optional(),
     limit: z.coerce.number().int().positive().max(100).optional(),
 });
-let pool = null;
-function getPool() {
-    if (pool) {
-        return pool;
-    }
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) {
-        throw new Error("Missing required environment variable: DATABASE_URL");
-    }
-    pool = new pg_1.Pool({
-        connectionString,
-        ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : { rejectUnauthorized: false },
-    });
-    return pool;
-}
 function startOfMonth(date) {
     return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
 }
@@ -207,7 +192,7 @@ function buildAuditFilterClauses(filters, values, options = {}) {
     return clauses.length > 0 ? ` AND ${clauses.join(" AND ")}` : "";
 }
 async function getAuditLogs(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         const parsed = auditQuerySchema.safeParse(req.query);
         if (!parsed.success) {
@@ -274,7 +259,7 @@ async function getAuditLogs(req, res, next) {
     }
 }
 async function getAuditStats(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         const parsed = auditQuerySchema.safeParse(req.query);
         if (!parsed.success) {
@@ -318,8 +303,8 @@ async function getAuditStats(req, res, next) {
 			)
 			SELECT
 				(SELECT COUNT(*)::int FROM filtered_rows WHERE action = 'REQUEST_CREATED') AS total_requests_this_month,
-                (SELECT COUNT(DISTINCT "requestId")::int FROM filtered_rows WHERE action = 'REQUEST_APPROVED' AND "requestId" IS NOT NULL) AS total_approved_requests,
-                (SELECT COUNT(DISTINCT "requestId")::int FROM filtered_rows WHERE action = 'REQUEST_REJECTED' AND "requestId" IS NOT NULL) AS total_rejected_requests,
+				(SELECT COUNT(DISTINCT "requestId")::int FROM filtered_rows WHERE action = 'REQUEST_APPROVED' AND "requestId" IS NOT NULL) AS total_approved_requests,
+				(SELECT COUNT(DISTINCT "requestId")::int FROM filtered_rows WHERE action = 'REQUEST_REJECTED' AND "requestId" IS NOT NULL) AS total_rejected_requests,
 				COALESCE((
 					SELECT AVG(EXTRACT(EPOCH FROM (d.decided_at - c.created_at)) / 3600.0)
 					FROM created_requests c

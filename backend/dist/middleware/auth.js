@@ -4,6 +4,7 @@ exports.Role = void 0;
 exports.authenticate = authenticate;
 exports.requireRole = requireRole;
 const aws_jwt_verify_1 = require("aws-jwt-verify");
+const database_1 = require("../config/database");
 const types_1 = require("../types");
 exports.Role = types_1.UserRole;
 let verifier = null;
@@ -62,25 +63,26 @@ async function authenticate(req, res, next) {
             return res.status(401).json({ message: "Invalid token" });
         }
         let role = mapGroupToRole(group);
-        const { Pool } = require("pg");
-        const dbPool = new Pool({
-            connectionString: process.env.DATABASE_URL,
-            ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : { rejectUnauthorized: false },
-        });
-        const client = await dbPool.connect();
+        let userId = sub;
         try {
-            const userResult = await client.query(`SELECT role FROM "User" WHERE email = $1`, [email]);
-            if (userResult.rows.length > 0) {
-                const dbRole = userResult.rows[0].role;
-                role = mapGroupToRole(dbRole);
+            const client = await database_1.pool.connect();
+            try {
+                const userResult = await client.query(`SELECT id, role FROM "User" WHERE email = $1`, [email]);
+                if (userResult.rows.length > 0) {
+                    userId = userResult.rows[0].id;
+                    const dbRole = userResult.rows[0].role;
+                    role = mapGroupToRole(dbRole);
+                }
+            }
+            finally {
+                client.release();
             }
         }
-        finally {
-            client.release();
-            await dbPool.end();
+        catch (dbError) {
+            console.warn("Role lookup failed; continuing with Cognito role only:", dbError);
         }
         req.user = {
-            id: sub,
+            id: userId,
             email,
             role,
             cognitoUsername,

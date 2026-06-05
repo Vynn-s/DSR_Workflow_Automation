@@ -6,23 +6,9 @@ exports.rejectRequest = rejectRequest;
 exports.requestRevision = requestRevision;
 exports.getArchive = getArchive;
 const crypto_1 = require("crypto");
-const pg_1 = require("pg");
 const { z } = require("zod");
+const database_1 = require("../config/database");
 const { AppError } = require("../middleware/errorHandler");
-let pool = null;
-function getPool() {
-    if (pool)
-        return pool;
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) {
-        throw new AppError("Missing required environment variable: DATABASE_URL", 500);
-    }
-    pool = new pg_1.Pool({
-        connectionString,
-        ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : { rejectUnauthorized: false },
-    });
-    return pool;
-}
 const requestIdParamsSchema = z.object({
     requestId: z.string().min(1),
 });
@@ -76,7 +62,7 @@ async function getUserIdForEmail(client, email, role) {
     return userResult.rows[0].id;
 }
 async function getApprovalQueue(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);
@@ -182,7 +168,7 @@ async function getApprovalQueue(req, res, next) {
     }
 }
 async function approveRequest(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         if (!req.user?.email) {
             throw new AppError("Unauthorized", 401);
@@ -238,6 +224,7 @@ async function approveRequest(req, res, next) {
             }),
             req.ip,
         ]);
+        // Attempt to include ministry name if available (non-blocking)
         if (requestRecord.ministryId) {
             try {
                 const mres = await client.query(`SELECT name FROM "Ministry" WHERE id = $1`, [requestRecord.ministryId]);
@@ -245,6 +232,7 @@ async function approveRequest(req, res, next) {
                 await client.query(`UPDATE "AuditLog" SET details = details || $1::jsonb WHERE "requestId" = $2 AND action = 'REQUEST_APPROVED'`, [JSON.stringify({ ministryName }), requestRecord.id]);
             }
             catch (e) {
+                // Don't fail the request if ministry name lookup fails
                 console.warn("Failed to attach ministry name to audit log", e);
             }
         }
@@ -262,7 +250,7 @@ async function approveRequest(req, res, next) {
     }
 }
 async function rejectRequest(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         if (!req.user?.email) {
             throw new AppError("Unauthorized", 401);
@@ -337,7 +325,7 @@ async function rejectRequest(req, res, next) {
     }
 }
 async function requestRevision(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         if (!req.user?.email) {
             throw new AppError("Unauthorized", 401);
@@ -392,7 +380,7 @@ async function requestRevision(req, res, next) {
     }
 }
 async function getArchive(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);

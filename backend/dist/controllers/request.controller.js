@@ -6,24 +6,10 @@ exports.getRequestById = getRequestById;
 exports.cancelRequest = cancelRequest;
 exports.getAvailability = getAvailability;
 const crypto_1 = require("crypto");
-const pg_1 = require("pg");
 const zod_1 = require("zod");
+const database_1 = require("../config/database");
 const { evaluateRequest: runDssEvaluation, } = require("../dss/rulesEngine");
 const { AppError } = require("../middleware/errorHandler");
-let pool = null;
-function getPool() {
-    if (pool)
-        return pool;
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) {
-        throw new AppError("Missing required environment variable: DATABASE_URL", 500);
-    }
-    pool = new pg_1.Pool({
-        connectionString,
-        ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : { rejectUnauthorized: false },
-    });
-    return pool;
-}
 const createRequestSchema = zod_1.z.object({
     venueId: zod_1.z.string().trim().min(1),
     ministryId: zod_1.z.string().trim().min(1).optional(),
@@ -48,6 +34,8 @@ const createRequestSchema = zod_1.z.object({
         signatory: zod_1.z.string().trim(),
         required: zod_1.z.boolean(),
         status: zod_1.z.enum(["pending", "signed"]),
+        priestId: zod_1.z.string().trim().optional(),
+        priestName: zod_1.z.string().trim().optional(),
         signedDate: zod_1.z.string().trim().optional(),
     })).optional(),
 });
@@ -87,6 +75,8 @@ function sanitizeCreateRequestInput(input) {
             ...signature,
             role: signature.role.trim(),
             signatory: signature.signatory.trim(),
+            priestId: signature.priestId?.trim(),
+            priestName: signature.priestName?.trim(),
             signedDate: signature.signedDate?.trim(),
         })) ?? [],
     };
@@ -102,7 +92,7 @@ function parseListPagination(query) {
     };
 }
 async function createRequest(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         if (!req.user?.id) {
             throw new AppError("Unauthorized", 401);
@@ -146,7 +136,6 @@ async function createRequest(req, res, next) {
         // fall back to server-local extraction if missing.
         const clientStartTime = input.startTime;
         const clientEndTime = input.endTime;
-
         const dssDecision = runDssEvaluation({
             venueId: input.venueId,
             ministryId: ministryId,
@@ -157,6 +146,8 @@ async function createRequest(req, res, next) {
         }, venue.capacity, authorizedMinistriesResult.rows.map((entry) => entry.ministryId), conflictsResult.rows.length > 0);
         if (!dssDecision.canProceed) {
             console.error("DSS evaluation failed - decision:", dssDecision);
+        }
+        if (!dssDecision.canProceed) {
             throw new AppError(`DSS evaluation failed: ${dssDecision.recommendation}`, 400);
         }
         const secretaryResult = await client.query(`SELECT id FROM "User" WHERE role = 'PARISH_SECRETARY' ORDER BY "createdAt" ASC LIMIT 1`);
@@ -217,6 +208,7 @@ async function createRequest(req, res, next) {
         });
     }
     catch (error) {
+        console.error("getRequests failed:", error);
         return next(error);
     }
     finally {
@@ -224,7 +216,7 @@ async function createRequest(req, res, next) {
     }
 }
 async function getRequests(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);
@@ -287,7 +279,7 @@ async function getRequests(req, res, next) {
     }
 }
 async function getRequestById(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);
@@ -396,7 +388,7 @@ async function getRequestById(req, res, next) {
     }
 }
 async function cancelRequest(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);
@@ -424,9 +416,8 @@ async function cancelRequest(req, res, next) {
             const mres = await client.query(`SELECT name FROM "Ministry" WHERE id = $1`, [existingRequest.ministryId]);
             cancelMinistryName = mres.rows[0]?.name ?? null;
         }
-
         await client.query(`INSERT INTO "AuditLog" (id, "requestId", "performedById", action, details, "ipAddress", "createdAt")
-             VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())`, [
+			 VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())`, [
             (0, crypto_1.randomUUID)(),
             existingRequest.id,
             req.user.id,
@@ -453,7 +444,7 @@ async function cancelRequest(req, res, next) {
     }
 }
 async function getAvailability(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);

@@ -2,8 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.evaluateRequest = evaluateRequest;
 exports.checkConflicts = checkConflicts;
+exports.getBookingRecommendations = getBookingRecommendations;
+exports.getPriests = getPriests;
 const crypto_1 = require("crypto");
-const pg_1 = require("pg");
+const database_1 = require("../config/database");
 const { z } = require("zod");
 const { evaluateRequest: runDssEvaluation, } = require("../dss/rulesEngine");
 const { AppError } = require("../middleware/errorHandler");
@@ -22,34 +24,56 @@ const evaluateRequestSchema = z.object({
         status: z.enum(["pending", "signed"]),
     })).optional(),
 });
+const recommendationQuerySchema = z.object({
+    date: z.coerce.date(),
+    venueId: z.string().min(1).optional(),
+    ministryId: z.string().min(1).optional(),
+});
 const conflictQuerySchema = z.object({
     venueId: z.string().min(1),
     date: z.coerce.date(),
     startTime: z.string().regex(timePattern),
     endTime: z.string().regex(timePattern),
 });
-let pool = null;
-function getPool() {
-    if (pool)
-        return pool;
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) {
-        throw new AppError("Missing required environment variable: DATABASE_URL", 500);
-    }
-    pool = new pg_1.Pool({
-        connectionString,
-        ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : { rejectUnauthorized: false },
-    });
-    return pool;
-}
 function combineDateAndTime(date, time) {
     const [hours, minutes] = time.split(":").map((value) => Number(value));
     const combined = new Date(date);
     combined.setHours(hours, minutes, 0, 0);
     return combined;
 }
+function getMonthWindow(date) {
+    const start = new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
+    const end = new Date(date.getFullYear(), date.getMonth() + 1, 1, 0, 0, 0, 0);
+    return { start, end };
+}
+function formatCountList(entries) {
+    return entries.map((entry) => `${entry.name} (${entry.total})`);
+}
+function getSeasonalContext(monthName) {
+    const seasonalNotes = {
+        January: [
+            "Feast of the Santo Nino",
+            "Jesus Nazareno",
+            "Lector Recruitment",
+            "Bible Month",
+            "Bible Symposiums",
+        ],
+        February: [],
+        March: ["Lent Preparations", "Meetings", "Practices"],
+        April: ["Holy Week", "Meetings", "Practices", "Gatherings", "Recollections", "Lectures", "Confessions"],
+        May: ["Month of Ministry Recruitment", "Heavy Meetings and Practices"],
+        June: ["Cathedral Fiesta Celebrations", "Meetings", "Practices"],
+        July: ["Regular Schedules of Ministry Meetings"],
+        August: ["Regular Schedules of Ministry Meetings"],
+        September: ["Vocation Month"],
+        October: ["Month of the Holy Rosary"],
+        November: ["Advent Preparations"],
+        December: ["Advent Recollections", "Confessions", "Christmas Celebrations", "Utilization of Facilities for Holding Areas", "Preparation rooms", "Meetings", "Practices"],
+    };
+    return seasonalNotes[monthName] ?? [];
+}
 async function evaluateRequest(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         const parsed = evaluateRequestSchema.safeParse(req.body);
         if (!parsed.success) {
@@ -110,9 +134,8 @@ async function evaluateRequest(req, res, next) {
             const mres = await client.query(`SELECT name FROM "Ministry" WHERE id = $1`, [ministryId]);
             ministryName = mres.rows[0]?.name ?? null;
         }
-
         await client.query(`INSERT INTO "AuditLog" (id, "requestId", "performedById", action, details, "ipAddress", "createdAt")
-             VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())`, [
+			 VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())`, [
             (0, crypto_1.randomUUID)(),
             null,
             actorUserId,
@@ -142,7 +165,7 @@ async function evaluateRequest(req, res, next) {
     }
 }
 async function checkConflicts(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         const parsed = conflictQuerySchema.safeParse(req.query);
         if (!parsed.success) {
@@ -175,8 +198,137 @@ async function checkConflicts(req, res, next) {
         client.release();
     }
 }
+async function getBookingRecommendations(req, res, next) {
+    const client = await database_1.pool.connect();
+    try {
+        const parsed = recommendationQuerySchema.safeParse(req.query);
+        if (!parsed.success) {
+            throw new AppError("Invalid recommendation query parameters", 400);
+        }
+        const { date, venueId, ministryId } = parsed.data;
+        const { start, end } = getMonthWindow(date);
+        const monthLabel = date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+        const monthName = date.toLocaleDateString("en-US", { month: "long" });
+        const seasonalContext = getSeasonalContext(monthName);
+        const [venuesResult, ministriesResult, purposesResult, selectedVenueResult, selectedMinistryResult] = await Promise.all([
+            client.query(`SELECT v.name, COUNT(*)::int AS total
+				 FROM "VenueRequest" vr
+				 INNER JOIN "Venue" v ON v.id = vr."venueId"
+				 WHERE vr."startDateTime" >= $1
+				   AND vr."startDateTime" < $2
+				   AND vr.status <> 'REJECTED'
+				 GROUP BY v.name
+				 ORDER BY total DESC, v.name ASC
+				 LIMIT 3`, [start, end]),
+            client.query(`SELECT COALESCE(m.name, 'Unassigned') AS name, COUNT(*)::int AS total
+				 FROM "VenueRequest" vr
+				 LEFT JOIN "Ministry" m ON m.id = vr."ministryId"
+				 WHERE vr."startDateTime" >= $1
+				   AND vr."startDateTime" < $2
+				   AND vr.status <> 'REJECTED'
+				 GROUP BY COALESCE(m.name, 'Unassigned')
+				 ORDER BY total DESC, name ASC
+				 LIMIT 3`, [start, end]),
+            client.query(`SELECT COALESCE(NULLIF(BTRIM(vr.purpose), ''), NULLIF(BTRIM(vr."eventName"), ''), 'Unspecified') AS name, COUNT(*)::int AS total
+				 FROM "VenueRequest" vr
+				 WHERE vr."startDateTime" >= $1
+				   AND vr."startDateTime" < $2
+				   AND vr.status <> 'REJECTED'
+				 GROUP BY COALESCE(NULLIF(BTRIM(vr.purpose), ''), NULLIF(BTRIM(vr."eventName"), ''), 'Unspecified')
+				 ORDER BY total DESC, name ASC
+				 LIMIT 3`, [start, end]),
+            venueId
+                ? client.query(`SELECT COUNT(*)::int AS total
+					 FROM "VenueRequest"
+					 WHERE "venueId" = $1
+					   AND "startDateTime" >= $2
+					   AND "startDateTime" < $3
+					   AND status <> 'REJECTED'`, [venueId, start, end])
+                : Promise.resolve({ rows: [] }),
+            ministryId
+                ? client.query(`SELECT COUNT(*)::int AS total
+					 FROM "VenueRequest"
+					 WHERE "ministryId" = $1
+					   AND "startDateTime" >= $2
+					   AND "startDateTime" < $3
+					   AND status <> 'REJECTED'`, [ministryId, start, end])
+                : Promise.resolve({ rows: [] }),
+        ]);
+        const totalRequestsResult = await client.query(`SELECT COUNT(*)::int AS total
+			 FROM "VenueRequest"
+			 WHERE "startDateTime" >= $1
+			   AND "startDateTime" < $2
+			   AND status <> 'REJECTED'`, [start, end]);
+        const topVenues = venuesResult.rows.map((row) => ({ name: row.name, total: row.total }));
+        const topMinistries = ministriesResult.rows.map((row) => ({ name: row.name, total: row.total }));
+        const topPurposes = purposesResult.rows.map((row) => ({ name: row.name, total: row.total }));
+        const totalRequests = totalRequestsResult.rows[0]?.total ?? 0;
+        const recommendations = [];
+        recommendations.push(totalRequests > 0
+            ? `${monthLabel} already has ${totalRequests} live booking${totalRequests === 1 ? "" : "s"}.`
+            : `No live bookings were found for ${monthLabel} yet.`);
+        if (topVenues.length > 0) {
+            recommendations.push(`Most active venues this month: ${formatCountList(topVenues).join(", ")}.`);
+        }
+        if (topMinistries.length > 0) {
+            recommendations.push(`Most active ministries this month: ${formatCountList(topMinistries).join(", ")}.`);
+        }
+        if (topPurposes.length > 0) {
+            recommendations.push(`Common live activities this month: ${formatCountList(topPurposes).join(", ")}.`);
+        }
+        if (selectedVenueResult.rows[0]?.total) {
+            recommendations.push(`The selected venue has ${selectedVenueResult.rows[0].total} booking${selectedVenueResult.rows[0].total === 1 ? "" : "s"} in ${monthLabel}.`);
+        }
+        if (selectedMinistryResult.rows[0]?.total) {
+            recommendations.push(`The selected ministry has ${selectedMinistryResult.rows[0].total} booking${selectedMinistryResult.rows[0].total === 1 ? "" : "s"} in ${monthLabel}.`);
+        }
+        return res.json({
+            monthLabel,
+            monthName,
+            totalRequests,
+            seasonalContext,
+            topVenues,
+            topMinistries,
+            topPurposes,
+            recommendations,
+        });
+    }
+    catch (error) {
+        if (error instanceof AppError) {
+            return next(error);
+        }
+        return next(new AppError("Failed to build booking recommendations", 500));
+    }
+    finally {
+        client.release();
+    }
+}
+async function getPriests(req, res, next) {
+    const client = await database_1.pool.connect();
+    try {
+        const result = await client.query(`SELECT id, name, email
+			 FROM "User"
+			 WHERE role = 'PARISH_PRIEST'
+			 ORDER BY name ASC, email ASC`);
+        return res.json({
+            priests: result.rows.map((row) => ({
+                id: row.id,
+                name: row.name,
+                email: row.email,
+            })),
+        });
+    }
+    catch (error) {
+        return next(error);
+    }
+    finally {
+        client.release();
+    }
+}
 exports.default = {
     evaluateRequest,
     checkConflicts,
+    getBookingRecommendations,
+    getPriests,
 };
 //# sourceMappingURL=dss.controller.js.map

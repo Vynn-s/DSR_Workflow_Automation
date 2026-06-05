@@ -8,27 +8,11 @@ exports.getVenueById = getVenueById;
 exports.updateVenue = updateVenue;
 exports.createVenue = createVenue;
 exports.deleteVenue = deleteVenue;
-const pg_1 = require("pg");
 const { z } = require("zod");
 const client_cognito_identity_provider_1 = require("@aws-sdk/client-cognito-identity-provider");
 const env_1 = __importDefault(require("../config/env"));
-let pool = null;
+const database_1 = require("../config/database");
 let cognitoClient = null;
-function getPool() {
-    if (pool)
-        return pool;
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) {
-        throw new Error("Missing required environment variable: DATABASE_URL");
-    }
-    pool = new pg_1.Pool({
-        connectionString,
-        ssl: process.env.NODE_ENV === "production"
-            ? { rejectUnauthorized: true }
-            : { rejectUnauthorized: false },
-    });
-    return pool;
-}
 const { AppError } = require("../middleware/errorHandler");
 const updateVenueSchema = z.object({
     name: z.string().trim().min(1).optional(),
@@ -60,7 +44,7 @@ async function resolveCognitoUsernameByEmail(email) {
     try {
         const response = await getCognitoClient().send(new client_cognito_identity_provider_1.ListUsersCommand({
             UserPoolId: env_1.default.cognitoUserPoolId,
-            Filter: `email = "${email.replace(/"/g, "")}"`,
+            Filter: `email = \"${email.replace(/\"/g, "")}\"`,
             Limit: 1,
         }));
         return response.Users?.[0]?.Username ?? null;
@@ -126,7 +110,7 @@ async function verifyCurrentAdminPassword(user, password) {
     throw new AppError("Invalid password", 401);
 }
 async function getVenues(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);
@@ -151,6 +135,7 @@ async function getVenues(req, res, next) {
 				 FROM "Venue" v
 				 LEFT JOIN "VenueMinistry" vm ON vm."venueId" = v.id
 				 LEFT JOIN "Ministry" m ON m.id = vm."ministryId"
+				 WHERE v.status = 'ACTIVE'
 				 ORDER BY v.name ASC, vm.id ASC NULLS LAST`);
             const venueMap = new Map();
             for (const row of venueRowsResult.rows) {
@@ -194,10 +179,10 @@ async function getVenues(req, res, next) {
 				vm."ministryId" AS venue_ministry_ministry_id,
 				m.id AS ministry_id,
 				m.name AS ministry_name
-             FROM "Venue" v
-             LEFT JOIN "VenueMinistry" vm ON vm."venueId" = v.id
+			 FROM "Venue" v
+			 LEFT JOIN "VenueMinistry" vm ON vm."venueId" = v.id
 			 LEFT JOIN "Ministry" m ON m.id = vm."ministryId"
-             WHERE vm."ministryId" = $1 OR vm.id IS NULL
+			 WHERE v.status = 'ACTIVE' AND (vm."ministryId" = $1 OR vm.id IS NULL)
 			 ORDER BY v.name ASC, vm.id ASC`, [ministryId]);
         const venueMap = new Map();
         for (const row of venueRowsResult.rows) {
@@ -231,7 +216,7 @@ async function getVenues(req, res, next) {
     }
 }
 async function getVenueById(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);
@@ -266,7 +251,7 @@ async function getVenueById(req, res, next) {
     }
 }
 async function updateVenue(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);
@@ -334,7 +319,7 @@ async function updateVenue(req, res, next) {
     }
 }
 async function createVenue(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);
@@ -369,7 +354,7 @@ async function createVenue(req, res, next) {
     }
 }
 async function deleteVenue(req, res, next) {
-    const client = await getPool().connect();
+    const client = await database_1.pool.connect();
     try {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);

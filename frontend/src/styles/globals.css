@@ -44,6 +44,39 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+@keyframes cathedral-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes cathedral-slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes cathedral-zoom-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-in { animation-fill-mode: both; }
+.fade-in { animation-name: cathedral-fade-in; }
+.slide-in-from-bottom-1,
+.slide-in-from-bottom-2 { animation-name: cathedral-slide-up; }
+.zoom-in-95 { animation-name: cathedral-zoom-in; }
+.duration-200 { animation-duration: 200ms; }
+.duration-300 { animation-duration: 300ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-in,
+  .fade-in,
+  .slide-in-from-bottom-1,
+  .slide-in-from-bottom-2,
+  .zoom-in-95 {
+    animation: none !important;
+  }
+}
+
 :root {
   --cathedral-blue: #0F3B8C;
   --cathedral-green: #00A859;

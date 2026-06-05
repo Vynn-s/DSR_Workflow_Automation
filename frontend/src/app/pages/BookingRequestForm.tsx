@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 import { ArrowLeft, Send, Paperclip, Save, AlertCircle, Info, MapPin, Users, FileText, Shield, CheckCircle2, XCircle, Calendar as CalendarIcon, Clock, X, ChevronLeft, ChevronRight } from "lucide-react";
 import api from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
@@ -348,6 +349,8 @@ export function BookingRequestForm() {
   }, []);
 
   useEffect(() => {
+    document.title = "New Request — CathedralFlow";
+
     isMountedRef.current = true;
 
     void loadVenues();
@@ -580,6 +583,7 @@ export function BookingRequestForm() {
     e.preventDefault();
     
     if (isDraft) {
+      toast.info("Draft saved");
       alert("Request saved as draft!");
       navigate("/requester");
       return;
@@ -654,6 +658,8 @@ export function BookingRequestForm() {
         signatures,
       });
 
+      toast.success("Request submitted successfully");
+
       navigate("/requester", {
         state: {
           message: "Booking request submitted successfully!",
@@ -668,6 +674,7 @@ export function BookingRequestForm() {
             ? error.message
             : "Unable to submit booking request";
       setSubmitError(message || "Unable to submit booking request");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -761,7 +768,7 @@ export function BookingRequestForm() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 shadow-2xl">
+      <div className="w-full lg:max-w-3xl max-h-[92vh] overflow-y-auto rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 shadow-2xl animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none">
         <div className="bg-gradient-to-r from-[#0F3B8C] to-[#00A859] text-white dark:text-white p-5 flex justify-between items-center border-b border-zinc-200 dark:border-zinc-800">
           <div>
             <h1 className="text-xs font-black tracking-widest uppercase flex items-center gap-2">
@@ -779,7 +786,7 @@ export function BookingRequestForm() {
         {/* Form */}
         <div>
           <div>
-            <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-4 text-left">
+            <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6 text-left">
               {/* DSS Results */}
               {(dssChecking || dssResults.length > 0) && (
               <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
@@ -1181,11 +1188,11 @@ export function BookingRequestForm() {
               )}
 
               {/* Form Actions */}
-              <div className="flex gap-2 justify-end pt-3 border-t border-zinc-900">
+              <div className="flex gap-2 justify-end pt-4 mt-4 border-t border-zinc-200 dark:border-zinc-800">
                 <button
                   type="submit"
                   disabled={isSubmitting || dssChecking || !canProceed}
-                  className="order-3 flex items-center gap-2 px-5 py-2 rounded-xl bg-[#0F3B8C] text-white font-bold text-xs transition-colors duration-150 hover:bg-[#0d3380] hover:text-white dark:hover:bg-[#1a4fab] dark:hover:text-white disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="order-3 flex items-center gap-2 px-5 py-2 rounded-xl bg-[#0F3B8C] text-white font-bold text-xs transition-all duration-150 hover:bg-[#0d3380] hover:text-white active:scale-95 dark:hover:bg-[#1a4fab] dark:hover:text-white disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <Send className="w-4 h-4" />
                   {isSubmitting ? "Submitting..." : dssChecking ? "Checking DSS..." : "Submit Request"}
@@ -1194,7 +1201,7 @@ export function BookingRequestForm() {
                   type="button"
                   onClick={(e) => handleSubmit(e, true)}
                   disabled={isSubmitting || !canSaveDraft}
-                  className={`flex items-center gap-2 rounded-xl border border-zinc-300 bg-transparent px-5 py-2 text-xs font-bold text-zinc-700 transition-colors duration-150 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 ${
+                  className={`flex items-center gap-2 rounded-xl border border-zinc-300 bg-transparent px-5 py-2 text-xs font-bold text-zinc-700 transition-all duration-150 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 active:scale-95 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 ${
                     canSaveDraft
                       ? ""
                       : "opacity-50 cursor-not-allowed"

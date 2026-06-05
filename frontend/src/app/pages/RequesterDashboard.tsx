@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { Plus, Clock, CheckCircle2, XCircle, FileEdit, Bell, Search, CalendarDays } from "lucide-react";
+import { Plus, Clock, CheckCircle2, XCircle, FileEdit, Bell, Search, CalendarDays, CalendarX } from "lucide-react";
 import api from "../../lib/api";
 import { formatRequestId } from "../../lib/requestId";
+import { AnimatedNumber, EmptyState, FadeIn, PageHeader, SkeletonRows } from "../components/ui/page";
 
 interface Request {
   id: string;
@@ -134,6 +135,8 @@ export function RequesterDashboard() {
   const [statusFilter, setStatusFilter] = useState("All");
 
   useEffect(() => {
+    document.title = "Requester Dashboard — CathedralFlow";
+
     let isMounted = true;
 
     async function loadRequests() {
@@ -261,16 +264,14 @@ export function RequesterDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 tracking-tight">DSR Workflow Automation Board</h1>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">Dashboard summary, DSR records, workflow status, and live parish DSS guidance.</p>
-        </div>
-
-        <div className="relative flex items-center gap-3">
+      <PageHeader
+        title="DSR Workflow Automation Board"
+        description="Dashboard summary, DSR records, workflow status, and live parish DSS guidance."
+        actions={(
+          <div className="relative flex items-center gap-3">
           <Link
             to="/requester/new-request"
-            className="inline-flex items-center gap-2 rounded-xl bg-[#00A859] px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors duration-150 hover:bg-[#009950] hover:text-white dark:hover:bg-[#00bf65] dark:hover:text-white"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#00A859] px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-0.5 hover:bg-[#009950] hover:text-white hover:shadow-lg active:scale-95 dark:hover:bg-[#00bf65] dark:hover:text-white"
           >
             <Plus className="w-4 h-4 text-white" />
             New DSR Request
@@ -320,10 +321,11 @@ export function RequesterDashboard() {
               </div>
             </div>
           )}
-        </div>
-      </div>
+          </div>
+        )}
+      />
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         {[
           ["All", "All", stats.all, "text-[#00A859]"],
           ["Pending", "Pending", stats.pending, "text-amber-300"],
@@ -334,38 +336,30 @@ export function RequesterDashboard() {
           <button
             key={tab}
             onClick={() => setStatusFilter(String(tab))}
-            className={`text-left p-4 rounded-2xl border bg-white shadow-sm transition-colors duration-150 hover:border-[#0F3B8C]/30 hover:bg-[#0F3B8C]/5 dark:bg-zinc-950/60 dark:border-zinc-800 dark:hover:bg-zinc-900 ${statusFilter === tab ? "ring-2 ring-[#0F3B8C]/40 border-[#0F3B8C]" : "border-zinc-200"}`}
+            className={`text-left p-4 rounded-2xl border bg-white shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:border-[#0F3B8C]/30 hover:bg-[#0F3B8C]/5 hover:shadow-md active:scale-95 dark:bg-zinc-950/60 dark:border-zinc-800 dark:hover:bg-zinc-900 ${statusFilter === tab ? "ring-2 ring-[#0F3B8C]/40 border-[#0F3B8C]" : "border-zinc-200"}`}
           >
             <span className="text-[10px] font-bold uppercase tracking-wider block text-zinc-500 dark:text-zinc-400">{label}</span>
-            <span className={`mt-2 text-2xl font-black block ${color}`}>{value}</span>
+            <span className={`mt-2 text-2xl font-bold block ${color}`}><AnimatedNumber value={Number(value)} /></span>
           </button>
         ))}
       </div>
 
       {isLoading ? (
-        <div className="bg-white dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-10 text-center text-zinc-500 dark:text-zinc-400">Loading your submitted requests...</div>
+        <div className="rounded-3xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950/60">
+          <SkeletonRows rows={4} />
+        </div>
       ) : loadError ? (
         <div className="bg-white dark:bg-zinc-950/60 border border-red-500/20 rounded-3xl p-10 text-center">
           <p className="font-semibold text-red-400">{loadError}</p>
           <p className="text-sm text-zinc-400 dark:text-zinc-500 mt-2">If you just submitted a request, refresh after a few seconds.</p>
         </div>
       ) : !hasRequests ? (
-        <div className="bg-white dark:bg-zinc-950/60 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl p-16 text-center">
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-[#0F3B8C]/20 rounded-full mb-6">
-            <FileEdit className="w-12 h-12 text-blue-300" />
-          </div>
-          <h3 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-3">No Requests Yet</h3>
-          <p className="text-zinc-500 dark:text-zinc-400 mb-8 max-w-md mx-auto text-sm leading-relaxed">
-            You haven't submitted any booking requests yet. Start by submitting a new request for your venue or facility needs.
-          </p>
-          <Link
-            to="/requester/new-request"
-            className="inline-flex items-center gap-2.5 rounded-xl bg-[#00A859] px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-150 hover:bg-[#009950] hover:text-white dark:hover:bg-[#00bf65] dark:hover:text-white"
-          >
-            <Plus className="w-4 h-4 text-white" />
-            Submit New Booking Request
-          </Link>
-        </div>
+        <EmptyState
+          icon={CalendarX}
+          title="No requests yet"
+          description="Your submitted DSRs will appear here once you create your first venue request."
+          action={<Link to="/requester/new-request" className="inline-flex items-center gap-2.5 rounded-xl bg-[#00A859] px-4 py-2.5 text-sm font-semibold text-white transition-all duration-150 hover:bg-[#009950] hover:text-white active:scale-95 dark:hover:bg-[#00bf65] dark:hover:text-white"><Plus className="w-4 h-4 text-white" />New Request</Link>}
+        />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           <div className="lg:col-span-7 rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 backdrop-blur-md p-5 space-y-4 shadow-sm">
@@ -400,11 +394,11 @@ export function RequesterDashboard() {
                   <h3 className="text-xs font-bold">No DSR records found</h3>
                   <p className="text-[10px] max-w-[260px] mx-auto">Try changing the search or status filter.</p>
                 </div>
-              ) : filteredRequests.map((request) => (
+              ) : filteredRequests.map((request, index) => (
+                <FadeIn key={request.id} delay={index * 35}>
                 <div
-                  key={request.id}
                   onClick={() => setSelectedRequest(request)}
-                  className={`p-4 rounded-2xl cursor-pointer transition-colors duration-150 flex items-start justify-between gap-4 border border-l-4 ${detailRequest?.id === request.id ? "border-[#0F3B8C] bg-[#0F3B8C]/5 shadow-md shadow-zinc-900/5 dark:bg-[#0F3B8C]/15" : "border-zinc-200 border-l-zinc-200 hover:border-[#0F3B8C]/30 hover:border-l-[#0F3B8C] hover:bg-zinc-50 dark:border-zinc-800 dark:border-l-zinc-800 dark:hover:bg-zinc-900/70"}`}
+                  className={`group p-4 rounded-2xl cursor-pointer transition-all duration-150 flex items-start justify-between gap-4 border border-l-4 hover:-translate-y-0.5 ${detailRequest?.id === request.id ? "border-[#0F3B8C] bg-[#0F3B8C]/5 shadow-md shadow-zinc-900/5 dark:bg-[#0F3B8C]/15" : "border-zinc-200 border-l-zinc-200 hover:border-[#0F3B8C]/30 hover:border-l-[#0F3B8C] hover:bg-zinc-50 hover:shadow-sm dark:border-zinc-800 dark:border-l-zinc-800 dark:hover:bg-zinc-900/70"}`}
                 >
                   <div className="space-y-1.5 min-w-0">
                     <span className="text-[9px] font-mono font-bold text-zinc-400 dark:text-zinc-500">{formatRequestId(request.id)}</span>
@@ -417,6 +411,7 @@ export function RequesterDashboard() {
                     {request.status}
                   </span>
                 </div>
+                </FadeIn>
               ))}
             </div>
           </div>

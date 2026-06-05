@@ -83,6 +83,8 @@ export function AdminVenueAvailability() {
 
   // Fetch availability on mount
   useEffect(() => {
+    document.title = "Venue Availability — CathedralFlow";
+
     async function loadAvailability() {
       try {
         setIsLoading(true);

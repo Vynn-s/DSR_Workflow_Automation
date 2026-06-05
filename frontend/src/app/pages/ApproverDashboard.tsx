@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { CheckCircle, XCircle, FileText, User, Calendar as CalendarIcon, Paperclip, Download, Eye, AlertCircle, CheckCircle2, Brain, TrendingUp, Shield, AlertTriangle, Sparkles } from "lucide-react";
 import { formatRequestId } from "../../lib/requestId";
 import { fetchVenues, type LiveVenue } from "../../lib/venues";
 import api from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
+import { AnimatedNumber, EmptyState, PageHeader, SkeletonRows } from "../components/ui/page";
 
 interface Attachment {
   id: string;
@@ -222,6 +224,8 @@ export function ApproverDashboard() {
   };
 
   useEffect(() => {
+    document.title = "Approvals — CathedralFlow";
+
     if (authLoading) return;
     let isMounted = true;
 
@@ -478,9 +482,11 @@ export function ApproverDashboard() {
       }
 
       setActionSuccess("Request accepted successfully.");
+      toast.success("Request approved");
     } catch (error) {
       console.warn("Failed to approve request");
       setActionError("Unable to approve this request right now.");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setIsActionLoading(false);
     }
@@ -526,9 +532,11 @@ export function ApproverDashboard() {
       }
 
       setActionSuccess("Request rejected successfully.");
+      toast.error("Request rejected");
     } catch (error) {
       console.warn("Failed to reject request");
       setActionError("Unable to reject this request right now.");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setIsActionLoading(false);
     }
@@ -550,10 +558,7 @@ export function ApproverDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 tracking-tight">Pending Approvals</h1>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">Review and approve or reject booking requests</p>
-      </div>
+      <PageHeader title="Pending Approvals" description="Review and approve or reject booking requests." />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <div className="lg:col-span-4 space-y-4">
@@ -580,7 +585,7 @@ export function ApproverDashboard() {
                   <h2 className="text-sm font-black text-zinc-900 dark:text-zinc-100">Live Venue Catalog</h2>
                   <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Shared source of truth for booking reviews</p>
                 </div>
-                <span className="text-2xl font-black text-[#00A859]">{venuesLoading ? "..." : venues.length}</span>
+                <span className="text-2xl font-bold text-[#00A859]">{venuesLoading ? "..." : <AnimatedNumber value={venues.length} />}</span>
               </div>
               <div className="grid grid-cols-2 gap-2 mt-3">
                 {venues.slice(0, 4).map((venue) => (
@@ -598,7 +603,7 @@ export function ApproverDashboard() {
                 <span className="text-[10px] font-black text-amber-300">{displayRequests.length} {activeTab === "queue" ? "pending" : "archived"}</span>
               </div>
               {(activeTab === "queue" && requestsLoading) || (activeTab === "archive" && archiveLoading) ? (
-                <div className="p-10 text-xs text-zinc-500 dark:text-zinc-400">Loading approval queue...</div>
+                <SkeletonRows rows={4} />
               ) : activeTab === "queue" && requestsError ? (
                 <div className="p-10 text-xs text-red-400">{requestsError}</div>
               ) : activeTab === "archive" && archiveError ? (
@@ -623,10 +628,7 @@ export function ApproverDashboard() {
                   ))}
                 </div>
               ) : (
-                <div className="py-10 text-center text-zinc-400 dark:text-zinc-500">
-                  <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-[#00A859]" />
-                  <p className="text-xs font-black">No {activeTab === "queue" ? "pending" : "archived"} requests</p>
-                </div>
+                <EmptyState icon={CheckCircle2} title={`No ${activeTab === "queue" ? "pending" : "archived"} requests`} description="Requests that need action will appear here." />
               )}
             </div>
           </div>
@@ -808,7 +810,7 @@ export function ApproverDashboard() {
                     <button
                       onClick={handleApprove}
                       disabled={isActionLoading}
-                      className="py-3 rounded-xl bg-[#00A859] text-white hover:bg-[#009950] hover:text-white dark:hover:bg-[#00bf65] dark:hover:text-white font-bold text-xs flex items-center justify-center gap-1 disabled:opacity-60"
+                      className="py-3 rounded-xl bg-[#00A859] text-white hover:bg-[#009950] hover:text-white dark:hover:bg-[#00bf65] dark:hover:text-white font-bold text-xs flex items-center justify-center gap-1 disabled:opacity-60 transition-all duration-150 active:scale-95"
                     >
                       <CheckCircle className="w-4 h-4" />
                       {isActionLoading ? "Processing..." : "Approve"}
@@ -823,7 +825,7 @@ export function ApproverDashboard() {
                     <button
                       onClick={handleReject}
                       disabled={isActionLoading}
-                      className="py-3 rounded-xl bg-red-500/15 text-red-500 hover:bg-red-500/25 hover:text-red-600 dark:bg-red-500/15 dark:text-red-400 dark:hover:bg-red-500/30 dark:hover:text-red-300 border border-red-500/20 font-bold text-xs flex items-center justify-center gap-1 disabled:opacity-60"
+                      className="py-3 rounded-xl bg-red-500/15 text-red-500 hover:bg-red-500/25 hover:text-red-600 dark:bg-red-500/15 dark:text-red-400 dark:hover:bg-red-500/30 dark:hover:text-red-300 border border-red-500/20 font-bold text-xs flex items-center justify-center gap-1 disabled:opacity-60 transition-all duration-150 active:scale-95"
                     >
                       <XCircle className="w-4 h-4" />
                       {isActionLoading ? "Processing..." : "Reject"}

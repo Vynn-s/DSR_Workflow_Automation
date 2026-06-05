@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Filter, Activity, TrendingUp, Eye, X, User, Clock, FileText, MapPin, RefreshCw } from "lucide-react";
 import api from "../../lib/api";
+import { AnimatedNumber, EmptyState, SkeletonRows } from "../components/ui/page";
 
 interface AuditEntry {
   id: string;
@@ -262,6 +263,8 @@ export function AuditLogPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    document.title = "Audit Log — CathedralFlow";
+
     let mounted = true;
 
     async function loadAuditData() {
@@ -461,7 +464,7 @@ export function AuditLogPage() {
 
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
+            <thead className="sticky top-0 z-10 bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
               <tr>
                 <th className="px-6 py-4 text-left text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
                   Timestamp
@@ -485,7 +488,7 @@ export function AuditLogPage() {
             </thead>
             <tbody className="divide-y divide-zinc-900">
               {!loading && auditLogs.map((entry) => (
-                <tr key={entry.id} className="hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors duration-150">
+                <tr key={entry.id} className="even:bg-zinc-50 dark:even:bg-zinc-900/40 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors duration-150">
                   <td className="px-6 py-4 text-sm text-zinc-300 whitespace-nowrap font-mono">
                     {formatTimeOnly(entry.timestamp)}
                   </td>
@@ -527,27 +530,13 @@ export function AuditLogPage() {
         </div>
 
         {loading && (
-          <div className="p-12 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-zinc-900 rounded-full mb-4 animate-pulse">
-              <Activity className="w-8 h-8 text-zinc-500 dark:text-zinc-400" />
-            </div>
-            <p className="text-zinc-500 dark:text-zinc-400 font-medium">Loading audit entries...</p>
-          </div>
+          <div className="p-4"><SkeletonRows rows={4} /></div>
         )}
 
         {auditLogs.length === 0 && !loading && (
-          <div className="p-12 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-zinc-900 rounded-full mb-4">
-              <Activity className="w-8 h-8 text-zinc-500 dark:text-zinc-400" />
-            </div>
-            <p className="text-zinc-900 dark:text-zinc-100 font-medium">
-              No audit entries found
-            </p>
-            <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
-              Try adjusting your filters
-            </p>
-          </div>
+          <div className="p-6"><EmptyState icon={Activity} title="No audit entries found" description="Try adjusting your filters or check back after new workflow activity." /></div>
         )}
+        <p className="border-t border-zinc-200 px-6 py-3 text-xs text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">Showing {auditLogs.length} of {auditTotal} results</p>
       </div>
 
       {/* Summary Statistics */}
@@ -562,16 +551,16 @@ export function AuditLogPage() {
           <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6">
             <p className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Total Actions Logged</p>
             <p className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100">
-              {auditTotal}
+              <AnimatedNumber value={auditTotal} />
             </p>
           </div>
           <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6">
             <p className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Requests Submitted</p>
-            <p className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100">{auditStats?.totalRequestsThisMonth ?? requestsSubmitted}</p>
+            <p className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100"><AnimatedNumber value={auditStats?.totalRequestsThisMonth ?? requestsSubmitted} /></p>
           </div>
           <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6">
             <p className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Approvals Made</p>
-            <p className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100">{auditStats?.totalApprovedRequests ?? approvalsMade}</p>
+            <p className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100"><AnimatedNumber value={auditStats?.totalApprovedRequests ?? approvalsMade} /></p>
           </div>
           <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6">
             <p className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Average Turnaround</p>

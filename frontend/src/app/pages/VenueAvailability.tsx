@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { MapPin, Clock, CheckCircle2, Calendar, List, ChevronLeft, ChevronRight, X, User, UserCheck, RefreshCw } from "lucide-react";
 import api from "../../lib/api";
 import { fetchVenues } from "../../lib/venues";
+import { EmptyState, PageHeader, SkeletonRows } from "../components/ui/page";
 
 interface BookedSlot {
   date: string;
@@ -168,6 +169,8 @@ export function VenueAvailability() {
   }, []);
 
   useEffect(() => {
+    document.title = "Venue Availability — CathedralFlow";
+
     void loadAvailability("initial");
 
     const handleVisibilityOrFocus = () => {
@@ -187,11 +190,8 @@ export function VenueAvailability() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-16">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-zinc-500 dark:text-zinc-400 font-medium">Loading venue availability...</p>
-        </div>
+      <div className="rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950/60">
+        <SkeletonRows rows={4} />
       </div>
     );
   }
@@ -275,14 +275,8 @@ export function VenueAvailability() {
 
   return (
     <div>
-      {/* Page Header */}
       <div className="mb-10">
-        <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-3 tracking-tight">
-          Venue Availability
-        </h1>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          View current bookings and available time slots (Read-only)
-        </p>
+        <PageHeader title="Venue Availability" description="View current bookings and available time slots (read-only)." breadcrumbs={[{ label: "Dashboard", to: "/requester" }, { label: "Venue Availability" }]} />
       </div>
 
       {/* Controls: Venue Selector and View Toggle */}

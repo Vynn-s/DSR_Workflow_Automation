@@ -19,6 +19,7 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    document.title = "Login — CathedralFlow";
     document.documentElement.classList.toggle("dark", theme === "dark");
     localStorage.setItem("theme", theme);
   }, [theme]);

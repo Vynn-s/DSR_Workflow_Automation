@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Users, Building2, Brain, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock, Edit2, Plus, X, KeyRound, Save, Trash2, Sparkles } from "lucide-react";
 import api from "../../lib/api";
 import { fetchVenues, type LiveVenue } from "../../lib/venues";
 import { useAuth } from "../../context/AuthContext";
+import { AnimatedNumber, PageHeader, SkeletonRows } from "../components/ui/page";
 
 type ReportView = "weekly" | "monthly" | "yearly";
 
@@ -505,6 +507,8 @@ export function AdminDashboard() {
   const [userDeleteMessageType, setUserDeleteMessageType] = useState<"success" | "error" | null>(null);
 
   useEffect(() => {
+    document.title = "Admin Dashboard — CathedralFlow";
+
     if (isAuthLoading) {
       return;
     }
@@ -691,11 +695,13 @@ export function AdminDashboard() {
       setVenues((current) => current.map((venue) => (venue.id === selectedVenueId ? updatedVenue.venue : venue)));
       setVenueSaveMessage(`Venue updated successfully at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`);
       setVenueSaveMessageType("success");
+      toast.success("Venue updated");
       closeVenueModal();
     } catch (error) {
       console.warn("Failed to save venue");
       setVenueSaveMessage("Unable to save venue changes right now.");
       setVenueSaveMessageType("error");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setSavingVenueId(null);
     }
@@ -742,6 +748,7 @@ export function AdminDashboard() {
       setSelectedVenueId(response.venue.id);
       setVenueCreateMessage(`Venue created successfully: ${response.venue.name}.`);
       setVenueCreateMessageType("success");
+      toast.success("Venue created");
       setNewVenueDraft({
         name: "",
         description: "",
@@ -753,6 +760,7 @@ export function AdminDashboard() {
       console.warn("Failed to create venue");
       setVenueCreateMessage("Unable to create venue right now.");
       setVenueCreateMessageType("error");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setCreatingVenue(false);
     }
@@ -857,6 +865,7 @@ export function AdminDashboard() {
         `User created successfully. Temporary password: ${response.temporaryPassword}`,
       );
       setUserCreateMessageType("success");
+      toast.success("User created");
     } catch (error) {
       console.warn("Failed to create admin user");
       const apiMessage =
@@ -869,6 +878,7 @@ export function AdminDashboard() {
 
       setUserCreateMessage(apiMessage ?? "Unable to create user right now.");
       setUserCreateMessageType("error");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setCreatingUser(false);
     }
@@ -885,6 +895,7 @@ export function AdminDashboard() {
     if (normalizeRoleOption(currentUser.role) === nextRole) {
       setUserCreateMessage("Selected role is already up to date.");
       setUserCreateMessageType("success");
+      toast.success("Role updated");
       return;
     }
 
@@ -905,6 +916,7 @@ export function AdminDashboard() {
       console.warn("Failed to update user role");
       setUserCreateMessage("Unable to update role right now.");
       setUserCreateMessageType("error");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setSavingUserRoleId(null);
     }
@@ -920,6 +932,7 @@ export function AdminDashboard() {
     if ((currentUser.ministryId ?? null) === nextMinistryId) {
       setUserCreateMessage("Selected ministry is already up to date.");
       setUserCreateMessageType("success");
+      toast.success("Ministry updated");
       return;
     }
 
@@ -948,6 +961,7 @@ export function AdminDashboard() {
 
       setUserCreateMessage(apiMessage ?? "Unable to update ministry right now.");
       setUserCreateMessageType("error");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setSavingUserMinistryId(null);
     }
@@ -990,6 +1004,7 @@ export function AdminDashboard() {
       });
       setUserDeleteMessage(`Deleted ${deleteTargetUser.email} successfully.`);
       setUserDeleteMessageType("success");
+      toast.success("User deleted");
       closeDeleteUserModal();
     } catch (error) {
       console.warn("Failed to delete user");
@@ -1003,6 +1018,7 @@ export function AdminDashboard() {
 
       setUserDeleteMessage(apiMessage ?? "Unable to delete user right now.");
       setUserDeleteMessageType("error");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setDeletingUserId(null);
     }
@@ -1024,12 +1040,7 @@ export function AdminDashboard() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-1 tracking-tight">
-          Administrator Dashboard
-        </h1>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Live request analytics, users, venues, and DSS signals
-        </p>
+        <PageHeader title="Administrator Dashboard" description="Live request analytics, users, venues, and DSS signals." />
       </div>
 
       {analyticsError && (
@@ -1275,19 +1286,19 @@ export function AdminDashboard() {
                 <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 px-4 py-3">
                   <p className="text-xs font-bold uppercase tracking-wider text-blue-300">Requested</p>
                   <p className="mt-1.5 text-2xl font-black text-zinc-900 dark:text-zinc-100">
-                    {reportData.reduce((sum, row) => sum + row.requests, 0)}
+                    <AnimatedNumber value={reportData.reduce((sum, row) => sum + row.requests, 0)} />
                   </p>
                 </div>
                 <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 px-4 py-3">
                   <p className="text-xs font-bold uppercase tracking-wider text-[#00A859]">Approved</p>
                   <p className="mt-1.5 text-2xl font-black text-zinc-900 dark:text-zinc-100">
-                    {approvedRequestsThisPeriod}
+                    <AnimatedNumber value={approvedRequestsThisPeriod} />
                   </p>
                 </div>
                 <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 px-4 py-3">
                   <p className="text-xs font-bold uppercase tracking-wider text-red-500">Rejected</p>
                   <p className="mt-1.5 text-2xl font-black text-zinc-900 dark:text-zinc-100">
-                    {rejectedRequestsThisPeriod}
+                    <AnimatedNumber value={rejectedRequestsThisPeriod} />
                   </p>
                 </div>
               </div>
@@ -1556,7 +1567,7 @@ export function AdminDashboard() {
 
                 <div className="overflow-x-auto rounded-2xl border border-zinc-200 dark:border-zinc-800">
                   <table className="w-full">
-                    <thead className="bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-zinc-800">
+                    <thead className="sticky top-0 z-10 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-zinc-800">
                       <tr>
                         <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Name</th>
                         <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Email</th>
@@ -1568,7 +1579,7 @@ export function AdminDashboard() {
                     </thead>
                     <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900 bg-white dark:bg-zinc-950/30">
                       {adminUsers.length > 0 ? adminUsers.map((user) => (
-                        <tr key={user.id} className="hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100 transition-colors duration-150">
+                        <tr key={user.id} className="even:bg-zinc-50 dark:even:bg-zinc-900/40 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100 transition-colors duration-150">
                           <td className="px-5 py-4 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{user.name}</td>
                           <td className="px-5 py-4 text-sm text-zinc-600 dark:text-zinc-300">{user.email}</td>
                           <td className="px-5 py-4">
@@ -1650,6 +1661,8 @@ export function AdminDashboard() {
                     </tbody>
                   </table>
                 </div>
+
+                <p className="mt-3 text-xs text-zinc-400 dark:text-zinc-500">Showing {adminUsers.length} of {adminUsers.length} results</p>
 
                 <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
                   New users are created in Cognito and synced to the database. Role updates also update Cognito groups.

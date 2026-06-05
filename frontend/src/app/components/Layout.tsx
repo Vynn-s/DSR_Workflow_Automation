@@ -19,10 +19,10 @@ export function Layout({ role }: LayoutProps) {
   }, [theme]);
 
   const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-colors duration-150 ${
+    `relative flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2 text-xs font-semibold transition-all duration-150 active:scale-95 motion-reduce:transition-none motion-reduce:transform-none ${
       isActive
-        ? "bg-[#0F3B8C] text-white dark:text-white"
-        : "border border-zinc-300 bg-transparent text-zinc-600 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200"
+        ? "border-[#0F3B8C] bg-[#0F3B8C] text-white shadow-sm after:absolute after:inset-x-4 after:-bottom-[17px] after:h-0.5 after:rounded-full after:bg-[#00A859] dark:text-white"
+        : "border-zinc-300 bg-transparent text-zinc-600 hover:-translate-y-0.5 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 hover:shadow-sm dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200"
     }`;
 
   const handleLogout = () => {
@@ -33,7 +33,7 @@ export function Layout({ role }: LayoutProps) {
     <div className="min-h-screen flex flex-col bg-white text-zinc-900 dark:bg-[#030712] dark:text-zinc-100" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       {/* Modern Header with gradient */}
       <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-zinc-200 dark:bg-[#030712]/80 dark:border-zinc-900">
-        <div className="max-w-7xl mx-auto px-6 py-5">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="rounded-full bg-gradient-to-tr from-[#0F3B8C] via-[#00A859] to-[#C99700] p-0.5 ring ring-white/10 flex-shrink-0">
@@ -55,7 +55,7 @@ export function Layout({ role }: LayoutProps) {
               <button
                 type="button"
                 onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")}
-                className="p-1 rounded-lg bg-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 transition-colors duration-150 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                className="p-1 rounded-lg bg-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 transition-all duration-150 active:scale-95 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                 aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
               >
                 {theme === "dark" ? <Sun className="w-4 h-4 text-amber-300" /> : <Moon className="w-4 h-4" />}
@@ -67,7 +67,7 @@ export function Layout({ role }: LayoutProps) {
               </div>
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 border border-zinc-300 bg-transparent text-zinc-700 rounded-xl px-4 py-2.5 text-sm hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 transition-colors duration-150 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                className="flex items-center gap-2 border border-zinc-300 bg-transparent text-zinc-700 rounded-xl px-4 py-2.5 text-sm hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 transition-all duration-150 active:scale-95 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
               >
                 <LogOut className="w-4 h-4" />
                 Logout
@@ -79,8 +79,8 @@ export function Layout({ role }: LayoutProps) {
 
       {/* Modern Navigation with icons */}
       <nav className="border-b border-zinc-200 bg-white/85 dark:border-zinc-900 dark:bg-[#030712]">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex flex-wrap gap-2">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-4">
+          <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1">
             {role === "requester" && (
               <>
                 <NavLink
@@ -150,13 +150,13 @@ export function Layout({ role }: LayoutProps) {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-8">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-6 lg:px-8 py-8">
         <Outlet />
       </main>
 
       {/* Modern Footer */}
       <footer className="bg-white border-t border-zinc-200 text-zinc-400 dark:text-zinc-500 mt-auto dark:bg-[#030712] dark:border-zinc-900 dark:text-zinc-400">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-4">
           <p className="text-sm text-zinc-400 dark:text-zinc-500 text-center dark:text-zinc-400">
             San Pedro Cathedral Venue Management System © 2026
           </p>

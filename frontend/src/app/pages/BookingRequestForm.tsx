@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { ArrowLeft, Send, Paperclip, Save, AlertCircle, Info, MapPin, Users, FileText, Shield, CheckCircle2, XCircle, Calendar as CalendarIcon, Clock, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Send, Paperclip, Save, AlertCircle, Info, MapPin, Users, FileText, Shield, CheckCircle2, XCircle, Calendar as CalendarIcon, Clock, X, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import api from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 import { ScrollPicker } from "../components/ScrollPicker";
@@ -45,6 +45,38 @@ interface DssRuleResult {
   ruleName: string;
   passed: boolean;
   message: string;
+}
+
+interface DssConflictDetail {
+  id: string;
+  eventName: string;
+  purpose: string;
+  requesterName: string;
+  venueName: string;
+  status: string;
+  startDateTime: string;
+  endDateTime: string;
+  startTimeLabel: string;
+  endTimeLabel: string;
+  dateLabel: string;
+}
+
+interface DssNextAvailableSlot {
+  date: string;
+  dateLabel: string;
+  startTime: string;
+  endTime: string;
+  startTimeLabel: string;
+  endTimeLabel: string;
+}
+
+interface DssEvaluationResponse {
+  allPassed: boolean;
+  results: DssRuleResult[];
+  recommendation: string;
+  canProceed: boolean;
+  conflicts?: DssConflictDetail[];
+  nextAvailableSlot?: DssNextAvailableSlot | null;
 }
 
 interface BookingRecommendationResponse {
@@ -294,6 +326,8 @@ export function BookingRequestForm() {
   const [selectedVenueInfo, setSelectedVenueInfo] = useState<VenueInfo | null>(null);
   const [signatures, setSignatures] = useState<Signature[]>([]);
   const [dssResults, setDssResults] = useState<DssRuleResult[]>([]);
+  const [dssConflicts, setDssConflicts] = useState<DssConflictDetail[]>([]);
+  const [dssNextAvailableSlot, setDssNextAvailableSlot] = useState<DssNextAvailableSlot | null>(null);
   const [dssChecking, setDssChecking] = useState(false);
   const [canProceed, setCanProceed] = useState(false);
   const [bookingRecommendations, setBookingRecommendations] = useState<BookingRecommendationResponse | null>(null);
@@ -303,15 +337,12 @@ export function BookingRequestForm() {
   // Calendar modal state
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarDate, setCalendarDate] = useState(today);
-  const calendarButtonRef = useRef<HTMLButtonElement>(null);
 
   // Time picker states
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [startTimeValues, setStartTimeValues] = useState<TimePickerValues>(defaultStartTimeValues);
   const [endTimeValues, setEndTimeValues] = useState<TimePickerValues>(defaultEndTimeValues);
-  const startTimeButtonRef = useRef<HTMLButtonElement>(null);
-  const endTimeButtonRef = useRef<HTMLButtonElement>(null);
 
   const loadVenues = useCallback(async (mode: "initial" | "refresh" = "initial") => {
     if (mode === "initial") {
@@ -394,6 +425,8 @@ export function BookingRequestForm() {
 
     if (!(venue && date && startTime && endTime)) {
       setDssResults([]);
+      setDssConflicts([]);
+      setDssNextAvailableSlot(null);
       setCanProceed(false);
       return;
     }
@@ -401,6 +434,8 @@ export function BookingRequestForm() {
     const selectedVenue = venues.find((item) => item.id === venue);
     if (!selectedVenue) {
       setDssResults([]);
+      setDssConflicts([]);
+      setDssNextAvailableSlot(null);
       setCanProceed(false);
       return;
     }
@@ -411,12 +446,7 @@ export function BookingRequestForm() {
       setDssChecking(true);
 
       try {
-        const decision = await api.post<{
-          allPassed: boolean;
-          results: DssRuleResult[];
-          recommendation: string;
-          canProceed: boolean;
-        }>("/dss/evaluate", {
+        const decision = await api.post<DssEvaluationResponse>("/dss/evaluate", {
           venueId: venue,
           requestDate: date,
           startTime,
@@ -428,11 +458,15 @@ export function BookingRequestForm() {
 
         if (isMounted) {
           setDssResults(decision.results ?? []);
+          setDssConflicts(decision.conflicts ?? []);
+          setDssNextAvailableSlot(decision.nextAvailableSlot ?? null);
           setCanProceed(Boolean(decision.canProceed));
         }
       } catch {
         if (isMounted) {
           setDssResults([]);
+          setDssConflicts([]);
+          setDssNextAvailableSlot(null);
           setCanProceed(false);
         }
       } finally {
@@ -554,30 +588,6 @@ export function BookingRequestForm() {
   const isPreviousMonthDisabled =
     new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1) <=
     new Date(today.getFullYear(), today.getMonth(), 1);
-
-  const openStartTimePicker = () => {
-    setStartTimeValues(normalizePickerValues(parseTimeForPicker(formData.startTime, defaultStartTimeValues)));
-    setShowStartTimePicker(true);
-  };
-
-  const openEndTimePicker = () => {
-    setEndTimeValues(normalizePickerValues(parseTimeForPicker(formData.endTime, defaultEndTimeValues)));
-    setShowEndTimePicker(true);
-  };
-
-  const applyStartTime = () => {
-    const hour24 = convertTo24Hour(startTimeValues.hour, startTimeValues.period);
-    const timeStr = `${String(hour24).padStart(2, "0")}:${String(startTimeValues.minute).padStart(2, "0")}`;
-    setFormData((prev) => ({ ...prev, startTime: timeStr }));
-    setShowStartTimePicker(false);
-  };
-
-  const applyEndTime = () => {
-    const hour24 = convertTo24Hour(endTimeValues.hour, endTimeValues.period);
-    const timeStr = `${String(hour24).padStart(2, "0")}:${String(endTimeValues.minute).padStart(2, "0")}`;
-    setFormData((prev) => ({ ...prev, endTime: timeStr }));
-    setShowEndTimePicker(false);
-  };
 
   const handleSubmit = async (e: React.FormEvent, isDraft: boolean = false) => {
     e.preventDefault();
@@ -763,23 +773,109 @@ export function BookingRequestForm() {
   };
 
   const canSaveDraft = formData.venue || formData.date || formData.purpose;
-  const calendarYear = calendarDate.getFullYear();
-  const calendarMonthIndex = calendarDate.getMonth();
+
+  const openStartTimePicker = () => {
+    setStartTimeValues(normalizePickerValues(parseTimeForPicker(formData.startTime, defaultStartTimeValues)));
+    setShowStartTimePicker((current) => !current);
+    setShowCalendar(false);
+    setShowEndTimePicker(false);
+  };
+
+  const openEndTimePicker = () => {
+    setEndTimeValues(normalizePickerValues(parseTimeForPicker(formData.endTime, defaultEndTimeValues)));
+    setShowEndTimePicker((current) => !current);
+    setShowCalendar(false);
+    setShowStartTimePicker(false);
+  };
+
+  const applyStartTime = () => {
+    const hour24 = convertTo24Hour(startTimeValues.hour, startTimeValues.period);
+    const timeStr = `${String(hour24).padStart(2, "0")}:${String(startTimeValues.minute).padStart(2, "0")}`;
+    setFormData((prev) => ({ ...prev, startTime: timeStr }));
+    setShowStartTimePicker(false);
+  };
+
+  const applyEndTime = () => {
+    const hour24 = convertTo24Hour(endTimeValues.hour, endTimeValues.period);
+    const timeStr = `${String(hour24).padStart(2, "0")}:${String(endTimeValues.minute).padStart(2, "0")}`;
+    setFormData((prev) => ({ ...prev, endTime: timeStr }));
+    setShowEndTimePicker(false);
+  };
+
+  const selectedVenue = venues.find((venue) => venue.id === formData.venue) ?? null;
+  const daysUntilEvent = formData.date
+    ? Math.ceil((new Date(`${formData.date}T00:00:00`).getTime() - new Date(todayDateString).getTime()) / (24 * 60 * 60 * 1000))
+    : null;
+  const failedRules = dssResults.filter((result) => !result.passed);
+  const hasShortNotice = typeof daysUntilEvent === "number" && daysUntilEvent < 3;
+  const selectedVenueDemand = bookingRecommendations?.recommendations.find((message) => message.toLowerCase().includes("selected venue"));
+  const isHighDemand = Boolean(selectedVenueDemand && bookingRecommendations && bookingRecommendations.totalRequests >= 5);
+  const bookingAssistantStatus = dssChecking
+    ? "Checking"
+    : dssConflicts.length > 0
+      ? "Conflict Detected"
+      : isHighDemand
+        ? "High Demand"
+        : canProceed
+          ? "Ready to Submit"
+          : formData.venue && formData.date && formData.startTime && formData.endTime
+            ? "Needs Action"
+            : "Available";
+  const bookingAssistantTone = bookingAssistantStatus === "Conflict Detected"
+    ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/20"
+    : bookingAssistantStatus === "High Demand" || bookingAssistantStatus === "Needs Action"
+      ? "bg-[#B45309]/10 text-[#92400E] border-[#B45309]/25 dark:text-amber-300 dark:border-amber-500/20"
+      : "bg-[#00A859]/10 text-[#007a41] border-[#00A859]/20 dark:text-[#00A859]";
+  const primaryConflict = dssConflicts[0];
+  const bookingAssistantMessage = dssChecking
+    ? "You should wait a moment while I check the selected venue, time, and requirements."
+    : primaryConflict
+      ? `${primaryConflict.venueName} is already booked for ${primaryConflict.eventName} from ${primaryConflict.startTimeLabel} to ${primaryConflict.endTimeLabel}. You should choose another time before submitting.`
+      : canProceed
+        ? "This slot looks available. Your request is ready to submit once your event details and letter are complete."
+        : failedRules.length > 0
+          ? `This request needs ${failedRules[0].message.toLowerCase()} You should fix this before submitting.`
+          : selectedVenue
+            ? `Based on the selected details, ${selectedVenue.name} can be checked as soon as you choose a complete date and time.`
+            : "You should start by choosing a venue, date, and time so I can check availability and request readiness.";
+  const bookingAssistantSubDetail = primaryConflict
+    ? `${primaryConflict.eventName} was requested by ${primaryConflict.requesterName} on ${primaryConflict.dateLabel}.`
+    : hasShortNotice
+      ? `This event is ${daysUntilEvent} day(s) away. Short-notice requests have less time for review.`
+      : selectedVenueDemand
+        ? selectedVenueDemand
+        : bookingRecommendations
+          ? `${bookingRecommendations.monthLabel} has ${bookingRecommendations.totalRequests} live booking${bookingRecommendations.totalRequests === 1 ? "" : "s"}.`
+          : "Not enough booking history is available yet.";
+  const bookingAssistantSuggestion = primaryConflict
+    ? dssNextAvailableSlot
+      ? `Consider ${dssNextAvailableSlot.startTimeLabel} - ${dssNextAvailableSlot.endTimeLabel} on ${dssNextAvailableSlot.dateLabel}.`
+      : "Consider a later time or another venue because no same-day slot fits before closing."
+    : hasShortNotice
+      ? "You should file earlier next time when possible; for now, add a clear signed letter to help approval move faster."
+      : isHighDemand
+        ? "Consider another available venue if your schedule is flexible."
+        : canProceed
+          ? "Review the form once, attach your signed letter, then submit."
+          : "Complete the missing fields so I can give a confident recommendation.";
+  const bookingAssistantConfidence = dssChecking ? "Evaluating" : dssResults.length > 0 ? `${Math.round((dssResults.filter((result) => result.passed).length / dssResults.length) * 100)}% confidence` : "Needs details";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 p-4 backdrop-blur-sm">
-      <div className="w-full lg:max-w-3xl max-h-[92vh] overflow-y-auto rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 shadow-2xl animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none">
-        <div className="bg-gradient-to-r from-[#0F3B8C] to-[#00A859] text-white dark:text-white p-5 flex justify-between items-center border-b border-zinc-200 dark:border-zinc-800">
+        <div className="w-full lg:max-w-3xl max-h-[92vh] overflow-y-auto rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 shadow-2xl animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none">
+        <div className="bg-white/95 px-5 py-4 text-zinc-900 shadow-sm dark:bg-zinc-950/95 dark:text-zinc-100 border-b border-zinc-200 dark:border-zinc-800">
+          <div className="flex justify-between items-center gap-4 rounded-2xl border border-[#0F3B8C]/10 bg-[#0F3B8C]/5 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900/70">
           <div>
-            <h1 className="text-xs font-black tracking-widest uppercase flex items-center gap-2">
-              <CalendarIcon className="w-4 h-4 text-[#F59E0B] dark:text-amber-300" />
+            <h1 className="text-xs font-black tracking-widest uppercase flex items-center gap-2 text-[#0F3B8C] dark:text-blue-300">
+              <CalendarIcon className="w-4 h-4 text-[#0F3B8C] dark:text-blue-300" />
               DSR Venue Request Form
             </h1>
-            <p className="text-[10px] text-zinc-200">Required fields, signed-letter upload, DSS validation, and duplicate detection are included.</p>
+            <p className="mt-1 text-[10px] font-medium text-zinc-600 dark:text-zinc-400">Required fields, signed-letter upload, DSS validation, and duplicate detection are included.</p>
           </div>
-          <button onClick={() => navigate("/requester")} className="text-zinc-100 hover:bg-white/20 hover:text-white dark:hover:bg-white/20 dark:hover:text-white p-1 rounded-lg transition-colors duration-150">
+          <button onClick={() => navigate("/requester")} className="text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 p-1.5 rounded-lg transition-colors duration-150">
             <X className="w-5 h-5" />
           </button>
+          </div>
         </div>
 
       <div className="grid grid-cols-1 gap-6 p-6">
@@ -787,100 +883,26 @@ export function BookingRequestForm() {
         <div>
           <div>
             <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6 text-left">
-              {/* DSS Results */}
-              {(dssChecking || dssResults.length > 0) && (
-              <div className="relative overflow-hidden rounded-3xl border border-[#0F3B8C]/25 bg-gradient-to-br from-[#0F3B8C]/10 via-white to-[#00A859]/10 p-5 shadow-[0_18px_45px_rgba(15,59,140,0.12)] dark:border-[#1a4fab]/40 dark:from-[#0F3B8C]/25 dark:via-zinc-950/80 dark:to-[#00A859]/15">
-                  <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-[#00A859]/20 blur-2xl" />
-                  <div className="relative flex items-start gap-4">
-                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-[#0F3B8C] text-white shadow-lg shadow-[#0F3B8C]/25">
-                      <AlertCircle className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="mb-3 flex flex-wrap items-center gap-2">
-                        <h4 className="text-[11px] uppercase font-black tracking-[0.22em] text-[#0F3B8C] dark:text-blue-300">
-                          DSS Availability Check
-                        </h4>
-                        <span className="rounded-full bg-[#00A859]/15 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-[#007a41] dark:text-[#00A859]">
-                          Live rules
-                        </span>
-                      </div>
-                      {dssChecking ? (
-                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Checking availability and workflow rules...</p>
-                      ) : (
-                        <ul className="space-y-2">
-                          {dssResults.map((result, index) => (
-                            <li key={`${result.ruleName}-${index}`} className="flex items-start gap-3 rounded-2xl border border-white/70 bg-white/80 px-3.5 py-3 text-sm shadow-sm dark:border-zinc-800/80 dark:bg-zinc-950/60">
-                              {result.passed ? (
-                                <CheckCircle2 className="mt-0.5 w-4 h-4 text-emerald-600 flex-shrink-0" />
-                              ) : (
-                                <XCircle className="mt-0.5 w-4 h-4 text-rose-600 flex-shrink-0" />
-                              )}
-                              <span className={result.passed ? "font-semibold text-[#007a41] dark:text-[#00A859]" : "font-semibold text-red-700 dark:text-red-400"}>
-                                {result.message}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                       <p className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 mt-3">
-                        These DSS results determine whether the request can be submitted.
-                      </p>
-                    </div>
+              <div className="rounded-2xl border border-[#0F3B8C]/30 bg-gradient-to-br from-[#0F3B8C]/10 to-[#00A859]/5 p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-[#C99700]" />
+                    <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Smart Booking Assistant</h3>
                   </div>
+                  <span className={`shrink-0 rounded-full border px-3 py-1 text-[10px] font-black ${bookingAssistantTone}`}>
+                    {bookingAssistantStatus}
+                  </span>
                 </div>
-              )}
-
-              {/* Live Booking Guidance */}
-              {(bookingRecommendationsLoading || bookingRecommendations) && (
-                <div className="relative overflow-hidden rounded-3xl border border-[#00A859]/25 bg-gradient-to-br from-[#00A859]/10 via-white to-[#0F3B8C]/10 p-5 shadow-[0_18px_45px_rgba(0,168,89,0.12)] dark:border-[#00A859]/30 dark:from-[#00A859]/20 dark:via-zinc-950/80 dark:to-[#0F3B8C]/20">
-                  <div className="pointer-events-none absolute -left-10 -bottom-10 h-28 w-28 rounded-full bg-[#0F3B8C]/20 blur-2xl" />
-                  <div className="relative flex items-start gap-4">
-                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-[#00A859] text-white shadow-lg shadow-[#00A859]/25">
-                      <Info className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="mb-3 flex flex-wrap items-center gap-2">
-                        <h4 className="text-[11px] uppercase font-black tracking-[0.22em] text-[#007a41] dark:text-[#00A859]">
-                          Live Booking Guidance
-                        </h4>
-                        <span className="rounded-full bg-[#0F3B8C]/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-[#0F3B8C] dark:text-blue-300">
-                          Smart insights
-                        </span>
-                      </div>
-                      {bookingRecommendationsLoading ? (
-                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Reading live booking patterns from the database...</p>
-                      ) : bookingRecommendations ? (
-                        <div className="space-y-3 text-[11px] text-zinc-500 dark:text-zinc-400">
-                          <p>{bookingRecommendations.monthLabel} currently has {bookingRecommendations.totalRequests} live booking{bookingRecommendations.totalRequests === 1 ? "" : "s"}.</p>
-                          {bookingRecommendations.seasonalContext && bookingRecommendations.seasonalContext.length > 0 && (
-                            <div className="rounded-2xl border border-[#0F3B8C]/15 bg-white/85 p-3.5 shadow-sm dark:border-zinc-800 dark:bg-[#18181b]/80">
-                              <p className="text-[10px] font-black uppercase tracking-wider text-[#0F3B8C] dark:text-blue-300 mb-2">
-                                Church seasonal context for {bookingRecommendations.monthName}
-                              </p>
-                              <ul className="space-y-1.5">
-                                {bookingRecommendations.seasonalContext.map((note) => (
-                                  <li key={note} className="flex items-start gap-2">
-                                     <span className="mt-1.5 w-1.5 h-1.5 bg-[#00A859] rounded-full flex-shrink-0" />
-                                    <span>{note}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                          <ul className="space-y-1.5">
-                            {bookingRecommendations.recommendations.map((message, index) => (
-                              <li key={`${index}-${message}`} className="flex items-start gap-2">
-                                 <span className="mt-1.5 w-1.5 h-1.5 bg-[#00A859] rounded-full flex-shrink-0" />
-                                <span>{message}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
+                <div className="my-3 border-t border-zinc-200 dark:border-zinc-800" />
+                <p className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">{bookingAssistantMessage}</p>
+                <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">{bookingAssistantSubDetail}</p>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">{bookingAssistantSuggestion}</p>
+                  <span className="rounded-full bg-white/80 px-3 py-1 text-[10px] font-black text-[#0F3B8C] ring-1 ring-[#0F3B8C]/15 dark:bg-zinc-950/60 dark:text-blue-300">
+                    {bookingAssistantConfidence}
+                  </span>
                 </div>
-              )}
+              </div>
               {/* Venue Selection */}
               <div>
                 <label
@@ -945,9 +967,12 @@ export function BookingRequestForm() {
                   Event Date <span className="text-rose-500">*</span>
                 </label>
                 <button
-                  ref={calendarButtonRef}
                   type="button"
-                  onClick={() => setShowCalendar(!showCalendar)}
+                  onClick={() => {
+                    setShowCalendar((current) => !current);
+                    setShowStartTimePicker(false);
+                    setShowEndTimePicker(false);
+                  }}
                   className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-900 dark:text-zinc-100 outline-none text-left flex items-center justify-between group"
                 >
                   <span className={formData.date ? "text-zinc-900 dark:text-zinc-100 font-medium" : "text-zinc-400 dark:text-zinc-500"}>
@@ -955,6 +980,83 @@ export function BookingRequestForm() {
                   </span>
                   <CalendarIcon className="w-4 h-4 text-zinc-400 dark:text-zinc-500 group-hover:text-[#00A859] transition-colors duration-150" />
                 </button>
+                {showCalendar && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowCalendar(false)} />
+                    <div className="absolute left-0 top-full z-50 mt-2 w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950">
+                      <div className="flex items-center justify-between border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
+                        <button
+                          type="button"
+                          onClick={previousMonth}
+                          disabled={isPreviousMonthDisabled}
+                          className="rounded-lg p-1.5 text-zinc-600 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-40 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        <h4 className="text-xs font-black text-zinc-900 dark:text-zinc-100">
+                          {calendarDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={nextMonth}
+                          className="rounded-lg p-1.5 text-zinc-600 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      <div className="p-2.5">
+                        <div className="mb-1.5 grid grid-cols-7 gap-0.5">
+                          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                            <div key={day} className="py-1 text-center text-[9px] font-black uppercase text-zinc-400 dark:text-zinc-500">
+                              {day}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-7 gap-0.5">
+                          {(() => {
+                            const daysInMonth = getDaysInMonth(calendarDate);
+                            const firstDay = getFirstDayOfMonth(calendarDate);
+                            const days = [];
+
+                            for (let i = 0; i < firstDay; i++) {
+                              days.push(<div key={`empty-${i}`} className="aspect-square" />);
+                            }
+
+                            for (let day = 1; day <= daysInMonth; day++) {
+                              const dateString = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                              const isSelected = formData.date === dateString;
+                              const isDisabled = isPastDate(calendarDate.getFullYear(), calendarDate.getMonth(), day);
+                              days.push(
+                                <button
+                                  key={day}
+                                  type="button"
+                                  onClick={() => {
+                                    if (!isDisabled) {
+                                      handleDateSelect(day);
+                                    }
+                                  }}
+                                  disabled={isDisabled}
+                                  className={`aspect-square rounded-md text-[11px] font-bold transition-colors duration-150 ${
+                                    isSelected
+                                      ? "bg-[#0F3B8C] text-white shadow-sm"
+                                      : isDisabled
+                                        ? "cursor-not-allowed bg-zinc-50 text-zinc-300 dark:bg-zinc-900 dark:text-zinc-600"
+                                        : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                                  }`}
+                                >
+                                  {day}
+                                </button>
+                              );
+                            }
+
+                            return days;
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Time Range */}
@@ -964,7 +1066,6 @@ export function BookingRequestForm() {
                     Start Time <span className="text-rose-500">*</span>
                   </label>
                   <button
-                    ref={startTimeButtonRef}
                     type="button"
                     onClick={openStartTimePicker}
                     className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-900 dark:text-zinc-100 outline-none text-left flex items-center justify-between group"
@@ -974,13 +1075,68 @@ export function BookingRequestForm() {
                     </span>
                     <Clock className="w-4 h-4 text-zinc-400 dark:text-zinc-500 group-hover:text-[#00A859] transition-colors duration-150" />
                   </button>
+                  {showStartTimePicker && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowStartTimePicker(false)} />
+                      <div className="absolute left-0 top-full z-50 mt-2 w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950">
+                        <div className="border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Start Time</p>
+                        </div>
+                        <div className="p-3">
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <p className="mb-1.5 text-center text-[9px] font-bold uppercase text-zinc-400 dark:text-zinc-500">Hour</p>
+                              <ScrollPicker
+                                items={getAllowedHours(startTimeValues.period)}
+                                selectedIndex={Math.max(0, getAllowedHours(startTimeValues.period).indexOf(startTimeValues.hour))}
+                                onChange={(index) => setStartTimeValues((prev) => normalizePickerValues({
+                                  ...prev,
+                                  hour: getAllowedHours(prev.period)[index],
+                                }))}
+                                className="text-xs"
+                                compact
+                              />
+                            </div>
+                            <div>
+                              <p className="mb-1.5 text-center text-[9px] font-bold uppercase text-zinc-400 dark:text-zinc-500">Minute</p>
+                              <ScrollPicker
+                                items={Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"))}
+                                selectedIndex={startTimeValues.minute / 5}
+                                onChange={(index) => setStartTimeValues((prev) => ({ ...prev, minute: index * 5 }))}
+                                className="text-xs"
+                                compact
+                              />
+                            </div>
+                            <div>
+                              <p className="mb-1.5 text-center text-[9px] font-bold uppercase text-zinc-400 dark:text-zinc-500">AM/PM</p>
+                              <ScrollPicker
+                                items={["AM", "PM"]}
+                                selectedIndex={startTimeValues.period === "AM" ? 0 : 1}
+                                onChange={(index) => setStartTimeValues((prev) => normalizePickerValues({ ...prev, period: index === 0 ? "AM" : "PM" }))}
+                                className="text-xs"
+                                compact
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="border-t border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-800 dark:bg-zinc-950">
+                          <button
+                            type="button"
+                            onClick={applyStartTime}
+                            className="w-full rounded-xl bg-[#0F3B8C] px-3 py-2 text-xs font-bold text-white transition-colors duration-150 hover:bg-[#0d3380] hover:text-white dark:hover:bg-[#1a4fab] dark:hover:text-white"
+                          >
+                            Apply Start Time
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="relative">
                   <label className="block text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mb-1.5">
                     End Time <span className="text-rose-500">*</span>
                   </label>
                   <button
-                    ref={endTimeButtonRef}
                     type="button"
                     onClick={openEndTimePicker}
                     className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-900 dark:text-zinc-100 outline-none text-left flex items-center justify-between group"
@@ -990,6 +1146,62 @@ export function BookingRequestForm() {
                     </span>
                     <Clock className="w-4 h-4 text-zinc-400 dark:text-zinc-500 group-hover:text-[#00A859] transition-colors duration-150" />
                   </button>
+                  {showEndTimePicker && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowEndTimePicker(false)} />
+                      <div className="absolute left-0 top-full z-50 mt-2 w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950">
+                        <div className="border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500 dark:text-zinc-400">End Time</p>
+                        </div>
+                        <div className="p-3">
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <p className="mb-1.5 text-center text-[9px] font-bold uppercase text-zinc-400 dark:text-zinc-500">Hour</p>
+                              <ScrollPicker
+                                items={getAllowedHours(endTimeValues.period)}
+                                selectedIndex={Math.max(0, getAllowedHours(endTimeValues.period).indexOf(endTimeValues.hour))}
+                                onChange={(index) => setEndTimeValues((prev) => normalizePickerValues({
+                                  ...prev,
+                                  hour: getAllowedHours(prev.period)[index],
+                                }))}
+                                className="text-xs"
+                                compact
+                              />
+                            </div>
+                            <div>
+                              <p className="mb-1.5 text-center text-[9px] font-bold uppercase text-zinc-400 dark:text-zinc-500">Minute</p>
+                              <ScrollPicker
+                                items={Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"))}
+                                selectedIndex={endTimeValues.minute / 5}
+                                onChange={(index) => setEndTimeValues((prev) => ({ ...prev, minute: index * 5 }))}
+                                className="text-xs"
+                                compact
+                              />
+                            </div>
+                            <div>
+                              <p className="mb-1.5 text-center text-[9px] font-bold uppercase text-zinc-400 dark:text-zinc-500">AM/PM</p>
+                              <ScrollPicker
+                                items={["AM", "PM"]}
+                                selectedIndex={endTimeValues.period === "AM" ? 0 : 1}
+                                onChange={(index) => setEndTimeValues((prev) => normalizePickerValues({ ...prev, period: index === 0 ? "AM" : "PM" }))}
+                                className="text-xs"
+                                compact
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="border-t border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-800 dark:bg-zinc-950">
+                          <button
+                            type="button"
+                            onClick={applyEndTime}
+                            className="w-full rounded-xl bg-[#0F3B8C] px-3 py-2 text-xs font-bold text-white transition-colors duration-150 hover:bg-[#0d3380] hover:text-white dark:hover:bg-[#1a4fab] dark:hover:text-white"
+                          >
+                            Apply End Time
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1306,232 +1518,6 @@ export function BookingRequestForm() {
         </div>
       </div>
 
-      {/* Calendar Popup */}
-      {showCalendar && (
-        <>
-          <div className="fixed inset-0 z-[60] bg-zinc-950/35 backdrop-blur-[2px]" onClick={() => setShowCalendar(false)} />
-          <div className="fixed left-1/2 top-1/2 z-[70] w-[min(92vw,28rem)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950">
-            {/* Calendar Header */}
-            <div className="bg-gradient-to-r from-[#0F3B8C] via-blue-700 to-[#00A859] px-6 py-4 flex items-center justify-between">
-              <h3 className="font-semibold text-white">Select Date</h3>
-              <button
-                onClick={() => setShowCalendar(false)}
-                className="p-1.5 hover:bg-white/20 hover:text-white dark:hover:bg-white/20 dark:hover:text-white rounded-lg transition-colors duration-150"
-              >
-                <X className="w-4 h-4 text-white" />
-              </button>
-            </div>
-
-            {/* Calendar Navigation */}
-            <div className="px-6 py-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
-              <button
-                onClick={previousMonth}
-                disabled={isPreviousMonthDisabled}
-                className="p-2 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 rounded-lg transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="w-5 h-5 text-zinc-600 dark:text-zinc-300" />
-              </button>
-              <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
-                {calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              </h4>
-              <button
-                onClick={nextMonth}
-                className="p-2 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 rounded-lg transition-colors duration-150"
-              >
-                <ChevronRight className="w-5 h-5 text-zinc-600 dark:text-zinc-300" />
-              </button>
-            </div>
-
-            {/* Calendar Grid */}
-            <div className="p-6">
-              {/* Day Headers */}
-              <div className="grid grid-cols-7 gap-2 mb-3">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                  <div key={day} className="text-center py-2 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase">
-                    {day}
-                  </div>
-                ))}
-              </div>
-
-              {/* Calendar Days */}
-              <div className="grid grid-cols-7 gap-2">
-                {(() => {
-                  const daysInMonth = getDaysInMonth(calendarDate);
-                  const firstDay = getFirstDayOfMonth(calendarDate);
-                  const days = [];
-
-                  // Empty cells before first day
-                  for (let i = 0; i < firstDay; i++) {
-                    days.push(<div key={`empty-${i}`} className="aspect-square" />);
-                  }
-
-                  // Days of month
-                  for (let day = 1; day <= daysInMonth; day++) {
-                    const dateString = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                    const isSelected = formData.date === dateString;
-                    const isDisabled = isPastDate(calendarDate.getFullYear(), calendarDate.getMonth(), day);
-                    days.push(
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() => {
-                          if (!isDisabled) {
-                            handleDateSelect(day);
-                          }
-                        }}
-                        disabled={isDisabled}
-                        className={`aspect-square rounded-xl font-medium transition-colors duration-150 ${
-                          isSelected
-                              ? 'bg-gradient-to-br from-[#0F3B8C] to-[#00A859] text-white dark:text-white shadow-lg'
-                            : isDisabled
-                              ? 'bg-zinc-100 text-zinc-300 cursor-not-allowed dark:bg-zinc-900 dark:text-zinc-600'
-                              : 'hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 text-zinc-700 dark:text-zinc-300'
-                        }`}
-                      >
-                        {day}
-                      </button>
-                    );
-                  }
-
-                  return days;
-                })()}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Start Time Picker Popup */}
-      {showStartTimePicker && (
-        <>
-          <div className="fixed inset-0 z-[60] bg-zinc-950/35 backdrop-blur-[2px]" onClick={() => setShowStartTimePicker(false)} />
-          <div className="fixed left-1/2 top-1/2 z-[70] w-[min(92vw,24rem)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-[#00A859] to-emerald-700 px-6 py-4 flex items-center justify-between">
-              <h3 className="font-semibold text-white">Start Time</h3>
-              <button
-                type="button"
-                onClick={() => setShowStartTimePicker(false)}
-                className="p-1.5 hover:bg-white/20 hover:text-white dark:hover:bg-white/20 dark:hover:text-white rounded-lg transition-colors duration-150"
-              >
-                <X className="w-4 h-4 text-white" />
-              </button>
-            </div>
-
-            {/* Time Picker */}
-            <div className="p-6">
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center mb-2">Hour</p>
-                  <ScrollPicker
-                    items={getAllowedHours(startTimeValues.period)}
-                    selectedIndex={Math.max(0, getAllowedHours(startTimeValues.period).indexOf(startTimeValues.hour))}
-                    onChange={(index) => setStartTimeValues((prev) => normalizePickerValues({
-                      ...prev,
-                      hour: getAllowedHours(prev.period)[index],
-                    }))}
-                  />
-                </div>
-
-                <div>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center mb-2">Minute</p>
-                  <ScrollPicker
-                    items={Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"))}
-                    selectedIndex={startTimeValues.minute / 5}
-                    onChange={(index) => setStartTimeValues((prev) => ({ ...prev, minute: index * 5 }))}
-                  />
-                </div>
-
-                <div>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center mb-2">Period</p>
-                  <ScrollPicker
-                    items={["AM", "PM"]}
-                    selectedIndex={startTimeValues.period === "AM" ? 0 : 1}
-                    onChange={(index) => setStartTimeValues((prev) => normalizePickerValues({ ...prev, period: index === 0 ? "AM" : "PM" }))}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 py-4 border-t border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950">
-              <button
-                type="button"
-                onClick={applyStartTime}
-                className="w-full bg-[#0F3B8C] text-white rounded-xl px-4 py-2.5 text-sm font-semibold hover:bg-[#0d3380] hover:text-white dark:hover:bg-[#1a4fab] dark:hover:text-white transition-colors duration-150"
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* End Time Picker Popup */}
-      {showEndTimePicker && (
-        <>
-          <div className="fixed inset-0 z-[60] bg-zinc-950/35 backdrop-blur-[2px]" onClick={() => setShowEndTimePicker(false)} />
-          <div className="fixed left-1/2 top-1/2 z-[70] w-[min(92vw,24rem)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-[#0F3B8C] to-indigo-700 px-6 py-4 flex items-center justify-between">
-              <h3 className="font-semibold text-white">End Time</h3>
-              <button
-                type="button"
-                onClick={() => setShowEndTimePicker(false)}
-                className="p-1.5 hover:bg-white/20 hover:text-white dark:hover:bg-white/20 dark:hover:text-white rounded-lg transition-colors duration-150"
-              >
-                <X className="w-4 h-4 text-white" />
-              </button>
-            </div>
-
-            {/* Time Picker */}
-            <div className="p-6">
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center mb-2">Hour</p>
-                  <ScrollPicker
-                    items={getAllowedHours(endTimeValues.period)}
-                    selectedIndex={Math.max(0, getAllowedHours(endTimeValues.period).indexOf(endTimeValues.hour))}
-                    onChange={(index) => setEndTimeValues((prev) => normalizePickerValues({
-                      ...prev,
-                      hour: getAllowedHours(prev.period)[index],
-                    }))}
-                  />
-                </div>
-
-                <div>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center mb-2">Minute</p>
-                  <ScrollPicker
-                    items={Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"))}
-                    selectedIndex={endTimeValues.minute / 5}
-                    onChange={(index) => setEndTimeValues((prev) => ({ ...prev, minute: index * 5 }))}
-                  />
-                </div>
-
-                <div>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center mb-2">Period</p>
-                  <ScrollPicker
-                    items={["AM", "PM"]}
-                    selectedIndex={endTimeValues.period === "AM" ? 0 : 1}
-                    onChange={(index) => setEndTimeValues((prev) => normalizePickerValues({ ...prev, period: index === 0 ? "AM" : "PM" }))}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 py-4 border-t border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950">
-              <button
-                type="button"
-                onClick={applyEndTime}
-                className="w-full bg-[#0F3B8C] text-white rounded-xl px-4 py-2.5 text-sm font-semibold hover:bg-[#0d3380] hover:text-white dark:hover:bg-[#1a4fab] dark:hover:text-white transition-colors duration-150"
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </>
-      )}
       </div>
     </div>
   );

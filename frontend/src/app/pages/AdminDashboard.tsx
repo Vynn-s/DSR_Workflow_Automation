@@ -655,6 +655,35 @@ export function AdminDashboard() {
     const status = log.venueRequest?.status;
     return status === "PENDING" || status === "SECRETARY_REVIEW" || status === "PRIEST_REVIEW";
   });
+  const now = new Date();
+  const pendingOver48Hours = pendingQueuePreview.filter((log) => (now.getTime() - new Date(log.createdAt).getTime()) > 48 * 60 * 60 * 1000);
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  const isSameDay = (left: Date, right: Date) => left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth() && left.getDate() === right.getDate();
+  const upcomingEvents = visibleAuditLogs.filter((log) => {
+    const start = log.venueRequest?.startDateTime ? new Date(log.venueRequest.startDateTime) : null;
+    return start && (isSameDay(start, now) || isSameDay(start, tomorrow));
+  });
+  const weeklySubmitted = reportData.reduce((sum, row) => sum + row.requests, 0);
+  const weeklyApproved = reportData.reduce((sum, row) => sum + row.approved, 0);
+  const weeklyRejected = reportData.reduce((sum, row) => sum + row.rejected, 0);
+  const weeklyPending = pendingQueuePreview.length;
+  const topVenueInsight = getTopCountLabel(visibleAuditLogs, (log) => log.venueRequest?.venue?.name ?? null, "Not enough data yet");
+  const bookedVenueNames = new Set(visibleAuditLogs.map((log) => log.venueRequest?.venue?.name).filter((value): value is string => Boolean(value)));
+  const zeroBookingVenue = venues.find((venue) => !bookedVenueNames.has(venue.name));
+  const adminPriorityAction = pendingOver48Hours.length > 0
+    ? `${pendingOver48Hours.length} request${pendingOver48Hours.length === 1 ? "" : "s"} waited over 48 hours. You should review them today.`
+    : upcomingEvents.length > 0
+      ? `${upcomingEvents.length} event${upcomingEvents.length === 1 ? "" : "s"} are scheduled today or tomorrow. You should confirm venue readiness.`
+      : auditStats && auditStats.rejectionRate > 30
+        ? "Rejection rate is high. You should review submission guidance for requesters."
+        : "No urgent DSS action is visible right now. You should keep monitoring pending requests.";
+  const adminUrgency = pendingOver48Hours.length > 0 || (auditStats?.rejectionRate ?? 0) > 30 ? "High attention" : upcomingEvents.length > 0 ? "Today" : "Stable";
+  const adminUrgencyClass = adminUrgency === "High attention"
+    ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/20"
+    : adminUrgency === "Today"
+      ? "bg-[#B45309]/10 text-[#92400E] border-[#B45309]/25 dark:text-amber-300"
+      : "bg-[#00A859]/10 text-[#007a41] border-[#00A859]/20 dark:text-[#00A859]";
 
   const startEditingVenue = (venue: LiveVenue) => {
     setSelectedVenueId(venue.id);
@@ -1050,111 +1079,34 @@ export function AdminDashboard() {
       )}
 
       <div className="mb-10 space-y-6">
-        <div className="rounded-3xl border border-[#0F3B8C]/30 bg-[#0F3B8C]/10 p-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-2xl bg-white dark:bg-zinc-950/70 border border-zinc-200 dark:border-zinc-800">
-              <Sparkles className="w-5 h-5 text-[#B45309] dark:text-amber-300" />
+        <div className="rounded-2xl border border-[#0F3B8C]/30 bg-gradient-to-br from-[#0F3B8C]/10 to-[#00A859]/5 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-sm font-bold text-zinc-900 dark:text-zinc-100"><Sparkles className="h-5 w-5 text-[#C99700]" /> Smart Decision Assistant</h2>
+            <span className={`rounded-full border px-3 py-1 text-[10px] font-black ${adminUrgencyClass}`}>{adminUrgency}</span>
+          </div>
+          <div className="my-3 border-t border-zinc-200 dark:border-zinc-800" />
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+            <div className="rounded-xl border border-zinc-200 bg-white/85 p-4 dark:border-zinc-800 dark:bg-zinc-950/60">
+              <p className="text-[10px] font-black uppercase text-zinc-500 dark:text-zinc-400">Weekly Summary</p>
+              <p className="mt-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{weeklySubmitted} requests submitted this period</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">{weeklyApproved} approved, {weeklyRejected} rejected, {weeklyPending} pending</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Most active venue: {topVenueInsight.label}{topVenueInsight.total > 0 ? ` (${topVenueInsight.total})` : ""}</p>
             </div>
-            <div className="flex-1 space-y-5">
-              <div>
-                <h2 className="text-sm font-black text-zinc-900 dark:text-zinc-100">Decision Support System - Booking Insights</h2>
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">Live request demand, approval flow, and booking pressure signals.</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60">
-                  <p className="text-[10px] font-black text-[#B45309] dark:text-amber-300 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                    <TrendingUp className="w-4 h-4" />
-                    Peak Request Demand
-                  </p>
-                  <p className="text-sm text-zinc-900 dark:text-zinc-100 mb-1.5 font-semibold">
-                    <span className="font-bold">{insights.peakDemand.day}</span> • {insights.peakDemand.time}
-                  </p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">{insights.peakDemand.venue}</p>
-                </div>
-
-                <div className="rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60">
-                  <p className="text-[10px] font-black text-[#B45309] dark:text-amber-300 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                    <Clock className="w-4 h-4" />
-                    Approval Flow
-                  </p>
-                  <p className="text-sm text-zinc-900 dark:text-zinc-100 mb-1.5 font-semibold">
-                    Approval: <span className="font-bold">{insights.efficiency.avgApprovalTime}</span>
-                  </p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Rate: {insights.efficiency.approvalRate}</p>
-                </div>
-
-                <div className="rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60">
-                  <p className="text-[10px] font-black text-[#B45309] dark:text-amber-300 uppercase tracking-wider mb-3">Booking Pressure</p>
-                  <div className="flex items-center gap-2 mb-1.5">
-                    {insights.efficiency.trend === "improving" ? (
-                      <CheckCircle2 className="w-5 h-5 text-[#00A859]" />
-                    ) : (
-                        <AlertTriangle className="w-5 h-5 text-[#B45309] dark:text-amber-300" />
-                    )}
-                    <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                      {insights.efficiency.trend === "improving" ? "Flow Looks Healthy" : "Review Booking Pressure"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Trend: {insights.efficiency.trend}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
-                  <p className="text-[10px] font-black text-[#B45309] dark:text-amber-300 uppercase tracking-wider mb-1">Top Event Type</p>
-                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{insights.bookingPatterns.topEventType}</p>
-                </div>
-                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
-                  <p className="text-[10px] font-black text-[#B45309] dark:text-amber-300 uppercase tracking-wider mb-1">Top Ministry</p>
-                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{insights.bookingPatterns.topMinistry}</p>
-                </div>
-                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
-                  <p className="text-[10px] font-black text-[#B45309] dark:text-amber-300 uppercase tracking-wider mb-1">Top Venue</p>
-                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{insights.bookingPatterns.topVenue}</p>
-                </div>
-                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
-                  <p className="text-[10px] font-black text-[#B45309] dark:text-amber-300 uppercase tracking-wider mb-1">Busiest Window</p>
-                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{insights.busiestWindow}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h4 className="text-[10px] font-black text-[#B45309] dark:text-amber-300 uppercase tracking-wider mb-2 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    Operational Notes
-                  </h4>
-                  <ul className="space-y-1.5">
-                    {insights.recommendations.map((rec, index) => (
-                      <li key={index} className="text-xs text-zinc-600 dark:text-zinc-300 flex items-start gap-2">
-                        <span className="text-[#00A859] mt-0.5">•</span>
-                        <span>{rec}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="text-[10px] font-black text-[#B45309] dark:text-amber-300 uppercase tracking-wider mb-2 flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    Watch List
-                  </h4>
-                  <ul className="space-y-1.5">
-                    {insights.risks.map((risk, index) => (
-                      <li key={index} className="text-xs text-zinc-600 dark:text-zinc-300 flex items-start gap-2">
-                        <span className="text-[#B45309] dark:text-amber-300 mt-0.5">•</span>
-                        <span>{risk}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                Live request count this month: <span className="font-semibold text-zinc-700 dark:text-zinc-300">{requestsThisMonth}</span>
-              </p>
+            <div className="rounded-xl border border-zinc-200 bg-white/85 p-4 dark:border-zinc-800 dark:bg-zinc-950/60">
+              <p className="text-[10px] font-black uppercase text-zinc-500 dark:text-zinc-400">Pending Attention</p>
+              <p className="mt-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{pendingOver48Hours.length > 0 ? `${pendingOver48Hours.length} requests waiting over 48 hours` : "No request has waited over 48 hours"}</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">{upcomingEvents.length > 0 ? `${upcomingEvents.length} approved or tracked event${upcomingEvents.length === 1 ? "" : "s"} occur today or tomorrow. You should confirm venue readiness.` : "No near-term events need readiness checks from loaded data."}</p>
             </div>
+            <div className="rounded-xl border border-zinc-200 bg-white/85 p-4 dark:border-zinc-800 dark:bg-zinc-950/60">
+              <p className="text-[10px] font-black uppercase text-zinc-500 dark:text-zinc-400">Venue Utilization</p>
+              <p className="mt-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{topVenueInsight.total > 0 ? `${topVenueInsight.label} is your most requested venue.` : "Not enough venue demand data yet."}</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">{zeroBookingVenue ? `${zeroBookingVenue.name} has no bookings in the loaded period. Consider promoting availability.` : "All loaded venues show activity or no venue list is available."}</p>
+            </div>
+          </div>
+          <div className="mt-3 rounded-xl border border-[#0F3B8C]/20 bg-white/80 p-3 dark:border-zinc-800 dark:bg-zinc-950/60">
+            <span className="rounded-full bg-[#0F3B8C]/10 px-3 py-1 text-xs font-bold text-[#0F3B8C] dark:text-blue-300">Priority action today</span>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">{adminPriorityAction}</p>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Approval time: {insights.efficiency.avgApprovalTime}. Rejection rate: {auditStats ? `${auditStats.rejectionRate.toFixed(1)}%` : "Not enough data yet"}.</p>
           </div>
         </div>
 

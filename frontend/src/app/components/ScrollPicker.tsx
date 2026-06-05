@@ -5,16 +5,17 @@ type ScrollPickerProps = {
   selectedIndex: number;
   onChange: (index: number) => void;
   className?: string;
+  compact?: boolean;
 };
 
-export function ScrollPicker({ items, selectedIndex, onChange, className }: ScrollPickerProps) {
+export function ScrollPicker({ items, selectedIndex, onChange, className, compact = false }: ScrollPickerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const selectedButtonRef = useRef<HTMLButtonElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const isAutoScrollingRef = useRef(false);
   const lastReportedIndexRef = useRef<number>(selectedIndex);
-  const itemHeight = 44;
-  const visibleItemCount = 5;
+  const itemHeight = compact ? 34 : 44;
+  const visibleItemCount = compact ? 3 : 5;
   const edgePadding = Math.round(((visibleItemCount - 1) / 2) * itemHeight);
 
   useEffect(() => {
@@ -96,7 +97,9 @@ export function ScrollPicker({ items, selectedIndex, onChange, className }: Scro
               onClick={() => onChange(index)}
               style={{ height: `${itemHeight}px` }}
               className={[
-                "flex w-full items-center justify-center rounded-lg px-3 text-sm font-medium transition-colors duration-150 snap-center",
+                compact
+                  ? "flex w-full items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors duration-150 snap-center"
+                  : "flex w-full items-center justify-center rounded-lg px-3 text-sm font-medium transition-colors duration-150 snap-center",
                 isSelected
                   ? "bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-100 dark:ring-zinc-700"
                   : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100",
@@ -112,11 +115,11 @@ export function ScrollPicker({ items, selectedIndex, onChange, className }: Scro
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 top-1/2 z-10 -translate-y-1/2">
-        <div className="h-11 rounded-none border-y border-emerald-500/40 bg-emerald-500/10 backdrop-blur-[0.5px] shadow-[0_0_0_1px_rgba(16,185,129,0.08)_inset]" />
+        <div className={compact ? "h-[34px] rounded-none border-y border-emerald-500/40 bg-emerald-500/10 backdrop-blur-[0.5px] shadow-[0_0_0_1px_rgba(16,185,129,0.08)_inset]" : "h-11 rounded-none border-y border-emerald-500/40 bg-emerald-500/10 backdrop-blur-[0.5px] shadow-[0_0_0_1px_rgba(16,185,129,0.08)_inset]"} />
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 top-1/2 z-0 -translate-y-1/2">
-        <div className="h-11 rounded-none bg-gradient-to-b from-zinc-950/0 via-emerald-500/10 to-zinc-950/0" />
+        <div className={compact ? "h-[34px] rounded-none bg-gradient-to-b from-zinc-950/0 via-emerald-500/10 to-zinc-950/0" : "h-11 rounded-none bg-gradient-to-b from-zinc-950/0 via-emerald-500/10 to-zinc-950/0"} />
       </div>
     </div>
   );

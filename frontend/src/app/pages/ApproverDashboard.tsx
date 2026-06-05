@@ -31,6 +31,7 @@ interface DSSRecommendation {
   confidence: number;
   reasons: string[];
   risks: string[];
+  conflicts?: DssApiDecision["conflicts"];
 }
 
 type DssApiDecision = {
@@ -42,6 +43,19 @@ type DssApiDecision = {
   }>;
   recommendation: string;
   canProceed: boolean;
+  conflicts?: Array<{
+    id: string;
+    eventName: string;
+    purpose: string;
+    requesterName: string;
+    venueName: string;
+    status: string;
+    startDateTime: string;
+    endDateTime: string;
+    startTimeLabel: string;
+    endTimeLabel: string;
+    dateLabel: string;
+  }>;
 };
 
 interface Request {
@@ -143,6 +157,7 @@ function mapDssDecision(decision: DssApiDecision): DSSRecommendation {
     confidence,
     reasons: passedRules.length > 0 ? passedRules : [decision.recommendation],
     risks: failedRules,
+    conflicts: decision.conflicts ?? [],
   };
 }
 
@@ -555,6 +570,69 @@ export function ApproverDashboard() {
         return "bg-[#C99700]/15 text-amber-300 border-[#C99700]/20";
     }
   };
+  const allKnownRequests = [...requests, ...archivedRequests];
+  const requesterHistory = selectedRequest
+    ? allKnownRequests.filter((request) => request.requester === selectedRequest.requester && request.id !== selectedRequest.id)
+    : [];
+  const requesterApproved = requesterHistory.filter((request) => request.status === "Approved").length;
+  const requesterRejected = requesterHistory.filter((request) => request.status === "Rejected").length;
+  const requesterApprovalRate = requesterHistory.length > 0 ? Math.round((requesterApproved / requesterHistory.length) * 100) : null;
+  const dssConflicts = selectedRequest?.dssRecommendation?.conflicts ?? [];
+  const localApprovedConflict = selectedRequest
+    ? archivedRequests.find((request) => {
+        if (request.status !== "Approved" || request.venueId !== selectedRequest.venueId || request.id === selectedRequest.id) return false;
+        const selectedStart = new Date(selectedRequest.startDateTime).getTime();
+        const selectedEnd = new Date(selectedRequest.endDateTime).getTime();
+        const requestStart = new Date(request.startDateTime).getTime();
+        const requestEnd = new Date(request.endDateTime).getTime();
+        return requestStart < selectedEnd && requestEnd > selectedStart;
+      })
+    : null;
+  const conflictLabel = dssConflicts[0]
+    ? `${dssConflicts[0].eventName} by ${dssConflicts[0].requesterName}, ${dssConflicts[0].startTimeLabel} - ${dssConflicts[0].endTimeLabel}`
+    : localApprovedConflict
+      ? `${localApprovedConflict.purpose} by ${localApprovedConflict.requester}, ${localApprovedConflict.time}`
+      : null;
+  const missingCompleteness = selectedRequest
+    ? [
+        !selectedRequest.purpose ? "Purpose" : null,
+        !selectedRequest.attendees ? "Attendance Count" : null,
+        (selectedRequest.attachments?.length ?? 0) === 0 ? "Authorization Letter" : null,
+        (selectedRequest.signatures ?? []).some((signature) => signature.required !== false && signature.status !== "signed") ? "Required Signature" : null,
+      ].filter((value): value is string => Boolean(value))
+    : [];
+  const recommendedAction = conflictLabel
+    ? "reject"
+    : missingCompleteness.length > 0
+      ? "return"
+      : selectedRequest?.dssRecommendation?.decision === "approve"
+        ? "approve"
+        : "review";
+  const recommendationLabel = recommendedAction === "approve"
+    ? "Recommended: Approve"
+    : recommendedAction === "reject"
+      ? "Recommended: Reject — scheduling conflict"
+      : recommendedAction === "return"
+        ? "Recommended: Return for completion"
+        : "Needs careful review";
+  const recommendationClass = recommendedAction === "approve"
+    ? "bg-[#00A859]/10 text-[#007a41] border-[#00A859]/20 dark:text-[#00A859]"
+    : recommendedAction === "reject"
+      ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/20"
+      : recommendedAction === "return"
+        ? "bg-[#B45309]/10 text-[#92400E] border-[#B45309]/25 dark:text-amber-300"
+        : "bg-[#0F3B8C]/10 text-[#0F3B8C] border-[#0F3B8C]/20 dark:text-blue-300";
+  const decisionExplanation = conflictLabel
+    ? `You should reject this request because it overlaps with ${conflictLabel}.`
+    : missingCompleteness.length > 0
+      ? `This request needs ${missingCompleteness.join(", ")} before a fair approval decision. You should return it for completion instead of rejecting it.`
+      : recommendedAction === "approve"
+        ? "You can approve this request because the key checks are complete and no scheduling conflict is visible."
+        : "You should review this carefully because the available checks are mixed or incomplete.";
+  const actionButtonClass = (action: "approve" | "return" | "reject") => {
+    const isRecommended = recommendedAction === action;
+    return isRecommended ? "scale-[1.02] opacity-100 ring-2 ring-[#0F3B8C]/25" : "opacity-55 hover:opacity-100";
+  };
 
   return (
     <div className="space-y-6">
@@ -653,20 +731,45 @@ export function ApproverDashboard() {
               </div>
 
               {activeTab === "queue" && (
-                <div className="rounded-2xl p-4 border bg-[#0F3B8C]/10 border-[#0F3B8C]/30">
-                  <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-                    <h3 className="text-xs font-black flex items-center gap-2 text-zinc-900 dark:text-zinc-100"><Sparkles className="w-4 h-4 text-[#C99700]" /> DSR Decision Support</h3>
-                    {dssLoading ? <span className="text-[10px] font-black text-blue-300">Evaluating...</span> : selectedRequest.dssRecommendation ? <span className="text-[10px] font-black text-blue-300">{selectedRequest.dssRecommendation.confidence}% Confidence</span> : null}
+                <div className="rounded-2xl border border-[#0F3B8C]/30 bg-gradient-to-br from-[#0F3B8C]/10 to-[#00A859]/5 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h3 className="text-sm font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-100"><Sparkles className="w-4 h-4 text-[#C99700]" /> Smart Decision Assistant</h3>
+                    <span className="rounded-full bg-white/80 px-3 py-1 text-[10px] font-black text-[#0F3B8C] ring-1 ring-[#0F3B8C]/15 dark:bg-zinc-950/60 dark:text-blue-300">
+                      {dssLoading ? "Evaluating" : selectedRequest.dssRecommendation ? `${selectedRequest.dssRecommendation.confidence}% confidence` : "Not enough data yet"}
+                    </span>
                   </div>
+                  <div className="my-3 border-t border-zinc-200 dark:border-zinc-800" />
                   {dssError ? (
-                    <p className="text-[11px] text-amber-300">{dssError}</p>
-                  ) : selectedRequest.dssRecommendation ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {selectedRequest.dssRecommendation.reasons.map((reason, index) => <p key={`reason-${index}`} className="text-[11px] leading-relaxed rounded-xl p-3 bg-white text-zinc-700 dark:bg-zinc-950/50 dark:text-zinc-300">• {reason}</p>)}
-                      {selectedRequest.dssRecommendation.risks.map((risk, index) => <p key={`risk-${index}`} className="text-[11px] leading-relaxed rounded-xl p-3 bg-red-500/10 text-red-300">• {risk}</p>)}
-                    </div>
+                    <p className="text-sm text-[#92400E] dark:text-amber-300">{dssError}</p>
                   ) : (
-                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">No DSS result is available for this request.</p>
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <div className="rounded-xl border border-zinc-200 bg-white/80 p-3 dark:border-zinc-800 dark:bg-zinc-950/50">
+                          <p className="text-[10px] font-black uppercase text-zinc-500 dark:text-zinc-400">Conflict Analysis</p>
+                          <p className={`mt-1 text-xs font-bold ${conflictLabel ? "text-red-700 dark:text-red-300" : "text-[#007a41] dark:text-[#00A859]"}`}>{conflictLabel ? "Conflict detected" : "No scheduling conflict"}</p>
+                          <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">{conflictLabel ?? `${selectedRequest.venue} is clear for ${selectedRequest.time}.`}</p>
+                        </div>
+                        <div className="rounded-xl border border-zinc-200 bg-white/80 p-3 dark:border-zinc-800 dark:bg-zinc-950/50">
+                          <p className="text-[10px] font-black uppercase text-zinc-500 dark:text-zinc-400">Requester History</p>
+                          <p className="mt-1 text-xs font-bold text-zinc-900 dark:text-zinc-100">{requesterHistory.length === 0 ? "First-time requester" : `${requesterHistory.length} past request${requesterHistory.length === 1 ? "" : "s"}`}</p>
+                          <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">{requesterApprovalRate === null ? "Review carefully because no prior pattern is loaded." : `${requesterApproved} approved, ${requesterRejected} rejected — ${requesterApprovalRate}% approval rate.`}</p>
+                        </div>
+                        <div className="rounded-xl border border-zinc-200 bg-white/80 p-3 dark:border-zinc-800 dark:bg-zinc-950/50">
+                          <p className="text-[10px] font-black uppercase text-zinc-500 dark:text-zinc-400">Completeness Score</p>
+                          <p className={`mt-1 text-xs font-bold ${missingCompleteness.length === 0 ? "text-[#007a41] dark:text-[#00A859]" : "text-[#92400E] dark:text-amber-300"}`}>{missingCompleteness.length === 0 ? "Complete" : `Missing: ${missingCompleteness.join(", ")}`}</p>
+                          <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">{missingCompleteness.length === 0 ? "Purpose, attendance, signatures, and attachments are ready for decision." : "You should return this for completion instead of rejecting it."}</p>
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-zinc-200 bg-white/85 p-3 dark:border-zinc-800 dark:bg-zinc-950/60">
+                        <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${recommendationClass}`}>{recommendationLabel}</span>
+                        <p className="mt-2 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">{decisionExplanation}</p>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button onClick={handleApprove} disabled={isActionLoading} className={`py-3 rounded-xl bg-[#00A859] text-white hover:bg-[#009950] hover:text-white dark:hover:bg-[#00bf65] dark:hover:text-white font-bold text-xs flex items-center justify-center gap-1 disabled:opacity-60 transition-all duration-150 active:scale-95 ${actionButtonClass("approve")}`}><CheckCircle className="w-4 h-4" />{isActionLoading ? "Processing..." : "Approve"}</button>
+                        <button type="button" disabled className={`py-3 rounded-xl bg-orange-500/15 text-orange-500 border border-orange-500/20 font-bold text-xs disabled:opacity-50 ${actionButtonClass("return")}`}>Return</button>
+                        <button onClick={handleReject} disabled={isActionLoading} className={`py-3 rounded-xl bg-red-500/15 text-red-500 hover:bg-red-500/25 hover:text-red-600 dark:bg-red-500/15 dark:text-red-400 dark:hover:bg-red-500/30 dark:hover:text-red-300 border border-red-500/20 font-bold text-xs flex items-center justify-center gap-1 disabled:opacity-60 transition-all duration-150 active:scale-95 ${actionButtonClass("reject")}`}><XCircle className="w-4 h-4" />{isActionLoading ? "Processing..." : "Reject"}</button>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
@@ -804,34 +907,6 @@ export function ApproverDashboard() {
                   </div>
                 )}
 
-                {/* Action Buttons - Only for Queue */}
-                {activeTab === "queue" && (
-                  <div className="pt-5 border-t border-zinc-200 dark:border-zinc-800 grid grid-cols-3 gap-2">
-                    <button
-                      onClick={handleApprove}
-                      disabled={isActionLoading}
-                      className="py-3 rounded-xl bg-[#00A859] text-white hover:bg-[#009950] hover:text-white dark:hover:bg-[#00bf65] dark:hover:text-white font-bold text-xs flex items-center justify-center gap-1 disabled:opacity-60 transition-all duration-150 active:scale-95"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      {isActionLoading ? "Processing..." : "Approve"}
-                    </button>
-                    <button
-                      type="button"
-                      disabled
-                      className="py-3 rounded-xl bg-orange-500/15 text-orange-500 hover:bg-orange-500/25 hover:text-orange-600 dark:bg-orange-500/15 dark:text-orange-400 dark:hover:bg-orange-500/30 dark:hover:text-orange-300 border border-orange-500/20 font-bold text-xs disabled:opacity-50"
-                    >
-                      Return
-                    </button>
-                    <button
-                      onClick={handleReject}
-                      disabled={isActionLoading}
-                      className="py-3 rounded-xl bg-red-500/15 text-red-500 hover:bg-red-500/25 hover:text-red-600 dark:bg-red-500/15 dark:text-red-400 dark:hover:bg-red-500/30 dark:hover:text-red-300 border border-red-500/20 font-bold text-xs flex items-center justify-center gap-1 disabled:opacity-60 transition-all duration-150 active:scale-95"
-                    >
-                      <XCircle className="w-4 h-4" />
-                      {isActionLoading ? "Processing..." : "Reject"}
-                    </button>
-                  </div>
-                )}
             </div>
           ) : (
             <div className="rounded-3xl border border-zinc-900 bg-white dark:bg-zinc-950/60 p-16 text-center">

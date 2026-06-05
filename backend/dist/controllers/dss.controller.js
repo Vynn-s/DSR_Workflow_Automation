@@ -49,6 +49,36 @@ function getMonthWindow(date) {
 function formatCountList(entries) {
     return entries.map((entry) => `${entry.name} (${entry.total})`);
 }
+function formatTimeForResponse(value) {
+    return value.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+function formatDateForResponse(value) {
+    return value.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+function buildNextAvailableSlot(requestedStartDateTime, requestedEndDateTime, conflicts) {
+    if (conflicts.length === 0) {
+        return null;
+    }
+    const durationMs = requestedEndDateTime.getTime() - requestedStartDateTime.getTime();
+    const latestConflictEnd = conflicts.reduce((latest, conflict) => {
+        return conflict.endDateTime > latest ? conflict.endDateTime : latest;
+    }, conflicts[0].endDateTime);
+    const nextStart = new Date(latestConflictEnd);
+    const nextEnd = new Date(nextStart.getTime() + durationMs);
+    const closingTime = new Date(requestedStartDateTime);
+    closingTime.setHours(22, 0, 0, 0);
+    if (nextEnd > closingTime) {
+        return null;
+    }
+    return {
+        date: nextStart.toISOString(),
+        dateLabel: formatDateForResponse(nextStart),
+        startTime: `${String(nextStart.getHours()).padStart(2, "0")}:${String(nextStart.getMinutes()).padStart(2, "0")}`,
+        endTime: `${String(nextEnd.getHours()).padStart(2, "0")}:${String(nextEnd.getMinutes()).padStart(2, "0")}`,
+        startTimeLabel: formatTimeForResponse(nextStart),
+        endTimeLabel: formatTimeForResponse(nextEnd),
+    };
+}
 function getSeasonalContext(monthName) {
     const seasonalNotes = {
         January: [
@@ -108,15 +138,21 @@ async function evaluateRequest(req, res, next) {
         const venue = venueResult.rows[0];
         const authorizedMinistriesResult = await client.query(`SELECT "ministryId" FROM "VenueMinistry" WHERE "venueId" = $1`, [venueId]);
         const conflictParams = [venueId, requestedEndDateTime, requestedStartDateTime];
-        let conflictQuery = `SELECT id FROM "VenueRequest"
-			 WHERE "venueId" = $1
-			 AND status <> 'REJECTED'
-			 AND "startDateTime" < $2
-			 AND "endDateTime" > $3`;
+        let conflictQuery = `SELECT vr.id, vr."eventName", vr.purpose, vr."startDateTime", vr."endDateTime", vr.status, vr.attendees,
+				COALESCE(u.name, u.email, 'Requester') AS "requesterName",
+				v.name AS "venueName"
+			 FROM "VenueRequest" vr
+			 LEFT JOIN "User" u ON u.id = vr."requesterId"
+			 LEFT JOIN "Venue" v ON v.id = vr."venueId"
+			 WHERE vr."venueId" = $1
+			 AND vr.status <> 'REJECTED'
+			 AND vr."startDateTime" < $2
+			 AND vr."endDateTime" > $3`;
         if (requestId) {
             conflictQuery += ` AND id <> $4`;
             conflictParams.push(requestId);
         }
+        conflictQuery += ` ORDER BY vr."startDateTime" ASC`;
         const conflictsResult = await client.query(conflictQuery, conflictParams);
         const decision = runDssEvaluation({
             venueId,
@@ -129,6 +165,26 @@ async function evaluateRequest(req, res, next) {
             signatures,
             attachmentCount,
         }, venue.capacity, authorizedMinistriesResult.rows.map((entry) => entry.ministryId), conflictsResult.rows.length > 0);
+        const conflictDetails = conflictsResult.rows.map((row) => ({
+            id: row.id,
+            eventName: row.eventName ?? row.purpose ?? "Existing booking",
+            purpose: row.purpose ?? row.eventName ?? "Existing booking",
+            requesterName: row.requesterName ?? "Requester",
+            venueName: row.venueName ?? "Selected venue",
+            status: row.status,
+            attendees: row.attendees ?? null,
+            startDateTime: row.startDateTime,
+            endDateTime: row.endDateTime,
+            startTimeLabel: formatTimeForResponse(row.startDateTime),
+            endTimeLabel: formatTimeForResponse(row.endDateTime),
+            dateLabel: formatDateForResponse(row.startDateTime),
+        }));
+        const nextAvailableSlot = buildNextAvailableSlot(requestedStartDateTime, requestedEndDateTime, conflictsResult.rows);
+        const enrichedDecision = {
+            ...decision,
+            conflicts: conflictDetails,
+            nextAvailableSlot,
+        };
         let ministryName = null;
         if (ministryId) {
             const mres = await client.query(`SELECT name FROM "Ministry" WHERE id = $1`, [ministryId]);
@@ -148,11 +204,11 @@ async function evaluateRequest(req, res, next) {
                 hasConflict: conflictsResult.rows.length > 0,
                 attachmentCount,
                 signatureCount: signatures.length,
-                decision,
+                decision: enrichedDecision,
             }),
             req.ip,
         ]);
-        return res.json(decision);
+        return res.json(enrichedDecision);
     }
     catch (error) {
         if (error instanceof AppError) {

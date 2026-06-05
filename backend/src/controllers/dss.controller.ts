@@ -56,6 +56,46 @@ function formatCountList(entries: Array<{ name: string; total: number }>) {
 	return entries.map((entry) => `${entry.name} (${entry.total})`);
 }
 
+function formatTimeForResponse(value: Date): string {
+	return value.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+function formatDateForResponse(value: Date): string {
+	return value.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function buildNextAvailableSlot(
+	requestedStartDateTime: Date,
+	requestedEndDateTime: Date,
+	conflicts: Array<{ endDateTime: Date }>,
+) {
+	if (conflicts.length === 0) {
+		return null;
+	}
+
+	const durationMs = requestedEndDateTime.getTime() - requestedStartDateTime.getTime();
+	const latestConflictEnd = conflicts.reduce((latest, conflict) => {
+		return conflict.endDateTime > latest ? conflict.endDateTime : latest;
+	}, conflicts[0].endDateTime);
+	const nextStart = new Date(latestConflictEnd);
+	const nextEnd = new Date(nextStart.getTime() + durationMs);
+	const closingTime = new Date(requestedStartDateTime);
+	closingTime.setHours(22, 0, 0, 0);
+
+	if (nextEnd > closingTime) {
+		return null;
+	}
+
+	return {
+		date: nextStart.toISOString(),
+		dateLabel: formatDateForResponse(nextStart),
+		startTime: `${String(nextStart.getHours()).padStart(2, "0")}:${String(nextStart.getMinutes()).padStart(2, "0")}`,
+		endTime: `${String(nextEnd.getHours()).padStart(2, "0")}:${String(nextEnd.getMinutes()).padStart(2, "0")}`,
+		startTimeLabel: formatTimeForResponse(nextStart),
+		endTimeLabel: formatTimeForResponse(nextEnd),
+	};
+}
+
 function getSeasonalContext(monthName: string): string[] {
 	const seasonalNotes: Record<string, string[]> = {
 		January: [
@@ -144,16 +184,23 @@ export async function evaluateRequest(
 		);
 
 		const conflictParams: Array<string | Date> = [venueId, requestedEndDateTime, requestedStartDateTime];
-		let conflictQuery = `SELECT id FROM "VenueRequest"
-			 WHERE "venueId" = $1
-			 AND status <> 'REJECTED'
-			 AND "startDateTime" < $2
-			 AND "endDateTime" > $3`;
+		let conflictQuery = `SELECT vr.id, vr."eventName", vr.purpose, vr."startDateTime", vr."endDateTime", vr.status, vr.attendees,
+				COALESCE(u.name, u.email, 'Requester') AS "requesterName",
+				v.name AS "venueName"
+			 FROM "VenueRequest" vr
+			 LEFT JOIN "User" u ON u.id = vr."requesterId"
+			 LEFT JOIN "Venue" v ON v.id = vr."venueId"
+			 WHERE vr."venueId" = $1
+			 AND vr.status <> 'REJECTED'
+			 AND vr."startDateTime" < $2
+			 AND vr."endDateTime" > $3`;
 
 		if (requestId) {
 			conflictQuery += ` AND id <> $4`;
 			conflictParams.push(requestId);
 		}
+
+		conflictQuery += ` ORDER BY vr."startDateTime" ASC`;
 
 		const conflictsResult = await client.query(conflictQuery, conflictParams);
 
@@ -173,6 +220,36 @@ export async function evaluateRequest(
 			authorizedMinistriesResult.rows.map((entry: { ministryId: string }) => entry.ministryId),
 			conflictsResult.rows.length > 0,
 		);
+		const conflictDetails = conflictsResult.rows.map((row: {
+			id: string;
+			eventName?: string | null;
+			purpose?: string | null;
+			startDateTime: Date;
+			endDateTime: Date;
+			status: string;
+			attendees?: number | null;
+			requesterName?: string | null;
+			venueName?: string | null;
+		}) => ({
+			id: row.id,
+			eventName: row.eventName ?? row.purpose ?? "Existing booking",
+			purpose: row.purpose ?? row.eventName ?? "Existing booking",
+			requesterName: row.requesterName ?? "Requester",
+			venueName: row.venueName ?? "Selected venue",
+			status: row.status,
+			attendees: row.attendees ?? null,
+			startDateTime: row.startDateTime,
+			endDateTime: row.endDateTime,
+			startTimeLabel: formatTimeForResponse(row.startDateTime),
+			endTimeLabel: formatTimeForResponse(row.endDateTime),
+			dateLabel: formatDateForResponse(row.startDateTime),
+		}));
+		const nextAvailableSlot = buildNextAvailableSlot(requestedStartDateTime, requestedEndDateTime, conflictsResult.rows);
+		const enrichedDecision = {
+			...decision,
+			conflicts: conflictDetails,
+			nextAvailableSlot,
+		};
 
 		let ministryName: string | null = null;
 		if (ministryId) {
@@ -196,13 +273,13 @@ export async function evaluateRequest(
 					hasConflict: conflictsResult.rows.length > 0,
 					attachmentCount,
 					signatureCount: signatures.length,
-					decision,
+					decision: enrichedDecision,
 				}),
 				req.ip,
 			],
 		);
 
-		return res.json(decision);
+		return res.json(enrichedDecision);
 	} catch (error) {
 		if (error instanceof AppError) {
 			return next(error);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { Plus, Clock, CheckCircle2, XCircle, FileEdit, Bell, Search, CalendarDays, CalendarX } from "lucide-react";
+import { Plus, Clock, CheckCircle2, XCircle, FileEdit, Bell, Search, CalendarDays, CalendarX, Sparkles } from "lucide-react";
 import api from "../../lib/api";
 import { formatRequestId } from "../../lib/requestId";
 import { AnimatedNumber, EmptyState, FadeIn, PageHeader, SkeletonRows } from "../components/ui/page";
@@ -70,6 +70,30 @@ function formatTimeRange(startDateTime: string, endDateTime: string) {
   const start = new Date(startDateTime);
   const end = new Date(endDateTime);
   return `${start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} - ${end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+}
+
+function getDaysSince(value: string): number | null {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return Math.max(0, Math.floor((Date.now() - date.getTime()) / (24 * 60 * 60 * 1000)));
+}
+
+function getRequesterDssTag(request: Request) {
+  const pendingDays = getDaysSince(request.timeline?.submitted ?? request.submittedDate);
+  switch (request.status) {
+    case "Approved":
+      return { label: "Confirmed — your venue is reserved", className: "bg-[#00A859]/10 text-[#007a41] border-[#00A859]/20 dark:text-[#00A859]" };
+    case "Rejected":
+      return { label: "Review the comment before resubmitting", className: "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/20" };
+    case "Under Review":
+      return { label: "Approver is reviewing this now", className: "bg-[#0F3B8C]/10 text-[#0F3B8C] border-[#0F3B8C]/20 dark:text-blue-300" };
+    case "Pending":
+      return pendingDays !== null && pendingDays > 2
+        ? { label: `Pending for ${pendingDays} days — you may follow up`, className: "bg-[#B45309]/10 text-[#92400E] border-[#B45309]/25 dark:text-amber-300" }
+        : { label: "Awaiting approver review", className: "bg-[#B45309]/10 text-[#92400E] border-[#B45309]/25 dark:text-amber-300" };
+    default:
+      return { label: "Draft — finish and submit when ready", className: "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700" };
+  }
 }
 
 function mapStatus(status: string): Request["status"] {
@@ -261,6 +285,33 @@ export function RequesterDashboard() {
     return matchesSearch && matchesStatus;
   });
   const detailRequest = selectedRequest ?? filteredRequests[0] ?? requests[0] ?? null;
+  const completedApprovalDurations = requests
+    .map((request) => {
+      const submitted = request.timeline?.submitted ? new Date(request.timeline.submitted).getTime() : NaN;
+      const completed = request.timeline?.completed ? new Date(request.timeline.completed).getTime() : NaN;
+      return Number.isNaN(submitted) || Number.isNaN(completed) ? null : Math.max(0, completed - submitted);
+    })
+    .filter((value): value is number => value !== null);
+  const averageApprovalHours = completedApprovalDurations.length > 0
+    ? completedApprovalDurations.reduce((sum, value) => sum + value, 0) / completedApprovalDurations.length / (60 * 60 * 1000)
+    : null;
+  const detailDssTag = detailRequest ? getRequesterDssTag(detailRequest) : null;
+  const detailDssMessage = detailRequest?.status === "Approved"
+    ? "You should prepare for the event now that the venue is reserved. Confirm attendance, setup needs, and arrival time before the event date."
+    : detailRequest?.status === "Rejected"
+      ? `This request was rejected. You should review the comment${detailRequest.approverRemarks ? `: "${detailRequest.approverRemarks}"` : " and clarify the missing requirement before resubmitting"}.`
+      : detailRequest?.status === "Under Review"
+        ? "Your request is already with an approver. You should wait for the decision unless the event date is very close."
+        : detailRequest
+          ? `Your request is waiting for review. ${averageApprovalHours !== null ? `Based on loaded history, decisions take about ${averageApprovalHours.toFixed(1)} hours on average.` : "Not enough historical approval data is available yet."}`
+          : "Select a request to see what you should do next.";
+  const detailDssSuggestion = detailRequest?.status === "Approved"
+    ? "Checklist: confirm attendance count, arrange setup with facilities, and keep your approval record ready."
+    : detailRequest?.status === "Rejected"
+      ? "If you resubmit, address the approver comment directly in your purpose or signed letter."
+      : detailRequest?.status === "Under Review"
+        ? "If this has been under review for more than two days, consider a polite follow-up."
+        : "Keep your signed letter and event details ready in case the approver asks for clarification.";
 
   return (
     <div className="space-y-6">
@@ -406,10 +457,15 @@ export function RequesterDashboard() {
                     <p className="text-[11px] truncate text-zinc-500 dark:text-zinc-400">{request.purpose}</p>
                     <p className="flex items-center gap-1.5 text-[10px] text-zinc-400 dark:text-zinc-500"><CalendarDays className="w-3 h-3" /> {request.date} • {request.time}</p>
                   </div>
-                  <span className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black rounded-full border ${getStatusColor(request.status)}`}>
-                    {getStatusIcon(request.status)}
-                    {request.status}
-                  </span>
+                  <div className="flex shrink-0 flex-col items-end gap-1.5">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black rounded-full border ${getStatusColor(request.status)}`}>
+                      {getStatusIcon(request.status)}
+                      {request.status}
+                    </span>
+                    <span className={`max-w-[190px] rounded-full border px-2 py-0.5 text-right text-[9px] font-bold leading-tight ${getRequesterDssTag(request).className}`}>
+                      {getRequesterDssTag(request).label}
+                    </span>
+                  </div>
                 </div>
                 </FadeIn>
               ))}
@@ -428,6 +484,19 @@ export function RequesterDashboard() {
                   </div>
                   <h3 className="text-sm font-black mt-2 leading-snug text-zinc-900 dark:text-zinc-100">{detailRequest.purpose}</h3>
                   <p className="text-[11px] mt-1 text-zinc-500 dark:text-zinc-400">{detailRequest.venue}</p>
+                </div>
+
+                <div className="rounded-2xl border border-[#0F3B8C]/30 bg-gradient-to-br from-[#0F3B8C]/10 to-[#00A859]/5 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-[#C99700]" />
+                      <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Smart Decision Assistant</h4>
+                    </div>
+                    {detailDssTag && <span className={`rounded-full border px-2.5 py-1 text-[9px] font-black ${detailDssTag.className}`}>{detailRequest.status}</span>}
+                  </div>
+                  <div className="my-3 border-t border-zinc-200 dark:border-zinc-800" />
+                  <p className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">{detailDssMessage}</p>
+                  <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">{detailDssSuggestion}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-xs">

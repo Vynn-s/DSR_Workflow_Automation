@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { CheckCircle, XCircle, FileText, User, Calendar as CalendarIcon, Paperclip, Download, Eye, AlertCircle, CheckCircle2, Brain, TrendingUp, Shield, AlertTriangle, Sparkles } from "lucide-react";
 import { formatRequestId } from "../../lib/requestId";
@@ -208,6 +209,8 @@ function isActionableQueueStatus(status: Request["queueStatus"]) {
 }
 
 export function ApproverDashboard() {
+  const [searchParams] = useSearchParams();
+  const requestedReviewId = searchParams.get("requestId");
   const [requests, setRequests] = useState<Request[]>([]);
   const [archivedRequests, setArchivedRequests] = useState<Request[]>([]);
   const [activeTab, setActiveTab] = useState<"queue" | "archive">("queue");
@@ -274,6 +277,10 @@ export function ApproverDashboard() {
         if (isMounted) {
           setRequests(liveRequests);
           setSelectedRequest((currentSelected) => {
+            if (requestedReviewId) {
+              return liveRequests.find((request) => request.id === requestedReviewId) ?? liveRequests[0] ?? null;
+            }
+
             if (!currentSelected) {
               return liveRequests[0] ?? null;
             }
@@ -378,7 +385,7 @@ export function ApproverDashboard() {
     return () => {
       isMounted = false;
     };
-  }, [authLoading]);
+  }, [authLoading, requestedReviewId]);
 
   useEffect(() => {
     let isMounted = true;

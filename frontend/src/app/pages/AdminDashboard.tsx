@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Users, Building2, Brain, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock, Edit2, Plus, X, KeyRound, Save, Trash2, Sparkles } from "lucide-react";
 import api from "../../lib/api";
@@ -77,6 +78,26 @@ type AuditStats = {
     weekEnd: string;
     total: number;
   }>;
+};
+
+type ApprovalQueueItem = {
+  id: string;
+  venueId: string;
+  ministryId: string;
+  attendees: number;
+  eventName: string;
+  purpose: string;
+  startDateTime: string;
+  endDateTime: string;
+  status: string;
+  createdAt: string;
+  requester: { name: string; email: string };
+  venue: { name: string };
+  ministry: { name: string };
+};
+
+type ApprovalQueueResponse = {
+  queue: ApprovalQueueItem[];
 };
 
 type AdminUsersResponse = {
@@ -447,6 +468,7 @@ function buildInsights(stats: AuditStats | null, logs: AuditLogItem[]): DSSInsig
 }
 
 export function AdminDashboard() {
+  const navigate = useNavigate();
   const { isLoading: isAuthLoading } = useAuth();
   const [reportView, setReportView] = useState<ReportView>("weekly");
   const [usersTab, setUsersTab] = useState<"activity" | "manage">("activity");
@@ -454,6 +476,7 @@ export function AdminDashboard() {
   const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([]);
   const [ministries, setMinistries] = useState<MinistryOption[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
+  const [approvalQueue, setApprovalQueue] = useState<ApprovalQueueItem[]>([]);
   const [auditStats, setAuditStats] = useState<AuditStats | null>(null);
   const [venuesLoading, setVenuesLoading] = useState(true);
   const [adminUsersLoading, setAdminUsersLoading] = useState(true);
@@ -525,12 +548,13 @@ export function AdminDashboard() {
 
       const window = getReportWindow(reportView);
 
-      const [liveVenuesResult, adminUsersResult, ministriesResult, auditStatsResult, auditLogsResult] = await Promise.allSettled([
+      const [liveVenuesResult, adminUsersResult, ministriesResult, auditStatsResult, auditLogsResult, approvalQueueResult] = await Promise.allSettled([
         fetchVenues(),
         api.get<AdminUsersResponse>("/admin/users"),
         api.get<MinistriesResponse>("/admin/ministries"),
         api.get<AuditStats>("/audit/stats", { params: window }),
         fetchAuditLogs(window),
+        api.get<ApprovalQueueResponse>("/approvals/queue"),
       ]);
 
       if (!isMounted) {
@@ -589,6 +613,13 @@ export function AdminDashboard() {
       } else {
         console.warn("Failed to load audit logs");
         setAuditLogs([]);
+      }
+
+      if (approvalQueueResult.status === "fulfilled") {
+        setApprovalQueue(approvalQueueResult.value.queue ?? []);
+      } else {
+        console.warn("Failed to load approval queue preview");
+        setApprovalQueue([]);
       }
 
       if (auditStatsResult.status === "rejected" || auditLogsResult.status === "rejected") {
@@ -651,10 +682,7 @@ export function AdminDashboard() {
     );
   }, [adminUsers]);
   const selectedVenue = venues.find((venue) => venue.id === selectedVenueId) ?? null;
-  const pendingQueuePreview = visibleAuditLogs.filter((log) => {
-    const status = log.venueRequest?.status;
-    return status === "PENDING" || status === "SECRETARY_REVIEW" || status === "PRIEST_REVIEW";
-  });
+  const pendingQueuePreview = approvalQueue.filter((request) => request.status === "PENDING" || request.status === "SECRETARY_REVIEW" || request.status === "PRIEST_REVIEW");
   const now = new Date();
   const pendingOver48Hours = pendingQueuePreview.filter((log) => (now.getTime() - new Date(log.createdAt).getTime()) > 48 * 60 * 60 * 1000);
   const tomorrow = new Date(now);
@@ -1301,15 +1329,22 @@ export function AdminDashboard() {
             <p className="text-[10px] text-zinc-400 dark:text-zinc-500">No pending approvals are waiting right now.</p>
           ) : (
             <div className="space-y-3">
-              {pendingQueuePreview.slice(0, 4).map((log) => (
-                <div key={log.id} className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
+              {pendingQueuePreview.slice(0, 4).map((request) => (
+                <div key={request.id} className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500">{log.venueRequest?.id ?? log.id}</p>
-                      <h3 className="text-sm font-black truncate text-zinc-900 dark:text-zinc-100">{log.venueRequest?.venue?.name ?? "Venue pending"}</h3>
-                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400">{log.venueRequest?.ministry?.name ?? "Ministry pending"} • {log.venueRequest?.startDateTime ? new Date(log.venueRequest.startDateTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Date pending"}</p>
+                      <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500">{request.id}</p>
+                      <h3 className="text-sm font-black truncate text-zinc-900 dark:text-zinc-100">{request.purpose || request.eventName}</h3>
+                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400">{request.venue.name} • {request.ministry.name} • {new Date(request.startDateTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+                      <p className="mt-1 text-[10px] text-zinc-400 dark:text-zinc-500">Requester: {request.requester.name}</p>
                     </div>
-                    <button type="button" className="px-3 py-2 rounded-xl bg-[#00A859] text-white hover:bg-[#009950] hover:text-white dark:hover:bg-[#00bf65] dark:hover:text-white text-[10px] font-black">Review</button>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/approver?requestId=${request.id}`)}
+                      className="px-3 py-2 rounded-xl bg-[#00A859] text-white hover:bg-[#009950] hover:text-white dark:hover:bg-[#00bf65] dark:hover:text-white text-[10px] font-black"
+                    >
+                      Review
+                    </button>
                   </div>
                 </div>
               ))}

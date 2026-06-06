@@ -23,7 +23,7 @@ const listQuerySchema = z.object({
     limit: z.coerce.number().int().positive().max(100).optional(),
 });
 function getQueueStatusForRole(role) {
-    if (role === "PARISH_SECRETARY" || role === "PARISH_PRIEST") {
+    if (role === "PARISH_SECRETARY" || role === "PARISH_PRIEST" || role === "ADMIN") {
         return "PENDING";
     }
     return null;
@@ -196,7 +196,7 @@ async function approveRequest(req, res, next) {
         if (requestRecord.status !== "PENDING") {
             throw new AppError("Request is not in PENDING status", 400);
         }
-        if (!["PARISH_SECRETARY", "PARISH_PRIEST"].includes(req.user.role)) {
+        if (!["PARISH_SECRETARY", "PARISH_PRIEST", "ADMIN"].includes(req.user.role)) {
             throw new AppError("Insufficient permissions", 403);
         }
         nextStatus = "APPROVED";
@@ -284,7 +284,7 @@ async function rejectRequest(req, res, next) {
         if (requestRecord.status !== "PENDING") {
             throw new AppError("Request is not in PENDING status", 400);
         }
-        if (!["PARISH_SECRETARY", "PARISH_PRIEST"].includes(req.user.role)) {
+        if (!["PARISH_SECRETARY", "PARISH_PRIEST", "ADMIN"].includes(req.user.role)) {
             throw new AppError("Insufficient permissions", 403);
         }
         await client.query(`UPDATE "VenueRequest"
@@ -367,7 +367,7 @@ async function requestRevision(req, res, next) {
         if (requestRecord.status !== "PENDING") {
             throw new AppError("Request is not in PENDING status", 400);
         }
-        if (!["PARISH_SECRETARY", "PARISH_PRIEST"].includes(req.user.role)) {
+        if (!["PARISH_SECRETARY", "PARISH_PRIEST", "ADMIN"].includes(req.user.role)) {
             throw new AppError("Insufficient permissions", 403);
         }
         await client.query(`UPDATE "VenueRequest"
@@ -413,7 +413,7 @@ async function getArchive(req, res, next) {
         if (!req.user) {
             throw new AppError("Unauthorized", 401);
         }
-        if (!["PARISH_SECRETARY", "PARISH_PRIEST"].includes(req.user.role)) {
+        if (!["PARISH_SECRETARY", "PARISH_PRIEST", "ADMIN"].includes(req.user.role)) {
             throw new AppError("Insufficient permissions", 403);
         }
         const { page, limit } = parseListPagination(req.query);

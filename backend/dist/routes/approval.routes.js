@@ -7,7 +7,7 @@ const { getApprovalQueue, approveRequest, rejectRequest, requestRevision, getArc
 const approvalRoutes = Router();
 exports.approvalRoutes = approvalRoutes;
 approvalRoutes.use(authenticate);
-approvalRoutes.use(requireRole([Role.PARISH_SECRETARY, Role.PARISH_PRIEST]));
+approvalRoutes.use(requireRole([Role.PARISH_SECRETARY, Role.PARISH_PRIEST, Role.ADMIN]));
 approvalRoutes.get("/queue", getApprovalQueue);
 approvalRoutes.get("/archive", getArchive);
 approvalRoutes.post("/:requestId/approve", approveRequest);

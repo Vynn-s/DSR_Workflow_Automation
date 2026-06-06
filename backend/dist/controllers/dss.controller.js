@@ -149,7 +149,7 @@ async function evaluateRequest(req, res, next) {
 			 AND vr."startDateTime" < $2
 			 AND vr."endDateTime" > $3`;
         if (requestId) {
-            conflictQuery += ` AND id <> $4`;
+            conflictQuery += ` AND vr.id <> $4`;
             conflictParams.push(requestId);
         }
         conflictQuery += ` ORDER BY vr."startDateTime" ASC`;

@@ -23,7 +23,7 @@ const listQuerySchema = z.object({
 });
 
 function getQueueStatusForRole(role: string): "PENDING" | null {
-	if (role === "PARISH_SECRETARY" || role === "PARISH_PRIEST") {
+	if (role === "PARISH_SECRETARY" || role === "PARISH_PRIEST" || role === "ADMIN") {
 		return "PENDING";
 	}
 
@@ -262,7 +262,7 @@ export async function approveRequest(req: Request, res: Response, next: NextFunc
 			throw new AppError("Request is not in PENDING status", 400);
 		}
 
-		if (!["PARISH_SECRETARY", "PARISH_PRIEST"].includes(req.user.role)) {
+		if (!["PARISH_SECRETARY", "PARISH_PRIEST", "ADMIN"].includes(req.user.role)) {
 			throw new AppError("Insufficient permissions", 403);
 		}
 
@@ -373,7 +373,7 @@ export async function rejectRequest(req: Request, res: Response, next: NextFunct
 			throw new AppError("Request is not in PENDING status", 400);
 		}
 
-		if (!["PARISH_SECRETARY", "PARISH_PRIEST"].includes(req.user.role)) {
+		if (!["PARISH_SECRETARY", "PARISH_PRIEST", "ADMIN"].includes(req.user.role)) {
 			throw new AppError("Insufficient permissions", 403);
 		}
 
@@ -478,7 +478,7 @@ export async function requestRevision(req: Request, res: Response, next: NextFun
 			throw new AppError("Request is not in PENDING status", 400);
 		}
 
-		if (!["PARISH_SECRETARY", "PARISH_PRIEST"].includes(req.user.role)) {
+		if (!["PARISH_SECRETARY", "PARISH_PRIEST", "ADMIN"].includes(req.user.role)) {
 			throw new AppError("Insufficient permissions", 403);
 		}
 
@@ -534,7 +534,7 @@ export async function getArchive(req: Request, res: Response, next: NextFunction
 			throw new AppError("Unauthorized", 401);
 		}
 
-		if (!["PARISH_SECRETARY", "PARISH_PRIEST"].includes(req.user.role)) {
+		if (!["PARISH_SECRETARY", "PARISH_PRIEST", "ADMIN"].includes(req.user.role)) {
 			throw new AppError("Insufficient permissions", 403);
 		}
 

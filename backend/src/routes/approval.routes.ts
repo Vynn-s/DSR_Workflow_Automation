@@ -12,7 +12,7 @@ const {
 const approvalRoutes = Router();
 
 approvalRoutes.use(authenticate);
-approvalRoutes.use(requireRole([Role.PARISH_SECRETARY, Role.PARISH_PRIEST]));
+approvalRoutes.use(requireRole([Role.PARISH_SECRETARY, Role.PARISH_PRIEST, Role.ADMIN]));
 
 approvalRoutes.get("/queue", getApprovalQueue);
 approvalRoutes.get("/archive", getArchive);

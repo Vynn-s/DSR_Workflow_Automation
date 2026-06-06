@@ -11,22 +11,27 @@ const { AppError } = require("../middleware/errorHandler") as typeof import("../
 
 const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
+const signatureSchema = z.object({
+	required: z.boolean().optional(),
+	status: z.preprocess(
+		(value) => String(value ?? "pending").toLowerCase() === "signed" ? "signed" : "pending",
+		z.enum(["pending", "signed"]),
+	),
+}).passthrough();
+
 const evaluateRequestSchema = z.object({
 	venueId: z.string().min(1),
-	ministryId: z.string().min(1).optional(),
+	ministryId: z.preprocess((value) => value === "" ? undefined : value, z.string().min(1).optional()),
 	requestId: z.string().min(1).optional(),
 	requestDate: z.coerce.date(),
 	startTime: z.string().regex(timePattern),
 	endTime: z.string().regex(timePattern),
 	attendees: z.coerce.number().int().positive(),
 	attachmentCount: z.coerce.number().int().nonnegative().optional(),
-	signatures: z.array(z.object({
-		required: z.boolean().optional(),
-		status: z.preprocess(
-			(value) => String(value ?? "pending").toLowerCase() === "signed" ? "signed" : "pending",
-			z.enum(["pending", "signed"]),
-		),
-	}).passthrough()).optional(),
+	signatures: z.preprocess(
+		(value) => Array.isArray(value) ? value.filter((entry) => entry && typeof entry === "object") : [],
+		z.array(signatureSchema),
+	).optional(),
 });
 
 const recommendationQuerySchema = z.object({

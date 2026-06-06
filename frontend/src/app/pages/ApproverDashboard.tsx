@@ -131,17 +131,6 @@ function formatTimeRange(startDateTime: string, endDateTime: string) {
   return `${start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} - ${end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
 }
 
-function formatDateForDss(value: string) {
-  return value.slice(0, 10);
-}
-
-function formatTimeForDss(value: string) {
-  const date = new Date(value);
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${hours}:${minutes}`;
-}
-
 function mapDssDecision(decision: DssApiDecision): DSSRecommendation {
   const passedRules = decision.results.filter((result) => result.passed).map((result) => result.message);
   const failedRules = decision.results.filter((result) => !result.passed).map((result) => result.message);
@@ -396,26 +385,12 @@ export function ApproverDashboard() {
         return;
       }
 
-      if (!selectedRequest.venueId || !selectedRequest.ministryId) {
-        setSelectedRequest((current) => (current?.id === selectedRequest.id ? { ...current, dssRecommendation: undefined } : current));
-        setDssError("DSS details are unavailable for this request.");
-        return;
-      }
-
       setDssLoading(true);
       setDssError(null);
 
       try {
         const decision = await api.post<DssApiDecision>("/dss/evaluate", {
-          venueId: selectedRequest.venueId,
           requestId: selectedRequest.id,
-          ministryId: selectedRequest.ministryId,
-          requestDate: formatDateForDss(selectedRequest.startDateTime),
-          startTime: formatTimeForDss(selectedRequest.startDateTime),
-          endTime: formatTimeForDss(selectedRequest.endDateTime),
-          attendees: selectedRequest.attendees,
-          attachmentCount: selectedRequest.attachments?.length ?? 0,
-          signatures: selectedRequest.signatures ?? [],
         });
 
         if (isMounted) {
@@ -423,10 +398,11 @@ export function ApproverDashboard() {
           setSelectedRequest((current) => (current?.id === selectedRequest.id ? { ...current, dssRecommendation } : current));
         }
       } catch (error) {
-        console.warn("Failed to evaluate DSS for selected request");
+        const serverMessage = (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message;
+        console.warn("Failed to evaluate DSS for selected request", serverMessage ?? error);
         if (isMounted) {
           setSelectedRequest((current) => (current?.id === selectedRequest.id ? { ...current, dssRecommendation: undefined } : current));
-          setDssError("Unable to load DSS guidance right now.");
+          setDssError(serverMessage ?? "Unable to load DSS guidance right now.");
         }
       } finally {
         if (isMounted) {
@@ -440,7 +416,7 @@ export function ApproverDashboard() {
     return () => {
       isMounted = false;
     };
-  }, [activeTab, selectedRequest?.id, selectedRequest?.venueId, selectedRequest?.ministryId, selectedRequest?.date, selectedRequest?.time, selectedRequest?.attendees]);
+  }, [activeTab, selectedRequest?.id]);
 
   const refreshQueue = async () => {
     const response = await api.get<{ queue: ApiApprovalQueueItem[] }>("/approvals/queue");

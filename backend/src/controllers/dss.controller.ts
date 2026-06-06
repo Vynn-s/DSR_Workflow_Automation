@@ -20,13 +20,13 @@ const signatureSchema = z.object({
 }).passthrough();
 
 const evaluateRequestSchema = z.object({
-	venueId: z.string().min(1),
+	venueId: z.string().min(1).optional(),
 	ministryId: z.preprocess((value) => value === "" ? undefined : value, z.string().min(1).optional()),
 	requestId: z.string().min(1).optional(),
-	requestDate: z.coerce.date(),
-	startTime: z.string().regex(timePattern),
-	endTime: z.string().regex(timePattern),
-	attendees: z.coerce.number().int().positive(),
+	requestDate: z.coerce.date().optional(),
+	startTime: z.string().regex(timePattern).optional(),
+	endTime: z.string().regex(timePattern).optional(),
+	attendees: z.coerce.number().int().positive().optional(),
 	attachmentCount: z.coerce.number().int().nonnegative().optional(),
 	signatures: z.preprocess(
 		(value) => Array.isArray(value) ? value.filter((entry) => entry && typeof entry === "object") : [],
@@ -52,6 +52,10 @@ function combineDateAndTime(date: Date, time: string): Date {
 	const combined = new Date(date);
 	combined.setHours(hours, minutes, 0, 0);
 	return combined;
+}
+
+function formatTimeForDss(value: Date): string {
+	return `${String(value.getHours()).padStart(2, "0")}:${String(value.getMinutes()).padStart(2, "0")}`;
 }
 
 function getMonthWindow(date: Date) {
@@ -147,8 +151,8 @@ export async function evaluateRequest(
 		}
 
 		let { venueId, ministryId, requestId, requestDate, startTime, endTime, attendees } = parsed.data;
-		const attachmentCount = parsed.data.attachmentCount ?? 0;
-		const signatures = parsed.data.signatures ?? [];
+		let attachmentCount = parsed.data.attachmentCount ?? 0;
+		let signatures = parsed.data.signatures ?? [];
 		const userResult = await client.query(
 			`SELECT id, "ministryId" FROM "User" WHERE email = $1 LIMIT 1`,
 			[req.user.email],
@@ -159,6 +163,46 @@ export async function evaluateRequest(
 		}
 
 		const actorUserId = userResult.rows[0].id as string;
+
+		if (requestId) {
+			const requestResult = await client.query(
+				`SELECT id, "venueId", "ministryId", "startDateTime", "endDateTime", attendees, attachments, signatures
+				 FROM "VenueRequest"
+				 WHERE id = $1
+				 LIMIT 1`,
+				[requestId],
+			);
+
+			if (requestResult.rows.length === 0) {
+				throw new AppError("Request not found", 404);
+			}
+
+			const requestRecord = requestResult.rows[0] as {
+				id: string;
+				venueId: string;
+				ministryId: string;
+				startDateTime: Date;
+				endDateTime: Date;
+				attendees: number;
+				attachments?: unknown;
+				signatures?: unknown;
+			};
+
+			venueId = requestRecord.venueId;
+			ministryId = requestRecord.ministryId;
+			requestDate = requestRecord.startDateTime;
+			startTime = formatTimeForDss(requestRecord.startDateTime);
+			endTime = formatTimeForDss(requestRecord.endDateTime);
+			attendees = requestRecord.attendees;
+			attachmentCount = Array.isArray(requestRecord.attachments) ? requestRecord.attachments.length : attachmentCount;
+
+			const parsedSignatures = evaluateRequestSchema.shape.signatures.safeParse(requestRecord.signatures);
+			signatures = parsedSignatures.success ? parsedSignatures.data ?? [] : [];
+		}
+
+		if (!venueId || !requestDate || !startTime || !endTime || !attendees) {
+			throw new AppError("Invalid request payload for DSS evaluation", 400);
+		}
 
 		if (!ministryId) {
 			ministryId = userResult.rows[0]?.ministryId;

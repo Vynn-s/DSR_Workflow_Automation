@@ -105,13 +105,6 @@ const priestSignatureOptions = [
   { id: "priest-sample-4", name: "Fr. Paul Garcia" },
 ];
 
-const attendeeRangeOptions = [
-  { label: "1-50", value: 50 },
-  { label: "51-150", value: 150 },
-  { label: "151-300", value: 300 },
-  { label: "301-500", value: 500 },
-];
-
 const specificEventOptions = [
   "N/A",
   "Seminar/ Formation",
@@ -122,8 +115,6 @@ const specificEventOptions = [
   "Dining Area (Chapels Not Allowed)",
   "Preparation Room (Chapels Not Allowed)",
 ];
-
-const defaultAttendeeRange = attendeeRangeOptions[0].value.toString();
 
 const buildVenueInfo = (venue: VenueApi): VenueInfo => {
   const authorizedMinistryNames = venue.authorizedMinistries
@@ -316,7 +307,7 @@ export function BookingRequestForm() {
     startTime: "",
     endTime: "",
     purpose: "",
-    attendees: defaultAttendeeRange,
+    attendees: "",
   });
   const [attachment, setAttachment] = useState<File | null>(null);
   const [venues, setVenues] = useState<VenueApi[]>([]);
@@ -423,7 +414,9 @@ export function BookingRequestForm() {
   useEffect(() => {
     const { venue, date, startTime, endTime, attendees } = formData;
 
-    if (!(venue && date && startTime && endTime)) {
+    const attendeeCount = Number(attendees);
+
+    if (!(venue && date && startTime && endTime) || !Number.isFinite(attendeeCount) || attendeeCount <= 0) {
       setDssResults([]);
       setDssConflicts([]);
       setDssNextAvailableSlot(null);
@@ -451,7 +444,7 @@ export function BookingRequestForm() {
           requestDate: date,
           startTime,
           endTime,
-          attendees: Number(attendees),
+          attendees: attendeeCount,
           attachmentCount: attachment ? 1 : 0,
           signatures,
         });
@@ -612,6 +605,17 @@ export function BookingRequestForm() {
       return;
     }
 
+    const attendeeCount = Number(formData.attendees);
+    if (!Number.isFinite(attendeeCount) || attendeeCount <= 0) {
+      setSubmitError("Please enter a valid expected attendee count.");
+      return;
+    }
+
+    if (attendeeCount > selectedVenue.capacity) {
+      setSubmitError(`${selectedVenue.name} can only hold up to ${selectedVenue.capacity} people.`);
+      return;
+    }
+
     if (!isWithinBusinessHours(formData.startTime) || !isWithinBusinessHours(formData.endTime)) {
       setSubmitError("Please choose a time between 6:00 AM and 10:00 PM.");
       return;
@@ -662,7 +666,7 @@ export function BookingRequestForm() {
         endDateTime: combineDateAndTimeToIso(formData.date, formData.endTime),
         startTime: formData.startTime,
         endTime: formData.endTime,
-        attendees: Number(formData.attendees),
+        attendees: attendeeCount,
         specialRequirements: "",
         attachments,
         signatures,
@@ -810,6 +814,14 @@ export function BookingRequestForm() {
   const hasShortNotice = typeof daysUntilEvent === "number" && daysUntilEvent < 3;
   const selectedVenueDemand = bookingRecommendations?.recommendations.find((message) => message.toLowerCase().includes("selected venue"));
   const isHighDemand = Boolean(selectedVenueDemand && bookingRecommendations && bookingRecommendations.totalRequests >= 5);
+  const selectedVenueMonthlyDemand = selectedVenue && bookingRecommendations
+    ? bookingRecommendations.topVenues.find((venue) => venue.name === selectedVenue.name)?.total ?? 0
+    : 0;
+  const peakVenues = bookingRecommendations?.topVenues.slice(0, 3).map((venue) => `${venue.name} (${venue.total})`).join(", ");
+  const peakEvents = bookingRecommendations?.topPurposes.slice(0, 3).map((purpose) => `${purpose.name} (${purpose.total})`).join(", ");
+  const monthlyDemandDetail = bookingRecommendations
+    ? `${bookingRecommendations.monthLabel} demand: ${bookingRecommendations.totalRequests} live booking${bookingRecommendations.totalRequests === 1 ? "" : "s"}. ${peakVenues ? `Peak venues: ${peakVenues}.` : "No peak venue pattern yet."} ${peakEvents ? `Common events: ${peakEvents}.` : "No peak event pattern yet."}`
+    : "Not enough booking history is available yet.";
   const bookingAssistantStatus = dssChecking
     ? "Checking"
     : dssConflicts.length > 0
@@ -844,9 +856,12 @@ export function BookingRequestForm() {
       ? `This event is ${daysUntilEvent} day(s) away. Short-notice requests have less time for review.`
       : selectedVenueDemand
         ? selectedVenueDemand
-        : bookingRecommendations
-          ? `${bookingRecommendations.monthLabel} has ${bookingRecommendations.totalRequests} live booking${bookingRecommendations.totalRequests === 1 ? "" : "s"}.`
-          : "Not enough booking history is available yet.";
+        : monthlyDemandDetail;
+  const bookingAssistantDemandInsight = selectedVenue && bookingRecommendations
+    ? selectedVenueMonthlyDemand > 0
+      ? `${selectedVenue.name} has ${selectedVenueMonthlyDemand} booking${selectedVenueMonthlyDemand === 1 ? "" : "s"} in ${bookingRecommendations.monthName}. ${peakVenues ? `Busiest venues this month: ${peakVenues}.` : ""}`
+      : `${selectedVenue.name} has no recorded bookings in ${bookingRecommendations.monthName} yet, so it may be a lighter-demand option.`
+    : monthlyDemandDetail;
   const bookingAssistantSuggestion = primaryConflict
     ? dssNextAvailableSlot
       ? `Consider ${dssNextAvailableSlot.startTimeLabel} - ${dssNextAvailableSlot.endTimeLabel} on ${dssNextAvailableSlot.dateLabel}.`
@@ -856,13 +871,13 @@ export function BookingRequestForm() {
       : isHighDemand
         ? "Consider another available venue if your schedule is flexible."
         : canProceed
-          ? "Review the form once, attach your signed letter, then submit."
-          : "Complete the missing fields so I can give a confident recommendation.";
+          ? `${bookingAssistantDemandInsight} Review the form once, attach your signed letter, then submit.`
+          : `Complete the missing fields so I can give a confident recommendation. ${bookingAssistantDemandInsight}`;
   const bookingAssistantConfidence = dssChecking ? "Evaluating" : dssResults.length > 0 ? `${Math.round((dssResults.filter((result) => result.passed).length / dssResults.length) * 100)}% confidence` : "Needs details";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 p-4 backdrop-blur-sm">
-        <div className="w-full lg:max-w-3xl max-h-[92vh] overflow-y-auto rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 shadow-2xl animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none">
+        <div className="w-full max-w-6xl max-h-[92vh] overflow-y-auto rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 shadow-2xl animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none">
         <div className="bg-white/95 px-5 py-4 text-zinc-900 shadow-sm dark:bg-zinc-950/95 dark:text-zinc-100 border-b border-zinc-200 dark:border-zinc-800">
           <div className="flex justify-between items-center gap-4 rounded-2xl border border-[#0F3B8C]/10 bg-[#0F3B8C]/5 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900/70">
           <div>
@@ -878,7 +893,7 @@ export function BookingRequestForm() {
           </div>
         </div>
 
-      <div className="grid grid-cols-1 gap-6 p-6">
+      <div className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
         {/* Form */}
         <div>
           <div>
@@ -934,7 +949,7 @@ export function BookingRequestForm() {
                 </select>
               </div>
 
-              {/* Attendee Range */}
+              {/* Expected Attendees */}
               <div>
                 <label
                   htmlFor="attendees"
@@ -942,22 +957,21 @@ export function BookingRequestForm() {
                 >
                   Expected Attendees <span className="text-rose-500">*</span>
                 </label>
-                <select
+                <input
                   id="attendees"
                   name="attendees"
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  max={selectedVenue?.capacity}
+                  placeholder={selectedVenue ? `Enter 1-${selectedVenue.capacity}` : "Enter expected headcount"}
                   value={formData.attendees}
                   onChange={handleInputChange}
                   className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-900 dark:text-zinc-100 outline-none"
                   required
-                >
-                  {attendeeRangeOptions.map((option) => (
-                    <option key={option.label} value={option.value}>
-                      {option.label} people
-                    </option>
-                  ))}
-                </select>
+                />
                 <p className="mt-2 text-[10px] text-zinc-400 dark:text-zinc-500">
-                  Choose the range that best matches your expected headcount.
+                  Enter the exact expected headcount. {selectedVenue ? `${selectedVenue.name} can hold up to ${selectedVenue.capacity} people.` : "Choose a venue to see its capacity."}
                 </p>
               </div>
 
@@ -1451,9 +1465,9 @@ export function BookingRequestForm() {
         </div>
 
         {/* Venue Information Panel */}
-        <div className="col-span-1">
+        <aside className="col-span-1 lg:sticky lg:top-6">
           {selectedVenueInfo ? (
-            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6 sticky top-6">
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <div className="p-2 bg-[#0F3B8C]/20 rounded-lg">
                   <MapPin className="w-5 h-5 text-[#0F3B8C] dark:text-blue-300" />
@@ -1505,7 +1519,7 @@ export function BookingRequestForm() {
               </div>
             </div>
           ) : (
-            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-12 text-center sticky top-6">
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-8 text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-zinc-100 dark:bg-zinc-900 rounded-full mb-4">
                 <MapPin className="w-8 h-8 text-zinc-500 dark:text-zinc-400" />
               </div>
@@ -1515,7 +1529,7 @@ export function BookingRequestForm() {
               </p>
             </div>
           )}
-        </div>
+        </aside>
       </div>
 
       </div>

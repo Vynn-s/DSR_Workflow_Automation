@@ -369,7 +369,7 @@ export function RequesterDashboard() {
             to="/requester/new-request"
             className="inline-flex items-center gap-2 rounded-xl bg-[#00A859] px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-0.5 hover:bg-[#009950] hover:text-white hover:shadow-lg active:scale-95 dark:hover:bg-[#00bf65] dark:hover:text-white"
           >
-            <Plus className="w-4 h-4 text-white" />
+            <Plus className="w-4 h-4 !text-white" />
             New DSR Request
           </Link>
           <button
@@ -459,7 +459,7 @@ export function RequesterDashboard() {
           icon={CalendarX}
           title="No requests yet"
           description="Your submitted DSRs will appear here once you create your first venue request."
-          action={<Link to="/requester/new-request" className="inline-flex items-center gap-2.5 rounded-xl bg-[#00A859] px-4 py-2.5 text-sm font-semibold text-white transition-all duration-150 hover:bg-[#009950] hover:text-white active:scale-95 dark:hover:bg-[#00bf65] dark:hover:text-white"><Plus className="w-4 h-4 text-white" />New Request</Link>}
+          action={<Link to="/requester/new-request" className="inline-flex items-center gap-2.5 rounded-xl bg-[#00A859] px-4 py-2.5 text-sm font-semibold text-white transition-all duration-150 hover:bg-[#009950] hover:text-white active:scale-95 dark:hover:bg-[#00bf65] dark:hover:text-white"><Plus className="w-4 h-4 !text-white" />New Request</Link>}
         />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -573,7 +573,7 @@ export function RequesterDashboard() {
                     ].map(([title, date, body, active], index) => (
                       <div key={String(title)} className="flex gap-4">
                         <div className="flex flex-col items-center">
-                          <div className={`w-9 h-9 rounded-full flex items-center justify-center ${active ? "bg-[#0F3B8C] text-white hover:bg-[#0d3380] hover:text-white dark:hover:bg-[#1a4fab] dark:hover:text-white" : "bg-zinc-200 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-500"}`}>
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center border ${active ? "border-[#00A859]/25 bg-[#00A859]/10 text-[#007a41] dark:border-[#0F3B8C]/40 dark:bg-[#0F3B8C] dark:text-white" : "border-zinc-200 bg-zinc-100 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-500"}`}>
                             {index === 2 && detailRequest.status === "Rejected" ? <XCircle className="w-4 h-4" /> : active ? <CheckCircle2 className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
                           </div>
                           {index < 2 && <div className="w-px h-10 bg-zinc-200 mt-2 dark:bg-zinc-800" />}

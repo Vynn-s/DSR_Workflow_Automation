@@ -307,10 +307,10 @@ export function VenueAvailability() {
             <button
               onClick={() => void loadAvailability("refresh")}
               disabled={isRefreshing}
-              className="px-4 py-2.5 bg-[#0F3B8C] text-white hover:bg-[#0d3380] hover:text-white dark:hover:bg-[#1a4fab] dark:hover:text-white rounded-xl transition-colors duration-150 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+              className="px-4 py-2.5 bg-[#0F3B8C] !text-white hover:bg-[#0d3380] hover:!text-white dark:hover:bg-[#1a4fab] dark:hover:!text-white rounded-xl transition-colors duration-150 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
             >
-              <RefreshCw className={`w-4 h-4 text-white ${isRefreshing ? "animate-spin" : ""}`} />
-              <span className="text-xs font-black text-white">
+              <RefreshCw className={`w-4 h-4 !text-white ${isRefreshing ? "animate-spin" : ""}`} />
+              <span className="text-xs font-black !text-white">
                 {isRefreshing ? "Refreshing" : "Refresh"}
               </span>
             </button>

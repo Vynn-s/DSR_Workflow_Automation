@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { Users, Building2, Brain, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock, Edit2, Plus, X, KeyRound, Save, Trash2, Sparkles } from "lucide-react";
+import { Users, Building2, Brain, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock, Edit2, Plus, X, KeyRound, Save, Trash2 } from "lucide-react";
 import api from "../../lib/api";
 import { fetchVenues, type LiveVenue } from "../../lib/venues";
 import { useAuth } from "../../context/AuthContext";
@@ -712,6 +712,24 @@ export function AdminDashboard() {
     : adminUrgency === "Today"
       ? "bg-[#B45309]/10 text-[#92400E] border-[#B45309]/25 dark:text-amber-300"
       : "bg-[#00A859]/10 text-[#007a41] border-[#00A859]/20 dark:text-[#00A859]";
+  const approvalRateValue = auditStats ? Math.max(0, 100 - auditStats.rejectionRate) : null;
+  const dssReadiness = approvalRateValue === null
+    ? "Learning"
+    : approvalRateValue >= 85 && pendingOver48Hours.length === 0
+      ? "Fast lane"
+      : approvalRateValue >= 70
+        ? "Review needed"
+        : "High friction";
+  const dssRiskLevel = (auditStats?.totalConflictsDetected ?? 0) > 0 || (auditStats?.rejectionRate ?? 0) > 30
+    ? "Elevated"
+    : pendingOver48Hours.length > 0
+      ? "Watch"
+      : "Controlled";
+  const demandPressure = pendingQueuePreview.length > 6
+    ? "Heavy"
+    : pendingQueuePreview.length > 0
+      ? "Active"
+      : "Clear";
 
   const startEditingVenue = (venue: LiveVenue) => {
     setSelectedVenueId(venue.id);
@@ -1107,34 +1125,82 @@ export function AdminDashboard() {
       )}
 
       <div className="mb-10 space-y-6">
-        <div className="rounded-2xl border border-[#0F3B8C]/30 bg-gradient-to-br from-[#0F3B8C]/10 to-[#00A859]/5 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="flex items-center gap-2 text-sm font-bold text-zinc-900 dark:text-zinc-100"><Sparkles className="h-5 w-5 text-[#C99700]" /> Smart Decision Assistant</h2>
-            <span className={`rounded-full border px-3 py-1 text-[10px] font-black ${adminUrgencyClass}`}>{adminUrgency}</span>
+        <div className="rounded-3xl border border-[#0F3B8C]/25 bg-[radial-gradient(circle_at_top_left,rgba(15,59,140,0.16),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.96),rgba(240,253,244,0.78))] p-5 shadow-sm dark:border-[#0F3B8C]/40 dark:bg-[radial-gradient(circle_at_top_left,rgba(15,59,140,0.34),transparent_38%),linear-gradient(135deg,rgba(9,9,11,0.95),rgba(20,83,45,0.18))]">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full bg-[#0F3B8C] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white">
+                  <Brain className="h-3.5 w-3.5" /> DSS Command Center
+                </span>
+                <span className={`rounded-full border px-3 py-1 text-[10px] font-black ${adminUrgencyClass}`}>{adminUrgency}</span>
+              </div>
+              <h2 className="mt-4 text-2xl font-black tracking-tight text-zinc-950 dark:text-zinc-50">Decision support for faster, safer approvals.</h2>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">DSS highlights workload pressure, conflict risk, and next actions so admins can route venue requests with less manual scanning.</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[460px]">
+              {[
+                ["Readiness", dssReadiness, "text-[#00A859]", CheckCircle2],
+                ["Risk", dssRiskLevel, dssRiskLevel === "Elevated" ? "text-red-500" : "text-[#92400E] dark:text-amber-300", AlertTriangle],
+                ["Pending", String(pendingQueuePreview.length), "text-[#0F3B8C] dark:text-blue-300", Clock],
+                ["Pressure", demandPressure, "text-[#C99700]", TrendingUp],
+              ].map(([label, value, tone, Icon]) => {
+                const SignalIcon = Icon as typeof CheckCircle2;
+                return (
+                  <div key={String(label)} className="rounded-2xl border border-white/70 bg-white/85 p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/70">
+                    <SignalIcon className={`h-4 w-4 ${tone}`} />
+                    <p className="mt-2 text-[9px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500">{label}</p>
+                    <p className="mt-0.5 text-lg font-black text-zinc-900 dark:text-zinc-100">{value}</p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div className="my-3 border-t border-zinc-200 dark:border-zinc-800" />
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-            <div className="rounded-xl border border-zinc-200 bg-white/85 p-4 dark:border-zinc-800 dark:bg-zinc-950/60">
-              <p className="text-[10px] font-black uppercase text-zinc-500 dark:text-zinc-400">Weekly Summary</p>
-              <p className="mt-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{weeklySubmitted} requests submitted this period</p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">{weeklyApproved} approved, {weeklyRejected} rejected, {weeklyPending} pending</p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Most active venue: {topVenueInsight.label}{topVenueInsight.total > 0 ? ` (${topVenueInsight.total})` : ""}</p>
+
+          <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
+            <div className="rounded-2xl border border-[#0F3B8C]/20 bg-white/88 p-4 dark:border-zinc-800 dark:bg-zinc-950/70">
+              <div className="flex items-center justify-between gap-3">
+                <span className="rounded-full bg-[#0F3B8C]/10 px-3 py-1 text-xs font-bold text-[#0F3B8C] dark:text-blue-300">Priority action today</span>
+                <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Avg approval: {insights.efficiency.avgApprovalTime}</span>
+              </div>
+              <p className="mt-3 text-base font-semibold leading-relaxed text-zinc-800 dark:text-zinc-100">{adminPriorityAction}</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl bg-[#00A859]/10 p-3"><p className="text-[9px] font-black uppercase text-[#00A859]">Approval rate</p><p className="mt-1 text-xl font-black text-zinc-900 dark:text-zinc-100">{insights.efficiency.approvalRate}</p></div>
+                <div className="rounded-xl bg-red-500/10 p-3"><p className="text-[9px] font-black uppercase text-red-500">Conflicts</p><p className="mt-1 text-xl font-black text-zinc-900 dark:text-zinc-100">{auditStats?.totalConflictsDetected ?? 0}</p></div>
+                <div className="rounded-xl bg-[#B45309]/10 p-3"><p className="text-[9px] font-black uppercase text-[#92400E] dark:text-amber-300">Over 48h</p><p className="mt-1 text-xl font-black text-zinc-900 dark:text-zinc-100">{pendingOver48Hours.length}</p></div>
+              </div>
             </div>
-            <div className="rounded-xl border border-zinc-200 bg-white/85 p-4 dark:border-zinc-800 dark:bg-zinc-950/60">
-              <p className="text-[10px] font-black uppercase text-zinc-500 dark:text-zinc-400">Pending Attention</p>
-              <p className="mt-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{pendingOver48Hours.length > 0 ? `${pendingOver48Hours.length} requests waiting over 48 hours` : "No request has waited over 48 hours"}</p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">{upcomingEvents.length > 0 ? `${upcomingEvents.length} approved or tracked event${upcomingEvents.length === 1 ? "" : "s"} occur today or tomorrow. You should confirm venue readiness.` : "No near-term events need readiness checks from loaded data."}</p>
+
+            <div className="rounded-2xl border border-zinc-200 bg-white/90 p-4 dark:border-zinc-800 dark:bg-zinc-950/70">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-100">DSS Review Inbox</h3>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Requests needing a decision or route check.</p>
+                </div>
+                <span className="rounded-full bg-[#B45309]/10 px-3 py-1 text-[10px] font-black text-[#92400E] dark:text-amber-300">{pendingQueuePreview.length} pending</span>
+              </div>
+              {pendingQueuePreview.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-zinc-200 p-4 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">No pending approvals are waiting right now.</div>
+              ) : (
+                <div className="space-y-2.5">
+                  {pendingQueuePreview.slice(0, 3).map((request) => {
+                    const ageHours = Math.max(0, Math.floor((now.getTime() - new Date(request.createdAt).getTime()) / (60 * 60 * 1000)));
+                    return (
+                      <div key={request.id} className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950/60">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-black text-zinc-900 dark:text-zinc-100">{request.purpose || request.eventName}</p>
+                            <p className="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">{request.venue.name} • {request.ministry.name} • {new Date(request.startDateTime).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
+                            <p className="mt-1 text-[10px] font-bold text-zinc-400 dark:text-zinc-500">Waiting {ageHours}h • {request.attendees} attendees</p>
+                          </div>
+                          <button type="button" onClick={() => navigate(`/approver?requestId=${request.id}`)} className="shrink-0 rounded-lg bg-[#00A859] px-3 py-2 text-[10px] font-black text-white hover:bg-[#009950] hover:text-white dark:hover:bg-[#00bf65] dark:hover:text-white">Review</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-            <div className="rounded-xl border border-zinc-200 bg-white/85 p-4 dark:border-zinc-800 dark:bg-zinc-950/60">
-              <p className="text-[10px] font-black uppercase text-zinc-500 dark:text-zinc-400">Venue Utilization</p>
-              <p className="mt-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{topVenueInsight.total > 0 ? `${topVenueInsight.label} is your most requested venue.` : "Not enough venue demand data yet."}</p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">{zeroBookingVenue ? `${zeroBookingVenue.name} has no bookings in the loaded period. Consider promoting availability.` : "All loaded venues show activity or no venue list is available."}</p>
-            </div>
-          </div>
-          <div className="mt-3 rounded-xl border border-[#0F3B8C]/20 bg-white/80 p-3 dark:border-zinc-800 dark:bg-zinc-950/60">
-            <span className="rounded-full bg-[#0F3B8C]/10 px-3 py-1 text-xs font-bold text-[#0F3B8C] dark:text-blue-300">Priority action today</span>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">{adminPriorityAction}</p>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Approval time: {insights.efficiency.avgApprovalTime}. Rejection rate: {auditStats ? `${auditStats.rejectionRate.toFixed(1)}%` : "Not enough data yet"}.</p>
           </div>
         </div>
 
@@ -1172,7 +1238,7 @@ export function AdminDashboard() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               <div className="p-4 rounded-2xl border bg-white dark:bg-zinc-950/60 border-zinc-200 dark:border-zinc-800">
-                <p className="text-[10px] font-black uppercase text-zinc-400 dark:text-zinc-500 mb-4">Status Distribution</p>
+                <p className="text-[10px] font-black uppercase text-zinc-400 dark:text-zinc-500 mb-4">Venue Health</p>
                 {[
                   ["Active", venueStatusCounts.ACTIVE],
                   ["Inactive", venueStatusCounts.INACTIVE],
@@ -1187,7 +1253,7 @@ export function AdminDashboard() {
               </div>
 
               <div className="p-4 rounded-2xl border bg-white dark:bg-zinc-950/60 border-zinc-200 dark:border-zinc-800">
-                <p className="text-[10px] font-black uppercase text-zinc-400 dark:text-zinc-500 mb-4">Venue Demand</p>
+                <p className="text-[10px] font-black uppercase text-zinc-400 dark:text-zinc-500 mb-4">Ministry Demand</p>
                 <div className="space-y-3">
                   {auditStats?.requestsByMinistry?.slice(0, 5).map((ministry) => (
                     <div key={ministry.ministryId} className="grid grid-cols-[1fr_auto] gap-3 items-center">
@@ -1208,7 +1274,7 @@ export function AdminDashboard() {
               </div>
 
               <div className="p-4 rounded-2xl border bg-white dark:bg-zinc-950/60 border-zinc-200 dark:border-zinc-800">
-                <p className="text-[10px] font-black uppercase text-zinc-400 dark:text-zinc-500 mb-4">System Snapshot</p>
+                <p className="text-[10px] font-black uppercase text-zinc-400 dark:text-zinc-500 mb-4">DSS Evidence</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 rounded-xl bg-[#00A859]/10"><p className="text-[9px] uppercase font-black text-[#00A859]">Approval Rate</p><p className="text-xl font-black text-zinc-900 dark:text-zinc-100">{insights.efficiency.approvalRate}</p></div>
                   <div className="p-3 rounded-xl bg-[#0F3B8C]/10"><p className="text-[9px] uppercase font-black text-[#0F3B8C] dark:text-blue-300">Venues</p><p className="text-xl font-black text-zinc-900 dark:text-zinc-100">{venues.length}</p></div>
@@ -1218,14 +1284,21 @@ export function AdminDashboard() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="rounded-2xl border border-zinc-200 bg-gradient-to-br from-white via-white to-zinc-50 p-4 shadow-sm dark:border-zinc-800 dark:from-zinc-950/80 dark:via-zinc-950/70 dark:to-zinc-900/60">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-100">Requests by {reportView === "weekly" ? "Week" : reportView === "monthly" ? "Month" : "Year"}</h3>
-                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Live approved and rejected request activity from the audit log.</p>
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0F3B8C]/10 text-[#0F3B8C] dark:text-blue-300">
+                      <TrendingUp className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-100">Request Flow</h3>
+                      <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">Submitted, approved, and rejected activity for the selected period.</p>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex gap-2 rounded-xl bg-zinc-100 dark:bg-zinc-950 p-1">
+                <div className="flex w-fit gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-950">
                   <button
                     type="button"
                     onClick={() => setReportView("weekly")}
@@ -1262,111 +1335,98 @@ export function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 px-4 py-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-[#0F3B8C] dark:text-blue-300">Requested</p>
-                  <p className="mt-1.5 text-2xl font-black text-zinc-900 dark:text-zinc-100">
-                    <AnimatedNumber value={reportData.reduce((sum, row) => sum + row.requests, 0)} />
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 px-4 py-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-[#00A859]">Approved</p>
-                  <p className="mt-1.5 text-2xl font-black text-zinc-900 dark:text-zinc-100">
-                    <AnimatedNumber value={approvedRequestsThisPeriod} />
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 px-4 py-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-red-500">Rejected</p>
-                  <p className="mt-1.5 text-2xl font-black text-zinc-900 dark:text-zinc-100">
-                    <AnimatedNumber value={rejectedRequestsThisPeriod} />
-                  </p>
-                </div>
-              </div>
+              <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+                <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950/60">
+                  <div className="grid grid-cols-3 divide-x divide-zinc-100 dark:divide-zinc-800">
+                    <div className="pr-3">
+                      <p className="text-[9px] font-black uppercase tracking-wider text-[#0F3B8C] dark:text-blue-300">Submitted</p>
+                      <p className="mt-1 text-2xl font-black text-zinc-900 dark:text-zinc-100"><AnimatedNumber value={weeklySubmitted} /></p>
+                    </div>
+                    <div className="px-3">
+                      <p className="text-[9px] font-black uppercase tracking-wider text-[#00A859]">Approved</p>
+                      <p className="mt-1 text-2xl font-black text-zinc-900 dark:text-zinc-100"><AnimatedNumber value={approvedRequestsThisPeriod} /></p>
+                    </div>
+                    <div className="pl-3">
+                      <p className="text-[9px] font-black uppercase tracking-wider text-red-500">Rejected</p>
+                      <p className="mt-1 text-2xl font-black text-zinc-900 dark:text-zinc-100"><AnimatedNumber value={rejectedRequestsThisPeriod} /></p>
+                    </div>
+                  </div>
 
-              <div className="mt-4 space-y-2.5">
-                {reportData.map((row) => {
-                  const total = row.requests + row.approved + row.rejected;
-
-                  return (
-                    <div key={row.label} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 px-3.5 py-2.5">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{row.label}</p>
-                          <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{total} total request events</p>
-                        </div>
-                        <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-                          {row.approved} approved • {row.rejected} rejected
-                        </span>
-                      </div>
-                      <div className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-                        <div className="flex h-full w-full">
-                          <div className="bg-blue-500" style={{ width: `${total > 0 ? (row.requests / total) * 100 : 0}%` }} />
-                          <div className="bg-emerald-500" style={{ width: `${total > 0 ? (row.approved / total) * 100 : 0}%` }} />
-                          <div className="bg-rose-500" style={{ width: `${total > 0 ? (row.rejected / total) * 100 : 0}%` }} />
-                        </div>
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between text-[10px] font-bold text-zinc-500 dark:text-zinc-400">
+                      <span>Outcome mix</span>
+                      <span>{weeklySubmitted + approvedRequestsThisPeriod + rejectedRequestsThisPeriod} events</span>
+                    </div>
+                    <div className="mt-2 h-3 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                      <div className="flex h-full w-full">
+                        <div className="bg-[#0F3B8C]" style={{ width: `${weeklySubmitted + approvedRequestsThisPeriod + rejectedRequestsThisPeriod > 0 ? (weeklySubmitted / (weeklySubmitted + approvedRequestsThisPeriod + rejectedRequestsThisPeriod)) * 100 : 0}%` }} />
+                        <div className="bg-[#00A859]" style={{ width: `${weeklySubmitted + approvedRequestsThisPeriod + rejectedRequestsThisPeriod > 0 ? (approvedRequestsThisPeriod / (weeklySubmitted + approvedRequestsThisPeriod + rejectedRequestsThisPeriod)) * 100 : 0}%` }} />
+                        <div className="bg-red-500" style={{ width: `${weeklySubmitted + approvedRequestsThisPeriod + rejectedRequestsThisPeriod > 0 ? (rejectedRequestsThisPeriod / (weeklySubmitted + approvedRequestsThisPeriod + rejectedRequestsThisPeriod)) * 100 : 0}%` }} />
                       </div>
                     </div>
-                  );
-                })}
-
-                {reportData.length === 0 && (
-                  <p className="text-sm text-zinc-400 dark:text-zinc-500">No request activity found for this period.</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-zinc-200 dark:border-zinc-900 bg-white dark:bg-zinc-950/60 p-5">
-          <div className="flex items-center justify-between gap-3 mb-5">
-            <div>
-              <h2 className="text-sm font-black text-zinc-900 dark:text-zinc-100">Pending Approval Queue</h2>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Review the next DSRs waiting for assignment or decision.</p>
-            </div>
-            <span className="text-[10px] font-black text-[#92400E] dark:text-amber-300">{pendingQueuePreview.length} pending</span>
-          </div>
-          {pendingQueuePreview.length === 0 ? (
-            <p className="text-[10px] text-zinc-400 dark:text-zinc-500">No pending approvals are waiting right now.</p>
-          ) : (
-            <div className="space-y-3">
-              {pendingQueuePreview.slice(0, 4).map((request) => (
-                <div key={request.id} className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 p-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500">{request.id}</p>
-                      <h3 className="text-sm font-black truncate text-zinc-900 dark:text-zinc-100">{request.purpose || request.eventName}</h3>
-                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400">{request.venue.name} • {request.ministry.name} • {new Date(request.startDateTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
-                      <p className="mt-1 text-[10px] text-zinc-400 dark:text-zinc-500">Requester: {request.requester.name}</p>
+                    <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-bold text-zinc-500 dark:text-zinc-400">
+                      <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[#0F3B8C]" /> Submitted</span>
+                      <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[#00A859]" /> Approved</span>
+                      <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500" /> Rejected</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/approver?requestId=${request.id}`)}
-                      className="px-3 py-2 rounded-xl bg-[#00A859] text-white hover:bg-[#009950] hover:text-white dark:hover:bg-[#00bf65] dark:hover:text-white text-[10px] font-black"
-                    >
-                      Review
-                    </button>
                   </div>
                 </div>
-              ))}
+
+                <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950/60">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Trend Breakdown</p>
+                    <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500">{reportData.length} period{reportData.length === 1 ? "" : "s"}</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {reportData.map((row) => {
+                      const total = row.requests + row.approved + row.rejected;
+
+                      return (
+                        <div key={row.label} className="grid grid-cols-[minmax(92px,0.45fr)_minmax(0,1fr)_auto] items-center gap-3 text-xs">
+                          <div className="min-w-0">
+                            <p className="truncate font-bold text-zinc-700 dark:text-zinc-200">{row.label}</p>
+                            <p className="text-[10px] text-zinc-400 dark:text-zinc-500">{total} events</p>
+                          </div>
+                          <div className="h-2.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                            <div className="flex h-full w-full">
+                              <div className="bg-[#0F3B8C]" style={{ width: `${total > 0 ? (row.requests / total) * 100 : 0}%` }} />
+                              <div className="bg-[#00A859]" style={{ width: `${total > 0 ? (row.approved / total) * 100 : 0}%` }} />
+                              <div className="bg-red-500" style={{ width: `${total > 0 ? (row.rejected / total) * 100 : 0}%` }} />
+                            </div>
+                          </div>
+                          <div className="text-right text-[10px] font-black text-zinc-500 dark:text-zinc-400">
+                            {row.approved}/{row.rejected}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {reportData.length === 0 && (
+                      <p className="text-sm text-zinc-400 dark:text-zinc-500">No request activity found for this period.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
       <div className="mb-10">
-        <div className="bg-white dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-sm overflow-hidden">
-          <div className="px-8 py-6 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-3">
+        <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950/60">
+          <div className="flex flex-col gap-4 border-b border-zinc-200 bg-white px-5 py-5 dark:border-zinc-800 dark:bg-zinc-950/70 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-[#0F3B8C]/10 rounded-lg">
-                <Users className="w-6 h-6 text-[#0F3B8C] dark:text-blue-300" />
+              <div className="rounded-xl bg-[#0F3B8C]/10 p-2">
+                <Users className="h-5 w-5 text-[#0F3B8C] dark:text-blue-300" />
               </div>
               <div>
-                <h2 className="font-semibold text-zinc-900 dark:text-zinc-100 text-xl">Users</h2>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">View live audit activity and manage Cognito users in one place</p>
+                <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100">Users</h2>
+                <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">Audit activity and Cognito account controls.</p>
               </div>
             </div>
 
-            <div className="flex gap-2 rounded-xl bg-white dark:bg-zinc-950 p-1.5 border border-zinc-200 dark:border-zinc-800">
+            <div className="flex w-fit gap-1 rounded-xl border border-zinc-200 bg-zinc-50 p-1 dark:border-zinc-800 dark:bg-zinc-950">
               <button
                 type="button"
                 onClick={() => setUsersTab("activity")}
@@ -1395,22 +1455,23 @@ export function AdminDashboard() {
           {usersTab === "activity" ? (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-zinc-800">
+                <thead className="border-b border-zinc-200 bg-zinc-50/70 dark:border-zinc-800 dark:bg-zinc-900/40">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">ID</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Email</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Role</th>
+                    <th className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500">User</th>
+                    <th className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Email</th>
+                    <th className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Role</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900 bg-white dark:bg-zinc-950/30">
+                <tbody className="divide-y divide-zinc-100 bg-white dark:divide-zinc-900 dark:bg-zinc-950/30">
                   {activityUsers.length > 0 ? (
                     activityUsers.map((user) => (
-                      <tr key={user.id} className="hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100 transition-colors duration-150">
-                        <td className="px-6 py-5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{user.id}</td>
-                        <td className="px-6 py-5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{user.name}</td>
-                        <td className="px-6 py-5 text-sm text-zinc-600 dark:text-zinc-300">{user.email}</td>
-                        <td className="px-6 py-5">
+                      <tr key={user.id} className="transition-colors duration-150 hover:bg-zinc-50 dark:hover:bg-zinc-900/60">
+                        <td className="px-5 py-4">
+                          <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{user.name}</p>
+                          <p className="mt-0.5 max-w-[180px] truncate text-[10px] font-semibold text-zinc-400 dark:text-zinc-500">{user.id}</p>
+                        </td>
+                        <td className="px-5 py-4 text-sm text-zinc-600 dark:text-zinc-300">{user.email}</td>
+                        <td className="px-5 py-4">
                           <span
                             className={`inline-flex items-center px-4 py-1.5 text-xs font-bold rounded-full border ${
                               user.role === "ADMIN"
@@ -1429,7 +1490,7 @@ export function AdminDashboard() {
                     ))
                   ) : (
                     <tr>
-                      <td className="px-6 py-8 text-sm text-zinc-500 dark:text-zinc-400" colSpan={4}>
+                      <td className="px-5 py-8 text-sm text-zinc-500 dark:text-zinc-400" colSpan={3}>
                         {adminUsersLoading ? "Loading users..." : "No users available."}
                       </td>
                     </tr>
@@ -1438,9 +1499,16 @@ export function AdminDashboard() {
               </table>
             </div>
           ) : (
-            <div className="p-8 space-y-8">
-              <div className="grid grid-cols-4 gap-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 p-5">
-                <div className="col-span-2">
+            <div className="space-y-6 p-5">
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4 dark:border-zinc-800 dark:bg-zinc-900/40">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-100">Create Cognito User</h3>
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Add account access, role, and optional ministry assignment.</p>
+                  </div>
+                </div>
+                <div className="grid gap-4 lg:grid-cols-6">
+                <div className="lg:col-span-2">
                   <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Email</label>
                   <input
                     value={newUserDraft.email}
@@ -1450,7 +1518,7 @@ export function AdminDashboard() {
                   />
                 </div>
 
-                <div className="col-span-2">
+                <div className="lg:col-span-2">
                   <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Full Name</label>
                   <input
                     value={newUserDraft.name}
@@ -1460,7 +1528,7 @@ export function AdminDashboard() {
                   />
                 </div>
 
-                <div>
+                <div className="lg:col-span-1">
                   <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Role</label>
                   <select
                     value={newUserDraft.role}
@@ -1473,7 +1541,7 @@ export function AdminDashboard() {
                   </select>
                 </div>
 
-                <div>
+                <div className="lg:col-span-1">
                   <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Ministry</label>
                   <select
                     value={newUserDraft.ministryId}
@@ -1489,7 +1557,7 @@ export function AdminDashboard() {
                   </select>
                 </div>
 
-                <div>
+                <div className="lg:col-span-2">
                   <label className="mb-2 block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Temporary Password</label>
                   <input
                     value={newUserDraft.temporaryPassword}
@@ -1499,7 +1567,7 @@ export function AdminDashboard() {
                   />
                 </div>
 
-                <div className="col-span-4 flex justify-end">
+                <div className="flex items-end justify-end lg:col-span-4">
                   <button
                     type="button"
                     onClick={createAdminUser}
@@ -1509,6 +1577,7 @@ export function AdminDashboard() {
                     <KeyRound className="w-4 h-4" />
                     {creatingUser ? "Creating..." : "Create User in Cognito"}
                   </button>
+                </div>
                 </div>
               </div>
 
@@ -1566,7 +1635,7 @@ export function AdminDashboard() {
                     </thead>
                     <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900 bg-white dark:bg-zinc-950/30">
                       {adminUsers.length > 0 ? adminUsers.map((user) => (
-                        <tr key={user.id} className="even:bg-zinc-50 dark:even:bg-zinc-900/40 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100 transition-colors duration-150">
+                        <tr key={user.id} className="transition-colors duration-150 even:bg-zinc-50/70 hover:bg-zinc-100 dark:even:bg-zinc-900/35 dark:hover:bg-zinc-800/60">
                           <td className="px-5 py-4 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{user.name}</td>
                           <td className="px-5 py-4 text-sm text-zinc-600 dark:text-zinc-300">{user.email}</td>
                           <td className="px-5 py-4">
@@ -1720,15 +1789,15 @@ export function AdminDashboard() {
       )}
 
       <div>
-        <div className="bg-white dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-sm overflow-hidden">
-          <div className="px-8 py-6 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-3">
+        <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950/60">
+          <div className="flex flex-col gap-4 border-b border-zinc-200 bg-white px-5 py-5 dark:border-zinc-800 dark:bg-zinc-950/70 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-[#00A859]/10 rounded-lg">
-                <Building2 className="w-6 h-6 text-[#00A859]" />
+              <div className="rounded-xl bg-[#00A859]/10 p-2">
+                <Building2 className="h-5 w-5 text-[#00A859]" />
               </div>
               <div>
-                <h2 className="font-semibold text-zinc-900 dark:text-zinc-100 text-xl">Venue Management</h2>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">Configured venue facilities from live data</p>
+                <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100">Venue Management</h2>
+                <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">Facilities, capacity, and availability signals used by DSS.</p>
               </div>
             </div>
 
@@ -1759,52 +1828,55 @@ export function AdminDashboard() {
               </button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-zinc-800">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">ID</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Venue Name</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Capacity</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900 bg-white dark:bg-zinc-950/30">
-                  {venues.map((venue) => (
-                    <tr key={venue.id} className="hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100 transition-colors duration-150">
-                      <td className="px-6 py-5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{venue.id}</td>
-                      <td className="px-6 py-5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{venue.name}</td>
-                      <td className="px-6 py-5 text-sm text-zinc-600 dark:text-zinc-300">{venue.capacity} people</td>
-                      <td className="px-6 py-5">
-                        <span className={`inline-flex items-center px-4 py-1.5 text-xs font-bold rounded-full border ${statusStyles[venue.status]}`}>
-                          {venue.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-5 text-sm text-zinc-600 dark:text-zinc-300">
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => startEditingVenue(venue)}
-                            className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-3 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => startDeleteVenue(venue)}
-                            className="inline-flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/15 px-3 py-2 text-xs font-semibold text-red-500 hover:bg-red-500/25 hover:text-red-600 dark:bg-red-500/15 dark:text-red-400 dark:hover:bg-red-500/30 dark:hover:text-red-300"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
+              {venues.map((venue) => (
+                <div key={venue.id} className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm transition-colors duration-150 hover:border-[#00A859]/40 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950/60 dark:hover:bg-zinc-900/50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-black text-zinc-900 dark:text-zinc-100">{venue.name}</p>
+                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">{venue.description ?? "No venue description configured."}</p>
+                    </div>
+                    <span className={`shrink-0 rounded-full border px-3 py-1 text-[10px] font-black ${statusStyles[venue.status]}`}>
+                      {venue.status}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-[#00A859]/10 p-3">
+                      <p className="text-[9px] font-black uppercase text-[#00A859]">Capacity</p>
+                      <p className="mt-1 text-xl font-black text-zinc-900 dark:text-zinc-100">{venue.capacity}</p>
+                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400">people</p>
+                    </div>
+                    <div className="rounded-xl bg-[#0F3B8C]/10 p-3">
+                      <p className="text-[9px] font-black uppercase text-[#0F3B8C] dark:text-blue-300">DSS Status</p>
+                      <p className="mt-1 text-sm font-black text-zinc-900 dark:text-zinc-100">{venue.status === "ACTIVE" ? "Available" : venue.status === "MAINTENANCE" ? "Review" : "Blocked"}</p>
+                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400">for routing</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between gap-2 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+                    <p className="max-w-[150px] truncate text-[10px] font-semibold text-zinc-400 dark:text-zinc-500">{venue.id}</p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => startEditingVenue(venue)}
+                        className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-xs font-semibold text-zinc-700 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => startDeleteVenue(venue)}
+                        className="inline-flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/15 px-3 py-2 text-xs font-semibold text-red-500 hover:bg-red-500/25 hover:text-red-600 dark:bg-red-500/15 dark:text-red-400 dark:hover:bg-red-500/30 dark:hover:text-red-300"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 

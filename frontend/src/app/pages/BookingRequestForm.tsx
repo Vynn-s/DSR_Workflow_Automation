@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { ArrowLeft, Send, Paperclip, Save, AlertCircle, Info, MapPin, Users, FileText, Shield, CheckCircle2, XCircle, Calendar as CalendarIcon, Clock, X, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import api from "../../lib/api";
@@ -88,6 +88,19 @@ interface BookingRecommendationResponse {
   topMinistries: Array<{ name: string; total: number }>;
   topPurposes: Array<{ name: string; total: number }>;
   recommendations: string[];
+}
+
+interface DraftRequestResponse {
+  id: string;
+  venueId: string;
+  eventName: string;
+  purpose: string;
+  startDateTime: string;
+  endDateTime: string;
+  attendees: number;
+  status: string;
+  attachments?: RequestAttachment[];
+  signatures?: Signature[];
 }
 
 interface VenueInfo {
@@ -195,6 +208,18 @@ function timeStringToMinutes(timeStr: string) {
   return (hours * 60) + minutes;
 }
 
+function dateInputValue(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
+function timeInputValue(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
 function getTimeSlotIndex(timeStr: string | undefined, fallbackIndex: number) {
   if (!timeStr) {
     return fallbackIndex;
@@ -297,7 +322,9 @@ const formatBytes = (bytes: number) => {
 
 export function BookingRequestForm() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const draftId = searchParams.get("draftId");
   const isMountedRef = useRef(true);
   const today = new Date();
   const todayDateString = today.toISOString().slice(0, 10);
@@ -323,6 +350,7 @@ export function BookingRequestForm() {
   const [canProceed, setCanProceed] = useState(false);
   const [bookingRecommendations, setBookingRecommendations] = useState<BookingRecommendationResponse | null>(null);
   const [bookingRecommendationsLoading, setBookingRecommendationsLoading] = useState(false);
+  const [isLoadingDraft, setIsLoadingDraft] = useState(false);
   const [isDraggingAttachment, setIsDraggingAttachment] = useState(false);
 
   // Calendar modal state
@@ -410,6 +438,51 @@ export function BookingRequestForm() {
     setSelectedVenueInfo(venueInfo);
     setSignatures(venueInfo.requiredSignatures.map((signature) => ({ ...signature })));
   }, [formData.venue, venues]);
+
+  useEffect(() => {
+    if (!draftId) return;
+
+    let isMounted = true;
+
+    async function loadDraft() {
+      try {
+        setIsLoadingDraft(true);
+        const draft = await api.get<DraftRequestResponse>(`/requests/${draftId}`);
+        if (!isMounted) return;
+
+        if (draft.status !== "DRAFT") {
+          toast.error("This request is no longer a draft.");
+          navigate("/requester");
+          return;
+        }
+
+        setFormData({
+          venue: draft.venueId,
+          date: dateInputValue(draft.startDateTime) || todayDateString,
+          startTime: timeInputValue(draft.startDateTime),
+          endTime: timeInputValue(draft.endDateTime),
+          purpose: draft.purpose === "Untitled draft" ? "" : draft.purpose,
+          attendees: draft.attendees > 1 ? String(draft.attendees) : "",
+        });
+        setSignatures(draft.signatures ?? []);
+      } catch {
+        if (isMounted) {
+          toast.error("Unable to load draft");
+          navigate("/requester");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingDraft(false);
+        }
+      }
+    }
+
+    void loadDraft();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [draftId, navigate, todayDateString]);
 
   useEffect(() => {
     const { venue, date, startTime, endTime, attendees } = formData;
@@ -586,9 +659,50 @@ export function BookingRequestForm() {
     e.preventDefault();
     
     if (isDraft) {
-      toast.info("Draft saved");
-      alert("Request saved as draft!");
-      navigate("/requester");
+      try {
+        setIsSubmitting(true);
+        setSubmitError(null);
+
+        const attachments: RequestAttachment[] = attachment
+          ? [{
+              id: crypto.randomUUID(),
+              name: attachment.name,
+              type: attachment.type || "application/octet-stream",
+              size: `${Math.max(1, Math.round(attachment.size / 1024))} KB`,
+              uploadedDate: new Date().toISOString(),
+              dataUrl: await fileToDataUrl(attachment),
+            }]
+          : [];
+
+        const draftPayload = {
+          venueId: formData.venue || undefined,
+          eventName: formData.purpose.trim() || undefined,
+          purpose: formData.purpose.trim() || undefined,
+          startDateTime: formData.date && formData.startTime ? combineDateAndTimeToIso(formData.date, formData.startTime) : undefined,
+          endDateTime: formData.date && formData.endTime ? combineDateAndTimeToIso(formData.date, formData.endTime) : undefined,
+          startTime: formData.startTime || undefined,
+          endTime: formData.endTime || undefined,
+          attendees: formData.attendees ? Number(formData.attendees) : undefined,
+          attachments,
+          signatures,
+        };
+
+        if (draftId) {
+          await api.patch(`/requests/${draftId}/draft`, draftPayload);
+        } else {
+          await api.post("/requests/draft", draftPayload);
+        }
+
+        toast.success("Draft saved", {
+          description: "You can continue editing it from My Request Center.",
+        });
+        navigate("/requester", { state: { message: "Draft saved successfully", filter: "Draft" } });
+      } catch (error) {
+        setSubmitError("Unable to save draft right now.");
+        toast.error("Unable to save draft");
+      } finally {
+        setIsSubmitting(false);
+      }
       return;
     }
 
@@ -658,7 +772,23 @@ export function BookingRequestForm() {
           }]
         : [];
 
-      await api.post("/requests", {
+      if (draftId) {
+        await api.patch(`/requests/${draftId}/draft`, {
+          venueId: selectedVenue.id,
+          eventName: purpose,
+          purpose,
+          startDateTime: combineDateAndTimeToIso(formData.date, formData.startTime),
+          endDateTime: combineDateAndTimeToIso(formData.date, formData.endTime),
+          startTime: formData.startTime,
+          endTime: formData.endTime,
+          attendees: attendeeCount,
+          specialRequirements: "",
+          attachments,
+          signatures,
+        });
+        await api.post(`/requests/${draftId}/submit`);
+      } else {
+        await api.post("/requests", {
         venueId: selectedVenue.id,
         eventName: purpose,
         purpose,
@@ -670,7 +800,8 @@ export function BookingRequestForm() {
         specialRequirements: "",
         attachments,
         signatures,
-      });
+        });
+      }
 
       toast.success("Request submitted successfully");
 
@@ -776,7 +907,7 @@ export function BookingRequestForm() {
     });
   };
 
-  const canSaveDraft = formData.venue || formData.date || formData.purpose;
+  const canSaveDraft = Boolean(formData.venue || formData.startTime || formData.endTime || formData.purpose.trim() || formData.attendees);
 
   const openStartTimePicker = () => {
     setStartTimeValues(normalizePickerValues(parseTimeForPicker(formData.startTime, defaultStartTimeValues)));
@@ -883,7 +1014,7 @@ export function BookingRequestForm() {
           <div>
             <h1 className="text-xs font-black tracking-widest uppercase flex items-center gap-2 text-[#0F3B8C] dark:text-blue-300">
               <CalendarIcon className="w-4 h-4 text-[#0F3B8C] dark:text-blue-300" />
-              DSR Venue Request Form
+              {draftId ? "Edit Draft DSR Request" : "DSR Venue Request Form"}
             </h1>
             <p className="mt-1 text-[10px] font-medium text-zinc-600 dark:text-zinc-400">Required fields, signed-letter upload, DSS validation, and duplicate detection are included.</p>
           </div>
@@ -1433,16 +1564,16 @@ export function BookingRequestForm() {
               <div className="flex gap-2 justify-end pt-4 mt-4 border-t border-zinc-200 dark:border-zinc-800">
                 <button
                   type="submit"
-                  disabled={isSubmitting || dssChecking || !canProceed}
+                  disabled={isSubmitting || isLoadingDraft || dssChecking || !canProceed}
                   className="order-3 flex items-center gap-2 px-5 py-2 rounded-xl bg-[#0F3B8C] text-white font-bold text-xs transition-all duration-150 hover:bg-[#0d3380] hover:text-white active:scale-95 dark:hover:bg-[#1a4fab] dark:hover:text-white disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <Send className="w-4 h-4" />
-                  {isSubmitting ? "Submitting..." : dssChecking ? "Checking DSS..." : "Submit Request"}
+                  {isSubmitting ? "Submitting..." : isLoadingDraft ? "Loading Draft..." : dssChecking ? "Checking DSS..." : draftId ? "Submit Draft" : "Submit Request"}
                 </button>
                 <button
                   type="button"
                   onClick={(e) => handleSubmit(e, true)}
-                  disabled={isSubmitting || !canSaveDraft}
+                  disabled={isSubmitting || isLoadingDraft || !canSaveDraft}
                   className={`flex items-center gap-2 rounded-xl border border-zinc-300 bg-transparent px-5 py-2 text-xs font-bold text-zinc-700 transition-all duration-150 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 active:scale-95 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 ${
                     canSaveDraft
                       ? ""
@@ -1450,7 +1581,7 @@ export function BookingRequestForm() {
                   }`}
                 >
                   <Save className="w-4 h-4" />
-                  Save as Draft
+                  {draftId ? "Update Draft" : "Save as Draft"}
                 </button>
                 <button
                   type="button"

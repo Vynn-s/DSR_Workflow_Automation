@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { Plus, Clock, CheckCircle2, XCircle, FileEdit, Bell, Search, CalendarDays, CalendarX, Sparkles } from "lucide-react";
 import api from "../../lib/api";
 import { formatRequestId } from "../../lib/requestId";
@@ -109,6 +109,8 @@ function getRequesterDssTag(request: Request) {
 
 function mapStatus(status: string): Request["status"] {
   switch (status) {
+    case "DRAFT":
+      return "Draft";
     case "APPROVED":
       return "Approved";
     case "REJECTED":
@@ -161,6 +163,7 @@ async function fetchLiveRequests() {
 }
 
 export function RequesterDashboard() {
+  const location = useLocation();
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<ApiNotification[]>([]);
@@ -221,6 +224,13 @@ export function RequesterDashboard() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
+
+  useEffect(() => {
+    const state = location.state as { filter?: string } | null;
+    if (state?.filter) {
+      setStatusFilter(state.filter);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     let isMounted = true;
@@ -290,7 +300,7 @@ export function RequesterDashboard() {
       case "Under Review":
         return "bg-[#0F3B8C]/20 text-blue-300 border-[#0F3B8C]/30";
       case "Draft":
-        return "bg-zinc-800 text-zinc-300 border-zinc-300 dark:border-zinc-700";
+        return "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700";
       default:
         return "bg-zinc-800 text-zinc-300 border-zinc-300 dark:border-zinc-700";
     }
@@ -318,6 +328,7 @@ export function RequesterDashboard() {
     pending: requests.filter((request) => request.status === "Pending" || request.status === "Under Review").length,
     approved: requests.filter((request) => request.status === "Approved").length,
     rejected: requests.filter((request) => request.status === "Rejected").length,
+    draft: requests.filter((request) => request.status === "Draft").length,
     completed: requests.filter((request) => request.status === "Approved" || request.status === "Rejected").length,
   };
   const filteredRequests = requests.filter((request) => {
@@ -345,6 +356,8 @@ export function RequesterDashboard() {
     ? "You should prepare for the event now that the venue is reserved. Confirm attendance, setup needs, and arrival time before the event date."
     : detailRequest?.status === "Rejected"
       ? `This request was rejected. You should review the comment${detailRequest.approverRemarks ? `: "${detailRequest.approverRemarks}"` : " and clarify the missing requirement before resubmitting"}.`
+      : detailRequest?.status === "Draft"
+        ? "This draft has not been submitted yet. Continue editing it, complete the required fields, then submit it for review."
       : detailRequest?.status === "Under Review"
         ? "Your request is already with an approver. You should wait for the decision unless the event date is very close."
         : detailRequest
@@ -354,6 +367,8 @@ export function RequesterDashboard() {
     ? "Checklist: confirm attendance count, arrange setup with facilities, and keep your approval record ready."
     : detailRequest?.status === "Rejected"
       ? "If you resubmit, address the approver comment directly in your purpose or signed letter."
+      : detailRequest?.status === "Draft"
+        ? "Drafts are private to you until submitted. Use Continue Editing when you are ready."
       : detailRequest?.status === "Under Review"
         ? "If this has been under review for more than two days, consider a polite follow-up."
         : "Keep your signed letter and event details ready in case the approver asks for clarification.";
@@ -426,9 +441,10 @@ export function RequesterDashboard() {
         )}
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
         {[
           ["All", "All", stats.all, "text-[#00A859]"],
+          ["Draft", "Draft", stats.draft, "text-zinc-500 dark:text-zinc-300"],
           ["Pending", "Pending", stats.pending, "text-[#92400E] dark:text-amber-300"],
           ["Approved", "Approved", stats.approved, "text-[#00A859]"],
           ["Rejected", "Rejected", stats.rejected, "text-red-500"],
@@ -478,7 +494,7 @@ export function RequesterDashboard() {
               />
             </div>
             <div className="flex flex-wrap gap-2">
-              {["All", "Pending", "Under Review", "Approved", "Rejected", "Completed"].map((tab) => (
+              {["All", "Draft", "Pending", "Under Review", "Approved", "Rejected", "Completed"].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setStatusFilter(tab)}
@@ -549,11 +565,21 @@ export function RequesterDashboard() {
                   <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">{detailDssSuggestion}</p>
                 </div>
 
+                {detailRequest.status === "Draft" && (
+                  <Link
+                    to={`/requester/new-request?draftId=${detailRequest.id}`}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#00A859] px-4 py-2.5 text-xs font-black text-white transition-all duration-150 hover:bg-[#009950] hover:text-white active:scale-95 dark:hover:bg-[#00bf65] dark:hover:text-white"
+                  >
+                    <FileEdit className="h-4 w-4 !text-white" />
+                    Continue Editing
+                  </Link>
+                )}
+
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60"><span className="text-[10px] font-bold uppercase block text-zinc-400 dark:text-zinc-500">Date</span><p className="font-semibold text-zinc-900 dark:text-zinc-100">{detailRequest.date}</p></div>
                   <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60"><span className="text-[10px] font-bold uppercase block text-zinc-400 dark:text-zinc-500">Time</span><p className="font-semibold text-zinc-900 dark:text-zinc-100">{detailRequest.time}</p></div>
-                  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60"><span className="text-[10px] font-bold uppercase block text-zinc-400 dark:text-zinc-500">Submitted</span><p className="font-semibold text-zinc-900 dark:text-zinc-100">{detailRequest.submittedDate}</p></div>
-                  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60"><span className="text-[10px] font-bold uppercase block text-zinc-400 dark:text-zinc-500">Approver</span><p className="font-semibold text-zinc-900 dark:text-zinc-100">{detailRequest.approvedByName ?? detailRequest.approvedById ?? "Pending"}</p></div>
+                  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60"><span className="text-[10px] font-bold uppercase block text-zinc-400 dark:text-zinc-500">{detailRequest.status === "Draft" ? "Created" : "Submitted"}</span><p className="font-semibold text-zinc-900 dark:text-zinc-100">{detailRequest.submittedDate}</p></div>
+                  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/60"><span className="text-[10px] font-bold uppercase block text-zinc-400 dark:text-zinc-500">Approver</span><p className="font-semibold text-zinc-900 dark:text-zinc-100">{detailRequest.status === "Draft" ? "Not submitted" : detailRequest.approvedByName ?? detailRequest.approvedById ?? "Pending"}</p></div>
                 </div>
 
                 {detailRequest.approverRemarks && (
@@ -563,7 +589,7 @@ export function RequesterDashboard() {
                   </div>
                 )}
 
-                {detailRequest.timeline && (
+                {detailRequest.status !== "Draft" && detailRequest.timeline && (
                   <div className="space-y-4 pt-2">
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Audit Trail Timeline</h4>
                     {[

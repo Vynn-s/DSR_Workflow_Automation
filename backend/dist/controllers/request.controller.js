@@ -1,6 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createRequest = createRequest;
+exports.createDraftRequest = createDraftRequest;
+exports.updateDraftRequest = updateDraftRequest;
+exports.submitDraftRequest = submitDraftRequest;
 exports.getRequests = getRequests;
 exports.getRequestById = getRequestById;
 exports.cancelRequest = cancelRequest;
@@ -38,6 +41,20 @@ const createRequestSchema = zod_1.z.object({
         priestName: zod_1.z.string().trim().optional(),
         signedDate: zod_1.z.string().trim().optional(),
     })).optional(),
+});
+const draftRequestSchema = zod_1.z.object({
+    venueId: zod_1.z.string().trim().min(1).optional(),
+    ministryId: zod_1.z.string().trim().min(1).optional(),
+    eventName: zod_1.z.string().trim().optional(),
+    purpose: zod_1.z.string().trim().optional(),
+    startDateTime: zod_1.z.coerce.date().optional(),
+    startTime: zod_1.z.string().regex(/^\d{2}:\d{2}$/).optional(),
+    endDateTime: zod_1.z.coerce.date().optional(),
+    endTime: zod_1.z.string().regex(/^\d{2}:\d{2}$/).optional(),
+    attendees: zod_1.z.coerce.number().int().positive().optional(),
+    specialRequirements: zod_1.z.string().trim().optional(),
+    attachments: createRequestSchema.shape.attachments,
+    signatures: createRequestSchema.shape.signatures,
 });
 const listQuerySchema = zod_1.z.object({
     page: zod_1.z.coerce.number().int().positive().optional(),
@@ -94,6 +111,39 @@ function parseListPagination(query) {
 async function createNotification(client, input) {
     await client.query(`INSERT INTO "Notification" (id, "userId", "requestId", type, title, message, details, "createdAt")
      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`, [(0, crypto_1.randomUUID)(), input.userId, input.requestId ?? null, input.type, input.title, input.message, input.details ?? null]);
+}
+async function getRequesterMinistryId(client, userId, inputMinistryId) {
+    if (inputMinistryId)
+        return inputMinistryId;
+    const ministryResult = await client.query(`SELECT "ministryId" FROM "User" WHERE id = $1`, [userId]);
+    const ministryId = ministryResult.rows[0]?.ministryId;
+    if (!ministryId) {
+        throw new AppError("User ministry not found. Please contact an administrator.", 400);
+    }
+    return ministryId;
+}
+async function getDraftVenueId(client, venueId) {
+    if (venueId) {
+        const venueResult = await client.query(`SELECT id FROM "Venue" WHERE id = $1`, [venueId]);
+        if (venueResult.rows.length === 0) {
+            throw new AppError("Venue not found", 404);
+        }
+        return venueId;
+    }
+    const fallbackVenueResult = await client.query(`SELECT id FROM "Venue" WHERE status = 'ACTIVE' ORDER BY "createdAt" ASC LIMIT 1`);
+    const fallbackVenueId = fallbackVenueResult.rows[0]?.id;
+    if (!fallbackVenueId) {
+        throw new AppError("No active venue configured", 500);
+    }
+    return fallbackVenueId;
+}
+function getDraftDateRange(input) {
+    const now = new Date();
+    const start = input.startDateTime ?? new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0, 0, 0);
+    const end = input.endDateTime && input.endDateTime > start
+        ? input.endDateTime
+        : new Date(start.getTime() + 60 * 60 * 1000);
+    return { start, end };
 }
 async function createRequest(req, res, next) {
     const client = await database_1.pool.connect();
@@ -221,6 +271,136 @@ async function createRequest(req, res, next) {
     }
     catch (error) {
         console.error("getRequests failed:", error);
+        return next(error);
+    }
+    finally {
+        client.release();
+    }
+}
+async function createDraftRequest(req, res, next) {
+    const client = await database_1.pool.connect();
+    try {
+        if (!req.user?.id) {
+            throw new AppError("Unauthorized", 401);
+        }
+        const parsed = draftRequestSchema.safeParse(req.body ?? {});
+        if (!parsed.success) {
+            throw new AppError("Invalid draft payload", 400);
+        }
+        const input = parsed.data;
+        const venueId = await getDraftVenueId(client, input.venueId?.trim());
+        const ministryId = await getRequesterMinistryId(client, req.user.id, input.ministryId?.trim());
+        const { start, end } = getDraftDateRange(input);
+        const requestId = (0, crypto_1.randomUUID)();
+        const purpose = input.purpose?.trim() || input.eventName?.trim() || "Untitled draft";
+        const eventName = input.eventName?.trim() || purpose;
+        await client.query(`INSERT INTO "VenueRequest" (
+				id, "requesterId", "venueId", "ministryId", "eventName", purpose,
+				"startDateTime", "endDateTime", attendees, "specialRequirements", attachments, signatures,
+				status, "currentApproverId", "createdAt", "updatedAt"
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'DRAFT'::"RequestStatus",NULL,NOW(),NOW())`, [
+            requestId,
+            req.user.id,
+            venueId,
+            ministryId,
+            eventName,
+            purpose,
+            start,
+            end,
+            input.attendees ?? 1,
+            input.specialRequirements?.trim() || null,
+            JSON.stringify(input.attachments ?? []),
+            JSON.stringify(input.signatures ?? []),
+        ]);
+        await client.query(`INSERT INTO "AuditLog" (id, "requestId", "performedById", action, details, "ipAddress", "createdAt")
+			 VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())`, [
+            (0, crypto_1.randomUUID)(),
+            requestId,
+            req.user.id,
+            "REQUEST_DRAFT_CREATED",
+            JSON.stringify({ requestId, eventName, status: "DRAFT" }),
+            req.ip,
+        ]);
+        return res.status(201).json({ id: requestId, status: "DRAFT" });
+    }
+    catch (error) {
+        return next(error);
+    }
+    finally {
+        client.release();
+    }
+}
+async function updateDraftRequest(req, res, next) {
+    const client = await database_1.pool.connect();
+    try {
+        if (!req.user?.id) {
+            throw new AppError("Unauthorized", 401);
+        }
+        const parsedParams = requestIdParamsSchema.safeParse(req.params);
+        if (!parsedParams.success) {
+            throw new AppError("Invalid request id", 400);
+        }
+        const parsed = draftRequestSchema.safeParse(req.body ?? {});
+        if (!parsed.success) {
+            throw new AppError("Invalid draft payload", 400);
+        }
+        const existing = await client.query(`SELECT id, status FROM "VenueRequest" WHERE id = $1 AND "requesterId" = $2`, [parsedParams.data.id, req.user.id]);
+        if (existing.rows.length === 0)
+            throw new AppError("Draft not found", 404);
+        if (existing.rows[0].status !== "DRAFT")
+            throw new AppError("Only draft requests can be updated", 400);
+        const input = parsed.data;
+        const venueId = await getDraftVenueId(client, input.venueId?.trim());
+        const ministryId = await getRequesterMinistryId(client, req.user.id, input.ministryId?.trim());
+        const { start, end } = getDraftDateRange(input);
+        const purpose = input.purpose?.trim() || input.eventName?.trim() || "Untitled draft";
+        const eventName = input.eventName?.trim() || purpose;
+        await client.query(`UPDATE "VenueRequest"
+			 SET "venueId" = $1, "ministryId" = $2, "eventName" = $3, purpose = $4,
+				 "startDateTime" = $5, "endDateTime" = $6, attendees = $7, "specialRequirements" = $8,
+				 attachments = $9, signatures = $10, "updatedAt" = NOW()
+			 WHERE id = $11`, [venueId, ministryId, eventName, purpose, start, end, input.attendees ?? 1, input.specialRequirements?.trim() || null, JSON.stringify(input.attachments ?? []), JSON.stringify(input.signatures ?? []), parsedParams.data.id]);
+        return res.json({ id: parsedParams.data.id, status: "DRAFT" });
+    }
+    catch (error) {
+        return next(error);
+    }
+    finally {
+        client.release();
+    }
+}
+async function submitDraftRequest(req, res, next) {
+    const client = await database_1.pool.connect();
+    try {
+        if (!req.user?.id)
+            throw new AppError("Unauthorized", 401);
+        const parsedParams = requestIdParamsSchema.safeParse(req.params);
+        if (!parsedParams.success)
+            throw new AppError("Invalid request id", 400);
+        const draftResult = await client.query(`SELECT id, status, "eventName", purpose, "startDateTime", "endDateTime", attendees, attachments, signatures, "venueId", "ministryId"
+			 FROM "VenueRequest" WHERE id = $1 AND "requesterId" = $2`, [parsedParams.data.id, req.user.id]);
+        if (draftResult.rows.length === 0)
+            throw new AppError("Draft not found", 404);
+        const draft = draftResult.rows[0];
+        if (draft.status !== "DRAFT")
+            throw new AppError("Only draft requests can be submitted", 400);
+        const secretaryResult = await client.query(`SELECT id FROM "User" WHERE role = 'PARISH_SECRETARY' ORDER BY "createdAt" ASC LIMIT 1`);
+        if (secretaryResult.rows.length === 0)
+            throw new AppError("No PARISH_SECRETARY approver configured", 500);
+        await client.query(`UPDATE "VenueRequest" SET status = 'PENDING', "currentApproverId" = $1, "updatedAt" = NOW() WHERE id = $2`, [secretaryResult.rows[0].id, draft.id]);
+        await client.query(`INSERT INTO "AuditLog" (id, "requestId", "performedById", action, details, "ipAddress", "createdAt")
+			 VALUES ($1, $2, $3, $4, $5::jsonb, $6, NOW())`, [(0, crypto_1.randomUUID)(), draft.id, req.user.id, "REQUEST_CREATED", JSON.stringify({ requestId: draft.id, eventName: draft.eventName, status: "PENDING" }), req.ip]);
+        await createNotification(client, {
+            userId: req.user.id,
+            requestId: draft.id,
+            type: "submitted",
+            title: "Draft submitted",
+            message: `Your draft for ${draft.eventName} has been submitted and is awaiting review.`,
+            details: "Venue request is now queued for approval.",
+        });
+        return res.json({ id: draft.id, status: "PENDING", currentApproverId: secretaryResult.rows[0].id });
+    }
+    catch (error) {
         return next(error);
     }
     finally {
@@ -552,6 +732,9 @@ async function getAvailability(req, res, next) {
 }
 exports.default = {
     createRequest,
+    createDraftRequest,
+    updateDraftRequest,
+    submitDraftRequest,
     getRequests,
     getRequestById,
     cancelRequest,

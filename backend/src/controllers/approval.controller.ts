@@ -89,6 +89,24 @@ async function getUserIdForEmail(client: import("pg").PoolClient, email: string,
 	return userResult.rows[0].id as string;
 }
 
+async function createNotification(
+  client: import("pg").PoolClient,
+  input: {
+    userId: string;
+    requestId?: string | null;
+    type: string;
+    title: string;
+    message: string;
+    details?: string | null;
+  },
+) {
+  await client.query(
+    `INSERT INTO "Notification" (id, "userId", "requestId", type, title, message, details, "createdAt")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+    [randomUUID(), input.userId, input.requestId ?? null, input.type, input.title, input.message, input.details ?? null],
+  );
+}
+
 export async function getApprovalQueue(req: Request, res: Response, next: NextFunction) {
 	const client = await pool.connect();
 	try {
@@ -305,6 +323,15 @@ export async function approveRequest(req: Request, res: Response, next: NextFunc
 			}
 		}
 
+		await createNotification(client, {
+			userId: requestRecord.requesterId,
+			requestId: requestRecord.id,
+			type: "approved",
+			title: "DSR request approved",
+			message: "Your DSR request has been approved.",
+			details: parsedBody.data.remarks ? `Approver remarks: ${parsedBody.data.remarks}` : "Your venue reservation is now confirmed.",
+		});
+
 		return res.json({
 			id: requestRecord.id,
 			status: nextStatus,
@@ -401,6 +428,15 @@ export async function rejectRequest(req: Request, res: Response, next: NextFunct
 			}
 		}
 
+		await createNotification(client, {
+			userId: requestRecord.requesterId,
+			requestId: requestRecord.id,
+			type: "rejected",
+			title: "DSR request rejected",
+			message: "Your DSR request has been rejected.",
+			details: `Reason: ${parsedBody.data.remarks}`,
+		});
+
 		return res.json({
 			id: requestRecord.id,
 			status: "REJECTED",
@@ -469,6 +505,15 @@ export async function requestRevision(req: Request, res: Response, next: NextFun
 				req.ip,
 			],
 		);
+
+		await createNotification(client, {
+			userId: requestRecord.requesterId,
+			requestId: requestRecord.id,
+			type: "revision",
+			title: "DSR revision requested",
+			message: "An approver requested changes to your DSR request.",
+			details: parsedBody.data.remarks,
+		});
 
 		return res.json({
 			id: requestRecord.id,

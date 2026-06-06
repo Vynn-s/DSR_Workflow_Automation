@@ -6,6 +6,7 @@ import { VenueAvailability } from "./pages/VenueAvailability";
 import { ApproverDashboard } from "./pages/ApproverDashboard";
 import { AdminDashboard } from "./pages/AdminDashboard";
 import { AuditLogPage } from "./pages/AuditLogPage";
+import { NotificationCenter } from "./pages/NotificationCenter";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 
@@ -36,6 +37,10 @@ export const router = createBrowserRouter([
       {
         path: "availability",
         element: <VenueAvailability />,
+      },
+      {
+        path: "notifications",
+        element: <NotificationCenter />,
       },
         ],
       },

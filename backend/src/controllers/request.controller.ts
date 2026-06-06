@@ -95,6 +95,24 @@ function parseListPagination(query: Request["query"]) {
 	};
 }
 
+async function createNotification(
+  client: import("pg").PoolClient,
+  input: {
+    userId: string;
+    requestId?: string | null;
+    type: string;
+    title: string;
+    message: string;
+    details?: string | null;
+  },
+) {
+  await client.query(
+    `INSERT INTO "Notification" (id, "userId", "requestId", type, title, message, details, "createdAt")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+    [randomUUID(), input.userId, input.requestId ?? null, input.type, input.title, input.message, input.details ?? null],
+  );
+}
+
 export async function createRequest(req: Request, res: Response, next: NextFunction) {
 	const client = await pool.connect();
 	try {
@@ -242,6 +260,15 @@ export async function createRequest(req: Request, res: Response, next: NextFunct
 				req.ip,
 			],
 		);
+
+		await createNotification(client, {
+			userId: req.user.id,
+			requestId,
+			type: "submitted",
+			title: "DSR request submitted",
+			message: `Your request for ${input.eventName} has been submitted and is awaiting review.`,
+			details: `Venue request is now queued for approval${ministryName ? ` under ${ministryName}` : ""}.`,
+		});
 
 		return res.status(201).json({
 			id: requestId,
@@ -524,6 +551,15 @@ export async function cancelRequest(req: Request, res: Response, next: NextFunct
 				req.ip,
 			],
 		);
+
+		await createNotification(client, {
+			userId: req.user.id,
+			requestId: existingRequest.id,
+			type: "cancelled",
+			title: "DSR request cancelled",
+			message: "Your pending DSR request has been cancelled.",
+			details: cancelMinistryName ? `Ministry: ${cancelMinistryName}` : null,
+		});
 
 		return res.json({
 			id: existingRequest.id,

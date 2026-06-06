@@ -7,6 +7,7 @@ const { venueRoutes } = require("./venue.routes") as typeof import("./venue.rout
 const { adminRoutes } = require("./admin.routes") as typeof import("./admin.routes");
 const { dssRoutes } = require("./dss.routes") as typeof import("./dss.routes");
 const { auditRoutes } = require("./audit.routes") as typeof import("./audit.routes");
+const { notificationRoutes } = require("./notification.routes") as typeof import("./notification.routes");
 
 const routes = Router();
 
@@ -17,6 +18,7 @@ routes.use("/venues", venueRoutes as import("express").Router);
 routes.use("/admin", adminRoutes as import("express").Router);
 routes.use("/dss", dssRoutes as import("express").Router);
 routes.use("/audit", auditRoutes as import("express").Router);
+routes.use("/notifications", notificationRoutes as import("express").Router);
 
 export { routes };
 export default routes;

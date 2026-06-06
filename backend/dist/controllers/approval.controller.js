@@ -61,6 +61,10 @@ async function getUserIdForEmail(client, email, role) {
     }
     return userResult.rows[0].id;
 }
+async function createNotification(client, input) {
+    await client.query(`INSERT INTO "Notification" (id, "userId", "requestId", type, title, message, details, "createdAt")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`, [(0, crypto_1.randomUUID)(), input.userId, input.requestId ?? null, input.type, input.title, input.message, input.details ?? null]);
+}
 async function getApprovalQueue(req, res, next) {
     const client = await database_1.pool.connect();
     try {
@@ -236,6 +240,14 @@ async function approveRequest(req, res, next) {
                 console.warn("Failed to attach ministry name to audit log", e);
             }
         }
+        await createNotification(client, {
+            userId: requestRecord.requesterId,
+            requestId: requestRecord.id,
+            type: "approved",
+            title: "DSR request approved",
+            message: "Your DSR request has been approved.",
+            details: parsedBody.data.remarks ? `Approver remarks: ${parsedBody.data.remarks}` : "Your venue reservation is now confirmed.",
+        });
         return res.json({
             id: requestRecord.id,
             status: nextStatus,
@@ -311,6 +323,14 @@ async function rejectRequest(req, res, next) {
                 console.warn("Failed to attach ministry name to audit log", e);
             }
         }
+        await createNotification(client, {
+            userId: requestRecord.requesterId,
+            requestId: requestRecord.id,
+            type: "rejected",
+            title: "DSR request rejected",
+            message: "Your DSR request has been rejected.",
+            details: `Reason: ${parsedBody.data.remarks}`,
+        });
         return res.json({
             id: requestRecord.id,
             status: "REJECTED",
@@ -366,6 +386,14 @@ async function requestRevision(req, res, next) {
             }),
             req.ip,
         ]);
+        await createNotification(client, {
+            userId: requestRecord.requesterId,
+            requestId: requestRecord.id,
+            type: "revision",
+            title: "DSR revision requested",
+            message: "An approver requested changes to your DSR request.",
+            details: parsedBody.data.remarks,
+        });
         return res.json({
             id: requestRecord.id,
             status: "REVISION_REQUESTED",

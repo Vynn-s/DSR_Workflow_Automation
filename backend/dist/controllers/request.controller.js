@@ -91,6 +91,10 @@ function parseListPagination(query) {
         limit: parsed.data.limit ?? 100,
     };
 }
+async function createNotification(client, input) {
+    await client.query(`INSERT INTO "Notification" (id, "userId", "requestId", type, title, message, details, "createdAt")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`, [(0, crypto_1.randomUUID)(), input.userId, input.requestId ?? null, input.type, input.title, input.message, input.details ?? null]);
+}
 async function createRequest(req, res, next) {
     const client = await database_1.pool.connect();
     try {
@@ -190,6 +194,14 @@ async function createRequest(req, res, next) {
             }),
             req.ip,
         ]);
+        await createNotification(client, {
+            userId: req.user.id,
+            requestId,
+            type: "submitted",
+            title: "DSR request submitted",
+            message: `Your request for ${input.eventName} has been submitted and is awaiting review.`,
+            details: `Venue request is now queued for approval${ministryName ? ` under ${ministryName}` : ""}.`,
+        });
         return res.status(201).json({
             id: requestId,
             requesterId: req.user.id,
@@ -430,6 +442,14 @@ async function cancelRequest(req, res, next) {
             }),
             req.ip,
         ]);
+        await createNotification(client, {
+            userId: req.user.id,
+            requestId: existingRequest.id,
+            type: "cancelled",
+            title: "DSR request cancelled",
+            message: "Your pending DSR request has been cancelled.",
+            details: cancelMinistryName ? `Ministry: ${cancelMinistryName}` : null,
+        });
         return res.json({
             id: existingRequest.id,
             status: "REJECTED",

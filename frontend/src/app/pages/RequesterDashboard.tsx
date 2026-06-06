@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { Plus, Clock, CheckCircle2, XCircle, FileEdit, Bell, Search, CalendarDays, CalendarX, Sparkles } from "lucide-react";
 import api from "../../lib/api";
@@ -54,6 +54,17 @@ type ApiRequest = {
       email: string;
     };
   }>;
+};
+
+type ApiNotification = {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  details?: string | null;
+  requestId?: string | null;
+  read: boolean;
+  createdAt: string;
 };
 
 function formatDateTime(value: string) {
@@ -152,11 +163,14 @@ async function fetchLiveRequests() {
 export function RequesterDashboard() {
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<ApiNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [requests, setRequests] = useState<Request[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const notificationRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     document.title = "Requester Dashboard — CathedralFlow";
@@ -208,31 +222,62 @@ export function RequesterDashboard() {
     };
   }, []);
 
-  const notifications = [
-    {
-      id: 1,
-      type: "approved",
-      message: "Your request REQ-001 for Mezzanine Hall A has been approved",
-      date: "2026-01-29",
-      read: false,
-    },
-    {
-      id: 2,
-      type: "rejected",
-      message: "Your request REQ-003 for Meeting Room 1 has been rejected",
-      date: "2026-01-26",
-      read: false,
-    },
-    {
-      id: 3,
-      type: "review",
-      message: "Your request REQ-002 is now under review",
-      date: "2026-02-01",
-      read: true,
-    },
-  ];
+  useEffect(() => {
+    let isMounted = true;
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+    async function loadNotifications() {
+      try {
+        const response = await api.get<{ notifications: ApiNotification[]; unreadCount: number }>("/notifications", {
+          params: { limit: 5 },
+        });
+
+        if (isMounted) {
+          setNotifications(response.notifications ?? []);
+          setUnreadCount(response.unreadCount ?? 0);
+        }
+      } catch {
+        if (isMounted) {
+          setNotifications([]);
+          setUnreadCount(0);
+        }
+      }
+    }
+
+    void loadNotifications();
+    const intervalId = window.setInterval(loadNotifications, 30000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showNotifications) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!notificationRef.current?.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [showNotifications]);
+
+  const markNotificationRead = async (notification: ApiNotification) => {
+    if (notification.read) return;
+
+    setNotifications((current) => current.map((item) => item.id === notification.id ? { ...item, read: true } : item));
+    setUnreadCount((current) => Math.max(0, current - 1));
+
+    try {
+      await api.patch(`/notifications/${notification.id}/read`);
+    } catch {
+      setNotifications((current) => current.map((item) => item.id === notification.id ? { ...item, read: false } : item));
+      setUnreadCount((current) => current + 1);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -319,7 +364,7 @@ export function RequesterDashboard() {
         title="DSR Workflow Automation Board"
         description="Dashboard summary, DSR records, workflow status, and live parish DSS guidance."
         actions={(
-          <div className="relative flex items-center gap-3">
+          <div ref={notificationRef} className="relative z-[120] isolate flex items-center gap-3">
           <Link
             to="/requester/new-request"
             className="inline-flex items-center gap-2 rounded-xl bg-[#00A859] px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-0.5 hover:bg-[#009950] hover:text-white hover:shadow-lg active:scale-95 dark:hover:bg-[#00bf65] dark:hover:text-white"
@@ -340,7 +385,7 @@ export function RequesterDashboard() {
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 top-full mt-3 w-96 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-900/15 z-50 dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="absolute right-0 top-full z-[130] mt-3 w-96 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-900/15 dark:border-zinc-800 dark:bg-zinc-950">
               <div className="px-5 py-4 border-b border-zinc-200 bg-gradient-to-br from-[#0F3B8C]/10 to-white dark:border-zinc-800 dark:from-[#0F3B8C]/25 dark:to-zinc-950">
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="font-black text-zinc-900 dark:text-zinc-100 text-sm">Notifications</h3>
@@ -349,26 +394,31 @@ export function RequesterDashboard() {
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Recent DSR status updates</p>
               </div>
               <div className="max-h-96 overflow-y-auto">
-                {notifications.map((notif) => (
-                  <div
+                {notifications.length > 0 ? notifications.map((notif) => (
+                  <button
+                    type="button"
                     key={notif.id}
+                    onClick={() => markNotificationRead(notif)}
                     className={`flex gap-3 p-4 border-b border-zinc-100 transition-colors duration-150 hover:bg-zinc-50 dark:border-zinc-900 dark:hover:bg-zinc-900/70 ${!notif.read ? "bg-[#0F3B8C]/5" : ""}`}
                   >
                     <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${!notif.read ? "bg-[#0F3B8C]" : "bg-zinc-300 dark:bg-zinc-700"}`} />
-                    <div className="min-w-0">
+                    <div className="min-w-0 text-left">
                       <p className="text-xs text-zinc-700 mb-1.5 leading-relaxed font-semibold dark:text-zinc-200">{notif.message}</p>
-                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500">{notif.date}</p>
+                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500">{formatDateTime(notif.createdAt)}</p>
                     </div>
-                  </div>
-                ))}
+                  </button>
+                )) : (
+                  <div className="p-6 text-center text-xs font-semibold text-zinc-400 dark:text-zinc-500">No notifications yet</div>
+                )}
               </div>
               <div className="p-4 text-center bg-zinc-50 border-t border-zinc-200 dark:bg-zinc-950 dark:border-zinc-800">
-                <button
+                <Link
+                  to="/requester/notifications"
                   onClick={() => setShowNotifications(false)}
                   className="text-xs font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors duration-150"
                 >
-                  Close
-                </button>
+                  View all notifications
+                </Link>
               </div>
             </div>
           )}

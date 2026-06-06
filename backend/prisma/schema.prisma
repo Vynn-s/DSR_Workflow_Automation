@@ -49,6 +49,7 @@ model User {
   approvals       VenueRequest[]  @relation("CurrentApproverRequests")
   approvalActions ApprovalAction[]
   auditLogs       AuditLog[]
+  notifications   Notification[]
 }
 
 model Ministry {
@@ -100,6 +101,7 @@ model VenueRequest {
   currentApprover User?              @relation("CurrentApproverRequests", fields: [currentApproverId], references: [id])
   approvalActions ApprovalAction[]
   conflicts       SchedulingConflict[]
+  notifications   Notification[]
 
   @@index([status])
   @@index([requesterId])
@@ -136,6 +138,25 @@ model SchedulingConflict {
   detectedAt           DateTime @default(now())
 
   request VenueRequest @relation(fields: [requestId], references: [id])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  requestId String?
+  type      String
+  title     String
+  message   String
+  details   String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user    User          @relation(fields: [userId], references: [id])
+  request VenueRequest? @relation(fields: [requestId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@index([requestId])
 }
 
 model VenueMinistry {

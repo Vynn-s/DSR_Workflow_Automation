@@ -1,94 +1,119 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, Bell, CheckCircle2, XCircle, Clock, Trash2, Check } from "lucide-react";
+import { ArrowLeft, Bell, CheckCircle2, XCircle, Clock, Trash2, Check, FileEdit } from "lucide-react";
+import api from "../../lib/api";
+import { formatRequestId } from "../../lib/requestId";
 
 interface Notification {
-  id: number;
-  type: "approved" | "rejected" | "review" | "remarks";
-  requestId: string;
+  id: string;
+  type: "approved" | "rejected" | "revision" | "submitted" | "cancelled" | string;
+  title: string;
+  requestId?: string | null;
   message: string;
-  details?: string;
-  date: string;
-  time: string;
+  details?: string | null;
+  createdAt: string;
   read: boolean;
 }
 
-const mockNotifications: Notification[] = [
-  {
-    id: 1,
-    type: "approved",
-    requestId: "REQ-001",
-    message: "Your booking request has been approved",
-    details: "Your request for Mezzanine Hall A on February 15, 2026 has been approved. All requirements were met.",
-    date: "2026-01-29",
-    time: "02:20 PM",
-    read: false
-  },
-  {
-    id: 2,
-    type: "rejected",
-    requestId: "REQ-003",
-    message: "Your booking request has been rejected",
-    details: "Your request for Meeting Room 1 has been rejected. Reason: Venue already booked for another event during this time slot.",
-    date: "2026-01-26",
-    time: "09:15 AM",
-    read: false
-  },
-  {
-    id: 3,
-    type: "review",
-    requestId: "REQ-002",
-    message: "Your request is now under review",
-    details: "Your booking request for Socio Hall is being reviewed by the approval team.",
-    date: "2026-02-01",
-    time: "02:45 PM",
-    read: true
-  },
-  {
-    id: 4,
-    type: "remarks",
-    requestId: "REQ-001",
-    message: "Approver added remarks to your request",
-    details: "Bishop Antonio commented: 'Please ensure all decorations are removed by 6:00 PM.'",
-    date: "2026-01-29",
-    time: "03:15 PM",
-    read: true
-  },
-  {
-    id: 5,
-    type: "review",
-    requestId: "REQ-004",
-    message: "Your request has been submitted",
-    details: "Your booking request for Blessed Sacrament Chapel has been successfully submitted and is awaiting review.",
-    date: "2026-02-02",
-    time: "10:15 AM",
-    read: true
-  }
-];
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Unknown date";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function formatTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
 
 export function NotificationCenter() {
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  useEffect(() => {
+    let isMounted = true;
 
-  const filteredNotifications = filter === "unread" 
-    ? notifications.filter(n => !n.read)
+    async function loadNotifications() {
+      try {
+        setIsLoading(true);
+        setLoadError(null);
+        const response = await api.get<{ notifications: Notification[]; unreadCount: number }>("/notifications", {
+          params: { limit: 100 },
+        });
+
+        if (isMounted) {
+          setNotifications(response.notifications ?? []);
+          setUnreadCount(response.unreadCount ?? 0);
+        }
+      } catch {
+        if (isMounted) {
+          setLoadError("Unable to load notifications right now.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadNotifications();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const filteredNotifications = filter === "unread"
+    ? notifications.filter((notification) => !notification.read)
     : notifications;
 
-  const markAsRead = (id: number) => {
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, read: true } : n
-    ));
+  const markAsRead = async (id: string) => {
+    const notification = notifications.find((item) => item.id === id);
+    if (!notification || notification.read) return;
+
+    setNotifications((current) => current.map((item) => item.id === id ? { ...item, read: true } : item));
+    setUnreadCount((current) => Math.max(0, current - 1));
+
+    try {
+      await api.patch(`/notifications/${id}/read`);
+    } catch {
+      setNotifications((current) => current.map((item) => item.id === id ? { ...item, read: false } : item));
+      setUnreadCount((current) => current + 1);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
+  const markAllAsRead = async () => {
+    const previousNotifications = notifications;
+    const previousUnreadCount = unreadCount;
+    setNotifications((current) => current.map((item) => ({ ...item, read: true })));
+    setUnreadCount(0);
+
+    try {
+      await api.patch("/notifications/read-all");
+    } catch {
+      setNotifications(previousNotifications);
+      setUnreadCount(previousUnreadCount);
+    }
   };
 
-  const deleteNotification = (id: number) => {
-    setNotifications(notifications.filter(n => n.id !== id));
+  const deleteNotification = async (id: string) => {
+    const target = notifications.find((item) => item.id === id);
+    const previousNotifications = notifications;
+    const previousUnreadCount = unreadCount;
+    setNotifications((current) => current.filter((item) => item.id !== id));
+    if (target && !target.read) setUnreadCount((current) => Math.max(0, current - 1));
+
+    try {
+      await api.delete(`/notifications/${id}`);
+    } catch {
+      setNotifications(previousNotifications);
+      setUnreadCount(previousUnreadCount);
+    }
   };
 
   const getNotificationIcon = (type: string) => {
@@ -96,9 +121,11 @@ export function NotificationCenter() {
       case "approved":
         return <CheckCircle2 className="w-6 h-6 text-[#00A859]" />;
       case "rejected":
+      case "cancelled":
         return <XCircle className="w-6 h-6 text-red-400" />;
-      case "review":
-      case "remarks":
+      case "revision":
+        return <FileEdit className="w-6 h-6 text-amber-300" />;
+      case "submitted":
         return <Clock className="w-6 h-6 text-blue-300" />;
       default:
         return <Bell className="w-6 h-6 text-zinc-500 dark:text-zinc-400" />;
@@ -107,23 +134,21 @@ export function NotificationCenter() {
 
   const getNotificationBg = (type: string, read: boolean) => {
     if (read) return "bg-white dark:bg-zinc-950/60";
-    
     switch (type) {
       case "approved":
         return "bg-[#00A859]/10";
       case "rejected":
+      case "cancelled":
         return "bg-red-500/10";
-      case "review":
-      case "remarks":
-        return "bg-[#0F3B8C]/10";
+      case "revision":
+        return "bg-amber-500/10";
       default:
-        return "bg-white dark:bg-zinc-950/60";
+        return "bg-[#0F3B8C]/10";
     }
   };
 
   return (
     <div>
-      {/* Page Header */}
       <div className="mb-8">
         <button
           onClick={() => navigate("/requester")}
@@ -132,14 +157,10 @@ export function NotificationCenter() {
           <ArrowLeft className="w-4 h-4" />
           Back to Dashboard
         </button>
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-2 tracking-tight">
-              Notification Center
-            </h1>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Stay updated on your booking requests and approvals
-            </p>
+            <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mb-2 tracking-tight">Notification Center</h1>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Stay updated on your DSR requests and approvals</p>
           </div>
           {unreadCount > 0 && (
             <button
@@ -153,8 +174,7 @@ export function NotificationCenter() {
         </div>
       </div>
 
-      {/* Stats and Filter */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-4">
           <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 px-4 py-2">
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Total</p>
@@ -166,89 +186,49 @@ export function NotificationCenter() {
           </div>
         </div>
 
-        {/* Filter Buttons */}
         <div className="flex gap-2">
-          <button
-            onClick={() => setFilter("all")}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-150 ${
-              filter === "all"
-                ? "bg-white text-zinc-900 dark:bg-white dark:text-zinc-950"
-                : "border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-            }`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setFilter("unread")}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-150 ${
-              filter === "unread"
-                ? "bg-white text-zinc-900 dark:bg-white dark:text-zinc-950"
-                : "border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-            }`}
-          >
-            Unread ({unreadCount})
-          </button>
+          <button onClick={() => setFilter("all")} className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-150 ${filter === "all" ? "bg-[#0F3B8C] text-white" : "border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"}`}>All</button>
+          <button onClick={() => setFilter("unread")} className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-150 ${filter === "unread" ? "bg-[#0F3B8C] text-white" : "border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"}`}>Unread ({unreadCount})</button>
         </div>
       </div>
 
-      {/* Notifications List */}
       <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/60 overflow-hidden">
-        {filteredNotifications.length > 0 ? (
-          <div className="divide-y divide-zinc-800">
+        {isLoading ? (
+          <div className="p-12 text-center text-sm font-semibold text-zinc-400 dark:text-zinc-500">Loading notifications...</div>
+        ) : loadError ? (
+          <div className="p-12 text-center text-sm font-semibold text-red-400">{loadError}</div>
+        ) : filteredNotifications.length > 0 ? (
+          <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
             {filteredNotifications.map((notification) => (
-              <div
-                key={notification.id}
-                className={`p-6 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 ${getNotificationBg(notification.type, notification.read)}`}
-              >
+              <div key={notification.id} className={`p-6 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 ${getNotificationBg(notification.type, notification.read)}`}>
                 <div className="flex gap-4">
-                  {/* Icon */}
-                  <div className="flex-shrink-0">
-                    {getNotificationIcon(notification.type)}
-                  </div>
-
-                  {/* Content */}
+                  <div className="flex-shrink-0">{getNotificationIcon(notification.type)}</div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between mb-2">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-2">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
-                            {notification.message}
-                          </h3>
-                          {!notification.read && (
-                            <span className="w-2 h-2 bg-blue-300 rounded-full"></span>
-                          )}
+                          <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">{notification.title}</h3>
+                          {!notification.read && <span className="w-2 h-2 bg-blue-300 rounded-full" />}
                         </div>
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                          Request: <span className="font-medium">{notification.requestId}</span>
-                        </p>
+                        <p className="text-sm text-zinc-600 dark:text-zinc-300">{notification.message}</p>
+                        {notification.requestId && <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Request: <span className="font-medium">{formatRequestId(notification.requestId)}</span></p>}
                       </div>
-                      <div className="text-right text-sm text-zinc-500 dark:text-zinc-400 flex-shrink-0 ml-4">
-                        <p>{notification.date}</p>
-                        <p>{notification.time}</p>
+                      <div className="text-sm text-zinc-500 dark:text-zinc-400 flex-shrink-0 sm:text-right">
+                        <p>{formatDate(notification.createdAt)}</p>
+                        <p>{formatTime(notification.createdAt)}</p>
                       </div>
                     </div>
 
-                    {notification.details && (
-                      <p className="text-sm text-zinc-300 mb-4 bg-zinc-50 dark:bg-[#18181b] p-3 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                        {notification.details}
-                      </p>
-                    )}
+                    {notification.details && <p className="text-sm text-zinc-600 dark:text-zinc-300 mb-4 bg-zinc-50 dark:bg-[#18181b] p-3 rounded-xl border border-zinc-200 dark:border-zinc-800">{notification.details}</p>}
 
-                    {/* Actions */}
                     <div className="flex gap-2">
                       {!notification.read && (
-                        <button
-                          onClick={() => markAsRead(notification.id)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-300 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 rounded-md transition-colors duration-150"
-                        >
+                        <button onClick={() => markAsRead(notification.id)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-500 dark:text-blue-300 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 rounded-md transition-colors duration-150">
                           <Check className="w-3.5 h-3.5" />
                           Mark as read
                         </button>
                       )}
-                      <button
-                        onClick={() => deleteNotification(notification.id)}
-                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 rounded-md transition-colors duration-150"
-                      >
+                      <button onClick={() => deleteNotification(notification.id)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 rounded-md transition-colors duration-150">
                         <Trash2 className="w-3.5 h-3.5" />
                         Delete
                       </button>
@@ -260,17 +240,11 @@ export function NotificationCenter() {
           </div>
         ) : (
           <div className="p-12 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-zinc-900 rounded-full mb-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-zinc-100 dark:bg-zinc-900 rounded-full mb-4">
               <Bell className="w-8 h-8 text-zinc-500 dark:text-zinc-400" />
             </div>
-            <p className="text-zinc-900 dark:text-zinc-100 font-medium">
-              No {filter === "unread" ? "unread " : ""}notifications
-            </p>
-            <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
-              {filter === "unread" 
-                ? "You're all caught up!" 
-                : "You don't have any notifications yet"}
-            </p>
+            <p className="text-zinc-900 dark:text-zinc-100 font-medium">No {filter === "unread" ? "unread " : ""}notifications</p>
+            <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">{filter === "unread" ? "You're all caught up!" : "You don't have any notifications yet"}</p>
           </div>
         )}
       </div>

@@ -9,6 +9,7 @@ const { venueRoutes } = require("./venue.routes");
 const { adminRoutes } = require("./admin.routes");
 const { dssRoutes } = require("./dss.routes");
 const { auditRoutes } = require("./audit.routes");
+const { notificationRoutes } = require("./notification.routes");
 const routes = Router();
 exports.routes = routes;
 routes.use("/auth", authRoutes);
@@ -18,5 +19,6 @@ routes.use("/venues", venueRoutes);
 routes.use("/admin", adminRoutes);
 routes.use("/dss", dssRoutes);
 routes.use("/audit", auditRoutes);
+routes.use("/notifications", notificationRoutes);
 exports.default = routes;
 //# sourceMappingURL=index.js.map

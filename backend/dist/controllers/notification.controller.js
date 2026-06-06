@@ -76,6 +76,9 @@ async function getNotifications(req, res, next) {
         });
     }
     catch (error) {
+        if (error && typeof error === "object" && "code" in error && error.code === "42P01") {
+            return res.json({ notifications: [], unreadCount: 0 });
+        }
         return next(error);
     }
     finally {

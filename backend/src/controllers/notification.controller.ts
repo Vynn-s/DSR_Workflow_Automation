@@ -84,6 +84,10 @@ export async function getNotifications(req: Request, res: Response, next: NextFu
       unreadCount: unreadResult.rows[0]?.count ?? 0,
     });
   } catch (error) {
+    if (error && typeof error === "object" && "code" in error && (error as { code?: string }).code === "42P01") {
+      return res.json({ notifications: [], unreadCount: 0 });
+    }
+
     return next(error);
   } finally {
     client.release();

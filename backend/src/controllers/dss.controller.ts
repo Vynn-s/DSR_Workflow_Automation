@@ -22,8 +22,11 @@ const evaluateRequestSchema = z.object({
 	attachmentCount: z.coerce.number().int().nonnegative().optional(),
 	signatures: z.array(z.object({
 		required: z.boolean().optional(),
-		status: z.enum(["pending", "signed"]),
-	})).optional(),
+		status: z.preprocess(
+			(value) => String(value ?? "pending").toLowerCase() === "signed" ? "signed" : "pending",
+			z.enum(["pending", "signed"]),
+		),
+	}).passthrough()).optional(),
 });
 
 const recommendationQuerySchema = z.object({

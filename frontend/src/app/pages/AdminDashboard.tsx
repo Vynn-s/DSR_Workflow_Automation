@@ -1193,7 +1193,7 @@ export function AdminDashboard() {
                             <p className="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">{request.venue.name} • {request.ministry.name} • {new Date(request.startDateTime).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
                             <p className="mt-1 text-[10px] font-bold text-zinc-400 dark:text-zinc-500">Waiting {ageHours}h • {request.attendees} attendees</p>
                           </div>
-                          <button type="button" onClick={() => navigate(`/approver?requestId=${request.id}`)} className="shrink-0 rounded-lg bg-[#00A859] px-3 py-2 text-[10px] font-black text-white hover:bg-[#009950] hover:text-white dark:hover:bg-[#00bf65] dark:hover:text-white">Review</button>
+                          <button type="button" onClick={() => navigate(`/approver?requestId=${request.id}&from=admin`)} className="shrink-0 rounded-lg bg-[#00A859] px-3 py-2 text-[10px] font-black text-white hover:bg-[#009950] hover:text-white dark:hover:bg-[#00bf65] dark:hover:text-white">Review</button>
                         </div>
                       </div>
                     );

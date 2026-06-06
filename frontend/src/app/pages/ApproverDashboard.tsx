@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
-import { CheckCircle, XCircle, FileText, User, Calendar as CalendarIcon, Paperclip, Download, Eye, AlertCircle, CheckCircle2, Brain, TrendingUp, Shield, AlertTriangle, Sparkles } from "lucide-react";
+import { CheckCircle, XCircle, FileText, User, Calendar as CalendarIcon, Paperclip, Download, AlertCircle, CheckCircle2, Brain, TrendingUp, Shield, AlertTriangle, Sparkles, ArrowLeft } from "lucide-react";
 import { formatRequestId } from "../../lib/requestId";
 import { fetchVenues, type LiveVenue } from "../../lib/venues";
 import api from "../../lib/api";
@@ -198,8 +198,10 @@ function isActionableQueueStatus(status: Request["queueStatus"]) {
 }
 
 export function ApproverDashboard() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const requestedReviewId = searchParams.get("requestId");
+  const returnToAdmin = searchParams.get("from") === "admin";
   const [requests, setRequests] = useState<Request[]>([]);
   const [archivedRequests, setArchivedRequests] = useState<Request[]>([]);
   const [activeTab, setActiveTab] = useState<"queue" | "archive">("queue");
@@ -214,7 +216,6 @@ export function ApproverDashboard() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
-  const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
   const [dssLoading, setDssLoading] = useState(false);
   const [dssError, setDssError] = useState<string | null>(null);
   const [priests, setPriests] = useState<Array<{ id: string; name: string; email: string }>>([]);
@@ -619,7 +620,19 @@ export function ApproverDashboard() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Pending Approvals" description="Review and approve or reject booking requests." />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <PageHeader title="Pending Approvals" description="Review and approve or reject booking requests." />
+        {returnToAdmin && (
+          <button
+            type="button"
+            onClick={() => navigate("/admin")}
+            className="inline-flex w-fit items-center gap-2 rounded-xl border border-[#0F3B8C]/20 bg-[#0F3B8C]/10 px-4 py-2 text-xs font-black text-[#0F3B8C] hover:bg-[#0F3B8C] hover:text-white dark:text-blue-300 dark:hover:text-white"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Admin
+          </button>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <div className="lg:col-span-4 space-y-4">
@@ -790,13 +803,6 @@ export function ApproverDashboard() {
                             <Download className="w-3.5 h-3.5" />
                             Download
                           </button>
-                          <button
-                            onClick={() => setPreviewAttachment(attachment)}
-                            className="ml-2 flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 rounded-md transition-colors duration-150"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            Preview
-                          </button>
                         </div>
                       ))}
                     </div>
@@ -902,45 +908,6 @@ export function ApproverDashboard() {
           )}
         </div>
       </div>
-
-      {previewAttachment && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-950 shadow-2xl max-w-5xl w-full overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Preview Attachment</h3>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">{previewAttachment.name}</p>
-              </div>
-              <button
-                onClick={() => setPreviewAttachment(null)}
-                className="p-2 rounded-lg hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-              >
-                <X className="w-5 h-5 text-zinc-300" />
-              </button>
-            </div>
-            <div className="p-4 bg-zinc-950 flex-1 overflow-auto">
-              {previewAttachment.type.startsWith("image/") ? (
-                <img
-                  src={previewAttachment.dataUrl}
-                  alt={previewAttachment.name}
-                  className="max-w-full h-auto mx-auto rounded-lg shadow-lg"
-                />
-              ) : previewAttachment.type === "application/pdf" ? (
-                <iframe
-                  title={previewAttachment.name}
-                  src={previewAttachment.dataUrl}
-                  className="w-full h-[70vh] rounded-lg bg-zinc-900"
-                />
-              ) : (
-                <div className="text-center py-16">
-                  <p className="text-zinc-200 font-medium">Preview not available for this file type.</p>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">Use Download to open the document locally.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

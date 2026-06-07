@@ -10,6 +10,17 @@ const { errorHandler } = require("./middleware/errorHandler");
 const app = express();
 const port = Number(process.env.PORT) || 3000;
 const frontendUrl = process.env.FRONTEND_URL?.trim();
+app.get('/health', (_req, res) => {
+    res.status(200).json({
+        status: 'ok',
+        service: 'CathedralFlow API',
+        timestamp: new Date().toISOString(),
+        uptime: Math.floor(process.uptime())
+    });
+});
+app.get('/ping', (_req, res) => {
+    res.status(200).send('pong');
+});
 app.use(helmet());
 app.use(cors({
     // Only allow the configured frontend origin in production; keep development flexible.

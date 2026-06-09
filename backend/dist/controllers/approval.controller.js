@@ -92,6 +92,9 @@ async function getApprovalQueue(req, res, next) {
 				vr.status,
 				vr."createdAt",
 				vr."updatedAt",
+				er.id AS report_id,
+				er.report AS report_text,
+				er."submittedAt" AS report_submitted_at,
 				r.name AS requester_name,
 				r.email AS requester_email,
 				v.name AS venue_name,
@@ -100,6 +103,7 @@ async function getApprovalQueue(req, res, next) {
 			 INNER JOIN "User" r ON r.id = vr."requesterId"
 			 INNER JOIN "Venue" v ON v.id = vr."venueId"
 			 INNER JOIN "Ministry" m ON m.id = vr."ministryId"
+			 LEFT JOIN "EventReport" er ON er."requestId" = vr.id
 			 WHERE vr.status = $1
 			 ORDER BY vr."createdAt" ASC
 			 LIMIT $2 OFFSET $3`, [queueStatus, limit, offset]);
@@ -155,6 +159,12 @@ async function getApprovalQueue(req, res, next) {
                 name: request.ministry_name,
             },
             approvalActions: approvalActionsByRequestId.get(request.id) ?? [],
+            eventReport: request.report_id ? {
+                id: request.report_id,
+                requestId: request.id,
+                report: request.report_text,
+                submittedAt: request.report_submitted_at,
+            } : null,
         }));
         return res.json({
             queue,
@@ -430,6 +440,9 @@ async function getArchive(req, res, next) {
 				vr.status,
 				vr."createdAt",
 				vr."updatedAt",
+				er.id AS report_id,
+				er.report AS report_text,
+				er."submittedAt" AS report_submitted_at,
 				r.name AS requester_name,
 				r.email AS requester_email,
 				v.name AS venue_name,
@@ -438,6 +451,7 @@ async function getArchive(req, res, next) {
 			 INNER JOIN "User" r ON r.id = vr."requesterId"
 			 INNER JOIN "Venue" v ON v.id = vr."venueId"
 			 INNER JOIN "Ministry" m ON m.id = vr."ministryId"
+			 LEFT JOIN "EventReport" er ON er."requestId" = vr.id
 			 WHERE vr.status IN ('APPROVED', 'REJECTED', 'REVISION_REQUESTED')
 			 ORDER BY vr."updatedAt" DESC
 			 LIMIT $1 OFFSET $2`, [limit, offset]);
@@ -490,6 +504,12 @@ async function getArchive(req, res, next) {
                 name: request.ministry_name,
             },
             approvalActions: approvalActionsByRequestId.get(request.id) ?? [],
+            eventReport: request.report_id ? {
+                id: request.report_id,
+                requestId: request.id,
+                report: request.report_text,
+                submittedAt: request.report_submitted_at,
+            } : null,
         }));
         return res.json({
             archive,

@@ -120,6 +120,10 @@ function formatAction(action: string): string {
       return "Requested Revision";
     case "DSS_EVALUATION":
       return "DSS Evaluation";
+    case "EVENT_REPORT_SUBMITTED":
+      return "Submitted Event Report";
+    case "EVENT_REPORT_UPDATED":
+      return "Updated Event Report";
     default:
       return action.replaceAll("_", " ");
   }

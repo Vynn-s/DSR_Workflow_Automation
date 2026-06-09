@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
-import { Plus, Clock, CheckCircle2, XCircle, FileEdit, Bell, Search, CalendarDays, CalendarX, Sparkles } from "lucide-react";
+import { toast } from "sonner";
+import { Plus, Clock, CheckCircle2, XCircle, FileEdit, Bell, Search, CalendarDays, CalendarX, Sparkles, FileText, X } from "lucide-react";
 import api from "../../lib/api";
 import { formatRequestId } from "../../lib/requestId";
 import { AnimatedNumber, EmptyState, FadeIn, PageHeader, SkeletonRows } from "../components/ui/page";
@@ -13,6 +14,9 @@ interface Request {
   purpose: string;
   status: "Approved" | "Rejected" | "Pending" | "Draft" | "Under Review";
   submittedDate: string;
+  startDateTime: string;
+  endDateTime: string;
+  eventReport?: EventReport | null;
   timeline?: {
     submitted: string;
     underReview?: string;
@@ -32,6 +36,14 @@ interface Request {
   }>;
 }
 
+type EventReport = {
+  id: string;
+  requestId: string;
+  report: string;
+  submittedAt: string;
+  updatedAt?: string;
+};
+
 type ApiRequest = {
   id: string;
   venue: {
@@ -45,6 +57,7 @@ type ApiRequest = {
   endDateTime: string;
   createdAt: string;
   updatedAt: string;
+  eventReport?: EventReport | null;
   approvalActions?: Array<{
     remarks?: string | null;
     createdAt: string;
@@ -150,6 +163,9 @@ async function fetchLiveRequests() {
       purpose: request.purpose || request.eventName,
       status,
       submittedDate,
+      startDateTime: request.startDateTime,
+      endDateTime: request.endDateTime,
+      eventReport: request.eventReport ?? null,
       timeline: {
         submitted,
         underReview,
@@ -173,7 +189,42 @@ export function RequesterDashboard() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [reportRequest, setReportRequest] = useState<Request | null>(null);
+  const [reportMode, setReportMode] = useState<"file" | "view" | "edit">("file");
+  const [reportText, setReportText] = useState("");
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const notificationRef = useRef<HTMLDivElement | null>(null);
+
+  const openReportModal = (request: Request, mode: "file" | "view" | "edit") => {
+    setReportRequest(request);
+    setReportMode(mode);
+    setReportText(request.eventReport?.report ?? "");
+  };
+
+  const closeReportModal = () => {
+    setReportRequest(null);
+    setReportMode("file");
+    setReportText("");
+  };
+
+  const saveEventReport = async () => {
+    if (!reportRequest) return;
+    setIsSubmittingReport(true);
+    try {
+      const response = reportRequest.eventReport
+        ? await api.put<{ report: EventReport }>(`/event-reports/${reportRequest.id}`, { report: reportText })
+        : await api.post<{ report: EventReport }>(`/event-reports/${reportRequest.id}`, { report: reportText });
+      setRequests((current) => current.map((request) => request.id === reportRequest.id ? { ...request, eventReport: response.report } : request));
+      setSelectedRequest((current) => current?.id === reportRequest.id ? { ...current, eventReport: response.report } : current);
+      toast.success(reportRequest.eventReport ? "Report updated successfully" : "Report submitted successfully");
+      closeReportModal();
+    } catch (error) {
+      const message = (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message;
+      toast.error(message ?? "Unable to save report right now.");
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
 
   useEffect(() => {
     document.title = "Requester Dashboard — CathedralFlow";
@@ -528,6 +579,19 @@ export function RequesterDashboard() {
                       {getStatusIcon(request.status)}
                       {request.status}
                     </span>
+                    {request.status === "Approved" && new Date(request.endDateTime).getTime() <= Date.now() && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openReportModal(request, request.eventReport ? "view" : "file");
+                        }}
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] font-black ${request.eventReport ? "bg-[#00A859]/10 text-[#00A859]" : "bg-[#0F3B8C]/10 text-[#0F3B8C] dark:text-blue-300"}`}
+                      >
+                        {request.eventReport ? <CheckCircle2 className="h-3 w-3" /> : <FileText className="h-3 w-3" />}
+                        {request.eventReport ? "View Report" : "File Report"}
+                      </button>
+                    )}
                     <span className={`max-w-[190px] rounded-full border px-2 py-0.5 text-right text-[9px] font-bold leading-tight ${getRequesterDssTag(request).className}`}>
                       {getRequesterDssTag(request).label}
                     </span>
@@ -617,6 +681,53 @@ export function RequesterDashboard() {
             ) : (
               <div className="py-12 text-center text-zinc-400 dark:text-zinc-500 text-xs font-semibold">Select a DSR record to view details.</div>
             )}
+          </div>
+        </div>
+      )}
+
+      {reportRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-3xl border border-zinc-800 bg-[#121214] p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex gap-3">
+                <div className="rounded-xl bg-[#0F3B8C]/15 p-2"><FileText className="h-5 w-5 text-blue-300" /></div>
+                <div>
+                  <h2 className="text-base font-black text-zinc-100">Post-Event Report</h2>
+                  <p className="text-xs text-zinc-400">{reportRequest.purpose}</p>
+                </div>
+              </div>
+              <button type="button" onClick={closeReportModal} className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"><X className="h-4 w-4" /></button>
+            </div>
+
+            <div className="mt-5 rounded-xl border border-[#0F3B8C]/30 bg-[#0F3B8C]/10 p-3 text-xs leading-relaxed text-zinc-400">
+              Describe what happened during the event. Include any damages to the venue or equipment, missing items, incidents, or general observations. This report will be reviewed by the Parish Secretary.
+            </div>
+
+            {reportMode === "view" ? (
+              <div className="mt-4">
+                <div className="max-h-64 overflow-y-auto rounded-xl border border-zinc-800 bg-[#18181b] p-3.5 text-sm leading-relaxed text-zinc-100 whitespace-pre-wrap">{reportRequest.eventReport?.report}</div>
+                <p className="mt-2 text-xs text-zinc-400">Submitted on {reportRequest.eventReport ? formatDateTime(reportRequest.eventReport.submittedAt) : "N/A"}</p>
+              </div>
+            ) : (
+              <div className="mt-4">
+                <textarea
+                  value={reportText}
+                  onChange={(event) => setReportText(event.target.value.slice(0, 2000))}
+                  placeholder="The event went smoothly. However, two plastic chairs were found damaged after the activity. The projector remote is also missing. The venue was cleaned before leaving."
+                  className="h-40 w-full resize-none rounded-xl border border-zinc-800 bg-[#18181b] p-3.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-[#0F3B8C]"
+                />
+                <p className="mt-1 text-right text-xs text-zinc-500">{reportText.length} / 2000</p>
+              </div>
+            )}
+
+            <div className="mt-5 flex items-center justify-end gap-3">
+              <button type="button" onClick={closeReportModal} className="rounded-xl border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800">Cancel</button>
+              {reportMode === "view" && reportRequest.eventReport && Date.now() - new Date(reportRequest.eventReport.submittedAt).getTime() <= 24 * 60 * 60 * 1000 ? (
+                <button type="button" onClick={() => setReportMode("edit")} className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950">Edit Report</button>
+              ) : reportMode !== "view" ? (
+                <button type="button" onClick={saveEventReport} disabled={isSubmittingReport || reportText.trim().length < 10} className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60">{isSubmittingReport ? "Submitting..." : "Submit Report"}</button>
+              ) : null}
+            </div>
           </div>
         </div>
       )}

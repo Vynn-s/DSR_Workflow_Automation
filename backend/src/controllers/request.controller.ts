@@ -539,11 +539,16 @@ export async function getRequests(req: Request, res: Response, next: NextFunctio
 				vr."currentApproverId",
 				vr."createdAt",
 				vr."updatedAt",
+				er.id AS report_id,
+				er.report AS report_text,
+				er."submittedAt" AS report_submitted_at,
+				er."updatedAt" AS report_updated_at,
 				v.name AS venue_name,
 				m.name AS ministry_name
 			 FROM "VenueRequest" vr
 			 INNER JOIN "Venue" v ON v.id = vr."venueId"
 			 INNER JOIN "Ministry" m ON m.id = vr."ministryId"
+			 LEFT JOIN "EventReport" er ON er."requestId" = vr.id
 			 WHERE vr."requesterId" = $1
 			 ORDER BY vr."createdAt" DESC
 			 LIMIT $2 OFFSET $3`,
@@ -563,6 +568,13 @@ export async function getRequests(req: Request, res: Response, next: NextFunctio
 			approvalActions: [],
 				attachments: request.attachments ?? [],
 				signatures: request.signatures ?? [],
+			eventReport: request.report_id ? {
+				id: request.report_id,
+				requestId: request.id,
+				report: request.report_text,
+				submittedAt: request.report_submitted_at,
+				updatedAt: request.report_updated_at,
+			} : null,
 		}));
 
 		return res.json({

@@ -27,6 +27,13 @@ interface Signature {
   signedDate?: string;
 }
 
+type EventReport = {
+  id: string;
+  requestId: string;
+  report: string;
+  submittedAt: string;
+};
+
 interface DSSRecommendation {
   decision: "approve" | "review" | "reject";
   confidence: number;
@@ -79,6 +86,7 @@ interface Request {
   dssRecommendation?: DSSRecommendation;
   approvedById?: string | null;
   approvedByName?: string | null;
+  eventReport?: EventReport | null;
 }
 
 type ApiApprovalQueueItem = {
@@ -113,6 +121,7 @@ type ApiApprovalQueueItem = {
   }>;
   attachments?: Attachment[];
   signatures?: Signature[];
+  eventReport?: EventReport | null;
 };
 
 function formatDateTime(value: string) {
@@ -260,6 +269,7 @@ export function ApproverDashboard() {
           submittedDate: formatDateTime(request.createdAt),
           attachments: request.attachments ?? [],
           signatures: request.signatures ?? [],
+          eventReport: request.eventReport ?? null,
           approvedById: [...(request.approvalActions ?? [])].reverse().find((action) => action.approver)?.approver?.id ?? null,
           approvedByName: [...(request.approvalActions ?? [])].reverse().find((action) => action.approver)?.approver?.name ?? null,
         } satisfies Request));
@@ -334,6 +344,7 @@ export function ApproverDashboard() {
           submittedDate: formatDateTime(request.createdAt),
           attachments: request.attachments ?? [],
           signatures: request.signatures ?? [],
+          eventReport: request.eventReport ?? null,
         } satisfies Request));
 
         if (isMounted) {
@@ -438,6 +449,7 @@ export function ApproverDashboard() {
       submittedDate: formatDateTime(request.createdAt),
       attachments: request.attachments ?? [],
       signatures: request.signatures ?? [],
+      eventReport: request.eventReport ?? null,
     } satisfies Request));
 
     setRequests(liveRequests);
@@ -874,6 +886,20 @@ export function ApproverDashboard() {
                       ))}
                     </div>
                   </div>
+                )}
+
+                {new Date(selectedRequest.endDateTime).getTime() <= Date.now() && (
+                  <details className="pt-5 border-t border-zinc-200 dark:border-zinc-800">
+                    <summary className="cursor-pointer text-sm font-black text-zinc-900 dark:text-zinc-100">Post-Event Report</summary>
+                    {selectedRequest.eventReport ? (
+                      <div className="mt-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/70">
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">{selectedRequest.eventReport.report}</p>
+                        <p className="mt-3 text-xs text-zinc-400 dark:text-zinc-500">Submitted on {formatDateTime(selectedRequest.eventReport.submittedAt)}</p>
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-xs text-zinc-500">No post-event report submitted yet.</p>
+                    )}
+                  </details>
                 )}
 
                 {/* Remarks Field - Only for Queue */}

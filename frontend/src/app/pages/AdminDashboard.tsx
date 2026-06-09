@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { Users, Building2, Brain, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock, Edit2, Plus, X, KeyRound, Save, Trash2 } from "lucide-react";
+import { Users, Building2, Brain, BarChart3, TrendingUp, AlertTriangle, CheckCircle2, Clock, Edit2, Plus, X, KeyRound, Save, Trash2, FileText } from "lucide-react";
 import api from "../../lib/api";
 import { fetchVenues, type LiveVenue } from "../../lib/venues";
 import { useAuth } from "../../context/AuthContext";
@@ -98,6 +98,20 @@ type ApprovalQueueItem = {
 
 type ApprovalQueueResponse = {
   queue: ApprovalQueueItem[];
+};
+
+type EventReport = {
+  id: string;
+  requestId: string;
+  report: string;
+  submittedAt: string;
+  request?: {
+    eventName?: string;
+    purpose?: string;
+    endDateTime?: string;
+    venue?: { name: string } | null;
+    requester?: { name: string } | null;
+  };
 };
 
 type AdminUsersResponse = {
@@ -477,6 +491,8 @@ export function AdminDashboard() {
   const [ministries, setMinistries] = useState<MinistryOption[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [approvalQueue, setApprovalQueue] = useState<ApprovalQueueItem[]>([]);
+  const [eventReports, setEventReports] = useState<EventReport[]>([]);
+  const [selectedEventReport, setSelectedEventReport] = useState<EventReport | null>(null);
   const [auditStats, setAuditStats] = useState<AuditStats | null>(null);
   const [venuesLoading, setVenuesLoading] = useState(true);
   const [adminUsersLoading, setAdminUsersLoading] = useState(true);
@@ -548,13 +564,14 @@ export function AdminDashboard() {
 
       const window = getReportWindow(reportView);
 
-      const [liveVenuesResult, adminUsersResult, ministriesResult, auditStatsResult, auditLogsResult, approvalQueueResult] = await Promise.allSettled([
+      const [liveVenuesResult, adminUsersResult, ministriesResult, auditStatsResult, auditLogsResult, approvalQueueResult, eventReportsResult] = await Promise.allSettled([
         fetchVenues(),
         api.get<AdminUsersResponse>("/admin/users"),
         api.get<MinistriesResponse>("/admin/ministries"),
         api.get<AuditStats>("/audit/stats", { params: window }),
         fetchAuditLogs(window),
         api.get<ApprovalQueueResponse>("/approvals/queue"),
+        api.get<{ reports: EventReport[] }>("/event-reports"),
       ]);
 
       if (!isMounted) {
@@ -620,6 +637,13 @@ export function AdminDashboard() {
       } else {
         console.warn("Failed to load approval queue preview");
         setApprovalQueue([]);
+      }
+
+      if (eventReportsResult.status === "fulfilled") {
+        setEventReports(eventReportsResult.value.reports ?? []);
+      } else {
+        console.warn("Failed to load event reports");
+        setEventReports([]);
       }
 
       if (auditStatsResult.status === "rejected" || auditLogsResult.status === "rejected") {
@@ -730,6 +754,11 @@ export function AdminDashboard() {
     : pendingQueuePreview.length > 0
       ? "Active"
       : "Clear";
+  const reportsThisMonth = eventReports.filter((report) => {
+    const submitted = new Date(report.submittedAt);
+    const nowMonth = new Date();
+    return submitted.getFullYear() === nowMonth.getFullYear() && submitted.getMonth() === nowMonth.getMonth();
+  }).length;
 
   const startEditingVenue = (venue: LiveVenue) => {
     setSelectedVenueId(venue.id);
@@ -1413,6 +1442,40 @@ export function AdminDashboard() {
         </div>
       </div>
 
+      <div className="mb-10 rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/60">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-[#0F3B8C]/10 p-2"><FileText className="h-5 w-5 text-[#0F3B8C] dark:text-blue-300" /></div>
+            <div>
+              <h2 className="text-sm font-black text-zinc-900 dark:text-zinc-100">Post-Event Reports</h2>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Requester-submitted observations after approved events.</p>
+            </div>
+          </div>
+          <div className="rounded-2xl bg-[#00A859]/10 px-4 py-2 text-right">
+            <p className="text-[9px] font-black uppercase text-[#00A859]">This month</p>
+            <p className="text-xl font-black text-zinc-900 dark:text-zinc-100">{reportsThisMonth}</p>
+          </div>
+        </div>
+
+        {eventReports.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-zinc-200 p-6 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">No post-event reports have been submitted yet.</div>
+        ) : (
+          <div className="overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800">
+            {eventReports.map((report) => (
+              <button key={report.id} type="button" onClick={() => setSelectedEventReport(report)} className="grid w-full gap-3 border-b border-zinc-100 bg-white px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-zinc-50 dark:border-zinc-900 dark:bg-zinc-950/40 dark:hover:bg-zinc-900/60 md:grid-cols-[1.1fr_0.9fr_0.8fr_1.2fr]">
+                <div>
+                  <p className="text-sm font-black text-zinc-900 dark:text-zinc-100">{report.request?.eventName ?? report.request?.purpose ?? "Event"}</p>
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400">{report.request?.venue?.name ?? "Venue"}</p>
+                </div>
+                <div><p className="text-[10px] font-black uppercase text-zinc-400">Requester</p><p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{report.request?.requester?.name ?? "Requester"}</p></div>
+                <div><p className="text-[10px] font-black uppercase text-zinc-400">Submitted</p><p className="text-xs text-zinc-600 dark:text-zinc-300">{new Date(report.submittedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p></div>
+                <p className="line-clamp-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">{report.report.slice(0, 100)}{report.report.length > 100 ? "..." : ""}</p>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="mb-10">
         <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950/60">
           <div className="flex flex-col gap-4 border-b border-zinc-200 bg-white px-5 py-5 dark:border-zinc-800 dark:bg-zinc-950/70 sm:flex-row sm:items-center sm:justify-between">
@@ -1783,6 +1846,23 @@ export function AdminDashboard() {
                 <Trash2 className="w-4 h-4" />
                 {deletingUserId === deleteTargetUser.id ? "Deleting..." : "Delete User"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedEventReport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
+              <div>
+                <h2 className="text-lg font-black text-zinc-900 dark:text-zinc-100">{selectedEventReport.request?.eventName ?? selectedEventReport.request?.purpose ?? "Post-Event Report"}</h2>
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{selectedEventReport.request?.venue?.name ?? "Venue"} • Submitted {new Date(selectedEventReport.submittedAt).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}</p>
+              </div>
+              <button type="button" onClick={() => setSelectedEventReport(null)} className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="p-6">
+              <div className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm leading-relaxed text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-300">{selectedEventReport.report}</div>
             </div>
           </div>
         </div>

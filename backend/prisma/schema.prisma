@@ -51,6 +51,7 @@ model User {
   approvalActions ApprovalAction[]
   auditLogs       AuditLog[]
   notifications   Notification[]
+  eventReports    EventReport[]
 }
 
 model Ministry {
@@ -103,6 +104,7 @@ model VenueRequest {
   approvalActions ApprovalAction[]
   conflicts       SchedulingConflict[]
   notifications   Notification[]
+  eventReport     EventReport?
 
   @@index([status])
   @@index([requesterId])
@@ -158,6 +160,17 @@ model Notification {
   @@index([userId, createdAt])
   @@index([userId, readAt])
   @@index([requestId])
+}
+
+model EventReport {
+  id           String       @id @default(uuid())
+  requestId    String       @unique
+  request      VenueRequest @relation(fields: [requestId], references: [id])
+  reportedById String
+  reportedBy   User         @relation(fields: [reportedById], references: [id])
+  report       String       @db.Text
+  submittedAt  DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 }
 
 model VenueMinistry {

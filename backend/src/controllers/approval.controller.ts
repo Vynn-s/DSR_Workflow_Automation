@@ -143,6 +143,9 @@ export async function getApprovalQueue(req: Request, res: Response, next: NextFu
 				vr.status,
 				vr."createdAt",
 				vr."updatedAt",
+				er.id AS report_id,
+				er.report AS report_text,
+				er."submittedAt" AS report_submitted_at,
 				r.name AS requester_name,
 				r.email AS requester_email,
 				v.name AS venue_name,
@@ -151,6 +154,7 @@ export async function getApprovalQueue(req: Request, res: Response, next: NextFu
 			 INNER JOIN "User" r ON r.id = vr."requesterId"
 			 INNER JOIN "Venue" v ON v.id = vr."venueId"
 			 INNER JOIN "Ministry" m ON m.id = vr."ministryId"
+			 LEFT JOIN "EventReport" er ON er."requestId" = vr.id
 			 WHERE vr.status = $1
 			 ORDER BY vr."createdAt" ASC
 			 LIMIT $2 OFFSET $3`,
@@ -214,6 +218,12 @@ export async function getApprovalQueue(req: Request, res: Response, next: NextFu
 				name: request.ministry_name,
 			},
 			approvalActions: approvalActionsByRequestId.get(request.id) ?? [],
+			eventReport: request.report_id ? {
+				id: request.report_id,
+				requestId: request.id,
+				report: request.report_text,
+				submittedAt: request.report_submitted_at,
+			} : null,
 		}));
 
 		return res.json({
@@ -557,6 +567,9 @@ export async function getArchive(req: Request, res: Response, next: NextFunction
 				vr.status,
 				vr."createdAt",
 				vr."updatedAt",
+				er.id AS report_id,
+				er.report AS report_text,
+				er."submittedAt" AS report_submitted_at,
 				r.name AS requester_name,
 				r.email AS requester_email,
 				v.name AS venue_name,
@@ -565,6 +578,7 @@ export async function getArchive(req: Request, res: Response, next: NextFunction
 			 INNER JOIN "User" r ON r.id = vr."requesterId"
 			 INNER JOIN "Venue" v ON v.id = vr."venueId"
 			 INNER JOIN "Ministry" m ON m.id = vr."ministryId"
+			 LEFT JOIN "EventReport" er ON er."requestId" = vr.id
 			 WHERE vr.status IN ('APPROVED', 'REJECTED', 'REVISION_REQUESTED')
 			 ORDER BY vr."updatedAt" DESC
 			 LIMIT $1 OFFSET $2`,
@@ -625,6 +639,12 @@ export async function getArchive(req: Request, res: Response, next: NextFunction
 				name: request.ministry_name,
 			},
 			approvalActions: approvalActionsByRequestId.get(request.id) ?? [],
+			eventReport: request.report_id ? {
+				id: request.report_id,
+				requestId: request.id,
+				report: request.report_text,
+				submittedAt: request.report_submitted_at,
+			} : null,
 		}));
 
 		return res.json({

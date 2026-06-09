@@ -10,6 +10,7 @@ const { adminRoutes } = require("./admin.routes");
 const { dssRoutes } = require("./dss.routes");
 const { auditRoutes } = require("./audit.routes");
 const { notificationRoutes } = require("./notification.routes");
+const { eventReportRoutes } = require("./eventReport.routes");
 const routes = Router();
 exports.routes = routes;
 routes.use("/auth", authRoutes);
@@ -20,5 +21,6 @@ routes.use("/admin", adminRoutes);
 routes.use("/dss", dssRoutes);
 routes.use("/audit", auditRoutes);
 routes.use("/notifications", notificationRoutes);
+routes.use("/event-reports", eventReportRoutes);
 exports.default = routes;
 //# sourceMappingURL=index.js.map

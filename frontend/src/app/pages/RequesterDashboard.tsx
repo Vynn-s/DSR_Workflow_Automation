@@ -721,11 +721,11 @@ export function RequesterDashboard() {
             )}
 
             <div className="mt-5 flex items-center justify-end gap-3">
-              <button type="button" onClick={closeReportModal} className="rounded-xl border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800">Cancel</button>
+              <button type="button" onClick={closeReportModal} className="rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 dark:border-zinc-700 dark:bg-transparent dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100">Cancel</button>
               {reportMode === "view" && reportRequest.eventReport && Date.now() - new Date(reportRequest.eventReport.submittedAt).getTime() <= 24 * 60 * 60 * 1000 ? (
-                <button type="button" onClick={() => setReportMode("edit")} className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950">Edit Report</button>
+                <button type="button" onClick={() => setReportMode("edit")} className="rounded-xl bg-[#00A859] px-4 py-2 text-sm font-semibold text-white hover:bg-[#009950] hover:text-white dark:hover:bg-[#00bf65] dark:hover:text-white">Edit Report</button>
               ) : reportMode !== "view" ? (
-                <button type="button" onClick={saveEventReport} disabled={isSubmittingReport || reportText.trim().length < 10} className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60">{isSubmittingReport ? "Submitting..." : "Submit Report"}</button>
+                <button type="button" onClick={saveEventReport} disabled={isSubmittingReport || reportText.trim().length < 10} className="rounded-xl bg-[#00A859] px-4 py-2 text-sm font-semibold text-white hover:bg-[#009950] hover:text-white disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-[#00bf65] dark:hover:text-white">{isSubmittingReport ? "Submitting..." : "Submit Report"}</button>
               ) : null}
             </div>
           </div>

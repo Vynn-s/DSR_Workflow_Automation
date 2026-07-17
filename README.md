@@ -269,8 +269,8 @@ The system is framed as a **Transaction Processing System (TPS)** with embedded 
 | Name | Role |
 |---|---|
 | **Jervin Andoy** | Full-stack Developer, Cloud Integration (AWS) |
-| **Nepthali Sollano** | Developer |
-| **Francis Elixer Tupaz** | Developer |
+| **Nepthali Sollano** | Documentation & QA |
+| **Francis Elixer Tupaz** | Documentation |
 
 **Institution:** Mapúa Malayan Colleges Mindanao — College of Computer and Information Science  
 **Pilot site:** San Pedro Cathedral, Davao City, Philippines
